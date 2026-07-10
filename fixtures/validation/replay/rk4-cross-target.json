@@ -46,9 +46,16 @@
         "os": "linux",
         "optimize": "ReleaseSafe"
       },
-      "status": "pending",
-      "fingerprint_hex": "",
-      "fields": []
+      "status": "pinned",
+      "fingerprint_hex": "a21e3ef8f68b3cbfc67c5f2aeba2dd6deb9d468316b1e61e4962c60e08fa8722",
+      "fields": [
+        1.25,
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ]
     },
     {
       "id": "constant-acceleration-aarch64-macos-ReleaseSafe",
@@ -57,9 +64,16 @@
         "os": "macos",
         "optimize": "ReleaseSafe"
       },
-      "status": "pending",
-      "fingerprint_hex": "",
-      "fields": []
+      "status": "pinned",
+      "fingerprint_hex": "a21e3ef8f68b3cbfc67c5f2aeba2dd6deb9d468316b1e61e4962c60e08fa8722",
+      "fields": [
+        1.25,
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ]
     },
     {
       "id": "constant-acceleration-x86_64-macos-ReleaseSafe",
@@ -68,9 +82,16 @@
         "os": "macos",
         "optimize": "ReleaseSafe"
       },
-      "status": "pending",
-      "fingerprint_hex": "",
-      "fields": []
+      "status": "pinned",
+      "fingerprint_hex": "a21e3ef8f68b3cbfc67c5f2aeba2dd6deb9d468316b1e61e4962c60e08fa8722",
+      "fields": [
+        1.25,
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ]
     }
   ]
 }

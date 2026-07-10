@@ -52,6 +52,53 @@
       "items": { "type": "string", "minLength": 1, "maxLength": 512 }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "passed" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "comparisons": {
+            "not": {
+              "contains": {
+                "type": "object",
+                "properties": { "status": { "const": "failed" } },
+                "required": ["status"]
+              }
+            }
+          },
+          "evidence": {
+            "not": {
+              "contains": {
+                "type": "object",
+                "properties": { "status": { "const": "failed" } },
+                "required": ["status"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "incomplete" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "contains": {
+              "type": "object",
+              "properties": { "status": { "const": "missing" } },
+              "required": ["status"]
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "evidenceDimension": {
       "enum": ["analytical", "unit_test", "cross_implementation", "public_benchmark", "experimental", "hardware_in_loop", "flight", "certification"]

@@ -18,8 +18,6 @@ pub fn main(init: std.process.Init) !u8 {
     var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
-    try writer.writeAll("{\"schema\":\"strip.replay-baseline.v0\",");
-    try strip.replay.formatReplayCaseJson(case_id, target, fields, writer);
-    try writer.writeAll("}\n");
+    try strip.replay.formatReplayBaselineJson(case_id, target, fields, writer);
     return 0;
 }

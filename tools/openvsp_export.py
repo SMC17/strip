@@ -141,22 +141,26 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
 
 
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] != "export":
-        return 2
-    line = sys.stdin.readline()
-    if not line:
-        return 2
-    request = json.loads(line)
-    if request.get("schema") != PROTOCOL:
-        return 2
-    openvsp_cmd = os.environ.get("OPENSP_CMD", "")
-    if openvsp_cmd and os.path.isfile(openvsp_cmd) and os.access(openvsp_cmd, os.X_OK):
-        response = openvsp_export(request, openvsp_cmd)
-    else:
-        response = analytic_export(request)
-    sys.stdout.write(json.dumps(response) + "\n")
-    sys.stdout.flush()
-    return 0
+    try:
+        if len(sys.argv) < 2 or sys.argv[1] != "export":
+            return 2
+        line = sys.stdin.readline()
+        if not line:
+            return 2
+        request = json.loads(line)
+        if request.get("schema") != PROTOCOL:
+            return 2
+        openvsp_cmd = os.environ.get("OPENSP_CMD", "")
+        if openvsp_cmd and os.path.isfile(openvsp_cmd) and os.access(openvsp_cmd, os.X_OK):
+            response = openvsp_export(request, openvsp_cmd)
+        else:
+            response = analytic_export(request)
+        sys.stdout.write(json.dumps(response) + "\n")
+        sys.stdout.flush()
+        return 0
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

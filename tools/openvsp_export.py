@@ -8,6 +8,7 @@ only when OPENSP_CMD resolves to an executable.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -56,49 +57,86 @@ def write_ascii_stl(triangles: list[tuple[tuple[float, float, float], ...]], pat
         handle.write("endsolid reference-box-wing\n")
 
 
+def triangle_area(a, b, c) -> float:
+    ab = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+    ac = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+    cx = ab[1] * ac[2] - ab[2] * ac[1]
+    cy = ab[2] * ac[0] - ab[0] * ac[2]
+    cz = ab[0] * ac[1] - ab[1] * ac[0]
+    return 0.5 * math.sqrt(cx * cx + cy * cy + cz * cz)
+
+
+def parse_ascii_stl(path: str) -> tuple[list[tuple[tuple[float, float, float], ...]], float, str]:
+    triangles: list[tuple[tuple[float, float, float], ...]] = []
+    current: list[tuple[float, float, float]] = []
+    canonical_parts: list[str] = []
+    with open(path, encoding="ascii", errors="ignore") as handle:
+        for raw in handle:
+            line = raw.strip()
+            if line.startswith("vertex"):
+                parts = line.split()
+                if len(parts) >= 4:
+                    vertex = (float(parts[1]), float(parts[2]), float(parts[3]))
+                    current.append(vertex)
+                    canonical_parts.append(f"{vertex[0]:.9f}|{vertex[1]:.9f}|{vertex[2]:.9f}|")
+                    if len(current) == 3:
+                        triangles.append((current[0], current[1], current[2]))
+                        current = []
+    area = sum(triangle_area(*tri) for tri in triangles)
+    digest = hashlib.sha256("".join(canonical_parts).encode("ascii")).hexdigest()
+    return triangles, area, digest
+
+
+def mesh_metrics(path: str) -> dict:
+    triangles, area, digest = parse_ascii_stl(path)
+    return {
+        "triangle_count": len(triangles),
+        "surface_area_m2": area,
+        "mesh_digest": f"sha256:{digest}",
+    }
+
+
 def analytic_export(request: dict) -> dict:
     triangles = box_wing_triangles()
     out_path = request.get("output_path", "/tmp/strip-openvsp-export.stl")
     write_ascii_stl(triangles, out_path)
-    area = 0.0
-    for a, b, c in triangles:
-        ab = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
-        ac = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
-        cx = ab[1] * ac[2] - ab[2] * ac[1]
-        cy = ab[2] * ac[0] - ab[0] * ac[2]
-        cz = ab[0] * ac[1] - ab[1] * ac[0]
-        area += 0.5 * math.sqrt(cx * cx + cy * cy + cz * cz)
+    metrics = mesh_metrics(out_path)
     return {
         "schema": PROTOCOL,
         "backend": "analytic_stl_exporter",
-        "triangle_count": len(triangles),
-        "surface_area_m2": area,
+        "triangle_count": metrics["triangle_count"],
+        "surface_area_m2": metrics["surface_area_m2"],
+        "mesh_digest": metrics["mesh_digest"],
         "output_path": out_path,
     }
 
 
 def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
     out_path = request.get("output_path", "/tmp/strip-openvsp-export.stl")
-    script = request.get("vsp_script", "")
-    if script:
-        proc = subprocess.run(
-            [openvsp_cmd, "-script", script],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(proc.stderr or "OPENSP_CMD script failed")
-    elif not os.path.isfile(out_path):
-        raise RuntimeError("OPENSP_CMD set but no vsp_script or existing output_path")
-    triangles = box_wing_triangles()
-    area = 27.0
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(script_dir, "openvsp_box_wing.py")
+    env = os.environ.copy()
+    env["STRIP_OPENSP_OUTPUT"] = out_path
+    proc = subprocess.run(
+        [openvsp_cmd, "-script", script_path],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr or proc.stdout or "OPENSP_CMD script failed")
+    if not os.path.isfile(out_path):
+        raise RuntimeError("OPENSP_CMD export did not produce STL output")
+    metrics = mesh_metrics(out_path)
     return {
         "schema": PROTOCOL,
         "backend": "openvsp_cmd",
-        "triangle_count": len(triangles),
-        "surface_area_m2": area,
+        "triangle_count": metrics["triangle_count"],
+        "surface_area_m2": metrics["surface_area_m2"],
+        "mesh_digest": metrics["mesh_digest"],
         "output_path": out_path,
+        "export_runtime_version": os.environ.get("OPENSP_RUNTIME_VERSION", "unknown"),
     }
 
 

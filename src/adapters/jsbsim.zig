@@ -448,6 +448,200 @@ pub fn evaluateFixture(
     return validation.compare(fixture.envelope, fixture.acceptance, observed_samples);
 }
 
+pub const CoefficientProbe = struct {
+    alpha_deg: f64,
+    beta_deg: f64,
+    vt_fps: f64,
+    altitude_ft: f64,
+    coefficients: @import("../fixed_wing/coefficients.zig").Six,
+};
+
+pub const CoefficientComparator = struct {
+    schema: []const u8,
+    id: []const u8,
+    source: []const u8,
+    model: []const u8,
+    not_aircraft_data: bool,
+    acceptance: types.Acceptance,
+    probes: []const CoefficientProbe,
+};
+
+pub const CoefficientResult = struct {
+    model: []const u8,
+    alpha_rad: f64,
+    beta_rad: f64,
+    mach: f64,
+    cx: f64,
+    cy: f64,
+    cz: f64,
+    cl: f64,
+    cm: f64,
+    cn: f64,
+    backend: BackendKind,
+};
+
+pub const CoefficientResponse = struct {
+    schema: []const u8,
+    backend: []const u8,
+    query: []const u8,
+    model: []const u8,
+    alpha_rad: f64,
+    beta_rad: f64,
+    mach: f64,
+    cx: f64,
+    cy: f64,
+    cz: f64,
+    cl: f64,
+    cm: f64,
+    cn: f64,
+};
+
+pub fn parseCoefficientComparator(
+    allocator: std.mem.Allocator,
+    bytes: []const u8,
+) !std.json.Parsed(CoefficientComparator) {
+    if (bytes.len > 256 * 1024) return error.InputTooLarge;
+    var parsed = try std.json.parseFromSlice(CoefficientComparator, allocator, bytes, .{
+        .ignore_unknown_fields = true,
+        .max_value_len = 4096,
+    });
+    errdefer parsed.deinit();
+    if (!std.mem.eql(u8, parsed.value.schema, "strip.jsbsim-coefficient-comparator.v1"))
+        return error.UnsupportedSchema;
+    if (parsed.value.probes.len == 0 or parsed.value.probes.len > 64) return error.InvalidProbeCount;
+    return parsed;
+}
+
+pub fn queryFixedWingCoefficientsSubprocess(
+    io: std.Io,
+    gpa: std.mem.Allocator,
+    backend: Backend,
+    probe: CoefficientProbe,
+    model: []const u8,
+) !CoefficientResult {
+    if (backend.kind == .unavailable) return error.BackendUnavailable;
+
+    var request_buffer: [512]u8 = undefined;
+    const request_json = try std.fmt.bufPrint(&request_buffer, "{{\"schema\":\"{s}\",\"query\":\"fixed_wing_coefficients\",\"model\":\"{s}\",\"alpha_deg\":{d},\"beta_deg\":{d},\"vt_fps\":{d},\"altitude_ft\":{d}}}", .{
+        protocol_schema,
+        model,
+        probe.alpha_deg,
+        probe.beta_deg,
+        probe.vt_fps,
+        probe.altitude_ft,
+    });
+
+    var child = try std.process.spawn(io, .{
+        .argv = &.{ backend.command, "coefficients" },
+        .stdin = .pipe,
+        .stdout = .pipe,
+        .stderr = .ignore,
+    });
+
+    const stdin = child.stdin orelse return error.MissingPipe;
+    var stdin_writer_buffer: [512]u8 = undefined;
+    var stdin_writer = stdin.writer(io, &stdin_writer_buffer);
+    try stdin_writer.interface.writeAll(request_json);
+    try stdin_writer.interface.writeAll("\n");
+    try stdin_writer.interface.flush();
+
+    const stdout = child.stdout orelse return error.MissingPipe;
+    var stdout_reader_buffer: [4096]u8 = undefined;
+    var stdout_reader = stdout.reader(io, &stdout_reader_buffer);
+    var response_line: []const u8 = "";
+    while (true) {
+        const line = try stdout_reader.interface.takeDelimiterInclusive('\n');
+        const trimmed = std.mem.trim(u8, line, " \t\r\n");
+        if (trimmed.len > 0 and trimmed[0] == '{') {
+            response_line = trimmed;
+            break;
+        }
+    }
+    const term = try child.wait(io);
+    switch (term) {
+        .exited => |code| if (code != 0) return error.SubprocessFailed,
+        else => return error.SubprocessFailed,
+    }
+
+    var parsed = try std.json.parseFromSlice(CoefficientResponse, gpa, response_line, .{
+        .ignore_unknown_fields = true,
+        .max_value_len = 256,
+    });
+    defer parsed.deinit();
+    if (!std.mem.eql(u8, parsed.value.schema, protocol_schema)) return error.InvalidResponseSchema;
+    const resolved_backend = parseBackendTag(parsed.value.backend);
+    return .{
+        .model = parsed.value.model,
+        .alpha_rad = parsed.value.alpha_rad,
+        .beta_rad = parsed.value.beta_rad,
+        .mach = parsed.value.mach,
+        .cx = parsed.value.cx,
+        .cy = parsed.value.cy,
+        .cz = parsed.value.cz,
+        .cl = parsed.value.cl,
+        .cm = parsed.value.cm,
+        .cn = parsed.value.cn,
+        .backend = if (resolved_backend == .unavailable) backend.kind else resolved_backend,
+    };
+}
+
+pub fn nativeCoefficientsAtProbe(
+    model: @import("../fixed_wing/coefficients.zig").Model,
+    probe: CoefficientProbe,
+) !@import("../fixed_wing/coefficients.zig").Six {
+    const alpha_rad = probe.alpha_deg * std.math.pi / 180.0;
+    const beta_rad = probe.beta_deg * std.math.pi / 180.0;
+    const speed_mps = probe.vt_fps * 0.3048;
+    const speed_of_sound_mps = 340.0;
+    const mach = speed_mps / speed_of_sound_mps;
+    return model.grid.evaluate(alpha_rad, beta_rad, mach);
+}
+
+pub fn compareNativeVsSubprocess(
+    native: @import("../fixed_wing/coefficients.zig").Six,
+    observed: CoefficientResult,
+    acceptance: types.Acceptance,
+    probe_index: usize,
+) !validation.Summary {
+    const validity: envelope.Envelope = .{ .axes = &.{
+        .{ .variable = "probe", .unit = "1", .minimum = 0, .maximum = 64 },
+    } };
+    const coord = [_]f64{@as(f64, @floatFromInt(probe_index))};
+    const samples = [_]validation.Sample{
+        .{ .coordinates = &coord, .variable = "cx", .reference = native.cx, .observed = observed.cx },
+        .{ .coordinates = &coord, .variable = "cy", .reference = native.cy, .observed = observed.cy },
+        .{ .coordinates = &coord, .variable = "cz", .reference = native.cz, .observed = observed.cz },
+        .{ .coordinates = &coord, .variable = "cl", .reference = native.cl, .observed = observed.cl },
+        .{ .coordinates = &coord, .variable = "cm", .reference = native.cm, .observed = observed.cm },
+        .{ .coordinates = &coord, .variable = "cn", .reference = native.cn, .observed = observed.cn },
+    };
+    return validation.compare(validity, acceptance, &samples);
+}
+
+pub fn evaluateCoefficientGate(
+    io: std.Io,
+    gpa: std.mem.Allocator,
+    backend: Backend,
+    comparator: CoefficientComparator,
+    native_model: @import("../fixed_wing/coefficients.zig").Model,
+) !struct { summary: validation.Summary, acceptance: types.Acceptance, passed: bool } {
+    const acceptance = acceptanceForBackend(backend.kind);
+    var aggregate = validation.Summary{};
+    for (comparator.probes, 0..) |probe, index| {
+        const subprocess = try queryFixedWingCoefficientsSubprocess(io, gpa, backend, probe, comparator.model);
+        const native = try native_model.grid.evaluate(subprocess.alpha_rad, subprocess.beta_rad, subprocess.mach);
+        const summary = try compareNativeVsSubprocess(native, subprocess, acceptance, index);
+        aggregate.len += summary.len;
+        aggregate.passed += summary.passed;
+        aggregate.failed += summary.failed;
+    }
+    return .{
+        .summary = aggregate,
+        .acceptance = acceptance,
+        .passed = aggregate.allPassed(),
+    };
+}
+
 test "published JSBSim comparator fixture parses and fails when perturbed" {
     const bytes = try std.Io.Dir.cwd().readFileAlloc(
         std.testing.io,
@@ -498,6 +692,38 @@ test "native weather atmosphere matches resolved JSBSim subprocess" {
         subprocess,
     );
     try std.testing.expect(evaluation.summary.allPassed());
+}
+
+test "shared linear coefficients match JSBSim subprocess when backend available" {
+    const shim_path = "zig-out/bin/strip-jsbsim-shim";
+    const backend = try resolveBackend(
+        std.testing.io,
+        std.testing.allocator,
+        shim_path,
+        null,
+        "tools/jsbsim_coefficients.py",
+        "tools/jsbsim_cmd.sh",
+    );
+    if (backend.kind == .unavailable) return error.SkipZigTest;
+
+    const bytes = try std.Io.Dir.cwd().readFileAlloc(
+        std.testing.io,
+        "fixtures/validation/jsbsim/coefficient-comparator.json",
+        std.testing.allocator,
+        .limited(256 * 1024),
+    );
+    defer std.testing.allocator.free(bytes);
+    var comparator = try parseCoefficientComparator(std.testing.allocator, bytes);
+    defer comparator.deinit();
+    const native_model = @import("../fixed_wing/synthetic_fixture.zig").syntheticLinearModel();
+    const evaluation = try evaluateCoefficientGate(
+        std.testing.io,
+        std.testing.allocator,
+        backend,
+        comparator.value,
+        native_model,
+    );
+    try std.testing.expect(evaluation.passed);
 }
 
 test "JSBSim fixed-wing integrate matches pinned fixture when backend available" {

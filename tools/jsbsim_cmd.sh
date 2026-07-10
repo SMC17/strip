@@ -20,5 +20,10 @@ case "${SUBCMD}" in
       exec "${STRIP_JSBSIM_SHIM}" fixed-wing
     fi
     ;;
+  coefficients)
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import jsbsim' >/dev/null 2>&1; then
+      exec python3 "${SCRIPT_DIR}/jsbsim_coefficients.py" coefficients
+    fi
+    ;;
 esac
 exit 127

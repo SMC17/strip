@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<fdm_config name="linear-aero" version="2.0" release="BETA">
+  <fileheader>
+    <author>Strip validation</author>
+    <description>Shared linear body-axis coefficient model for cross-implementation gates.</description>
+  </fileheader>
+  <metrics>
+    <wingarea unit="M2">1.0</wingarea>
+    <wingspan unit="M">2.0</wingspan>
+    <chord unit="M">0.5</chord>
+    <htailarea unit="M2">0.0</htailarea>
+    <vtailarea unit="M2">0.0</vtailarea>
+  </metrics>
+  <mass_balance>
+    <ixx unit="SLUG*FT2">1.0</ixx>
+    <iyy unit="SLUG*FT2">1.0</iyy>
+    <izz unit="SLUG*FT2">1.0</izz>
+    <emptywt unit="LBS">100.0</emptywt>
+    <location name="CG" unit="IN">
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </location>
+  </mass_balance>
+  <ground_reactions/>
+  <propulsion/>
+  <flight_control name="FCS"/>
+  <aerodynamics>
+    <function name="aero/strip-cx">
+      <value>-0.04</value>
+    </function>
+    <function name="aero/strip-cy">
+      <product>
+        <value>-1.0</value>
+        <property>aero/beta-rad</property>
+      </product>
+    </function>
+    <function name="aero/strip-cz">
+      <product>
+        <value>-4.0</value>
+        <property>aero/alpha-rad</property>
+      </product>
+    </function>
+    <function name="aero/strip-cl">
+      <value>0.0</value>
+    </function>
+    <function name="aero/strip-cm">
+      <product>
+        <value>-0.5</value>
+        <property>aero/alpha-rad</property>
+      </product>
+    </function>
+    <function name="aero/strip-cn">
+      <value>0.0</value>
+    </function>
+  </aerodynamics>
+</fdm_config>

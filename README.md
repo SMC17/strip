@@ -22,7 +22,7 @@ identifies its model, units, intended use, validity envelope, and proof.
 - typed AeroIR, agent, frontier-research, adapter, twin, and public-safe
   resilience contracts
 - CLI surfaces for atmosphere, UAS range, assurance, platform inventory,
-  validation coverage, and coupled fidelity demo
+  validation coverage, coupled fidelity demo, and proof gates
 
 ```sh
 zig build verify
@@ -33,6 +33,7 @@ zig build
 ./zig-out/bin/strip-platform
 ./zig-out/bin/strip-validation
 ./zig-out/bin/strip-fidelity
+./zig-out/bin/strip-proof-gates
 ```
 
 Valid intended-use values are `education`, `research`,

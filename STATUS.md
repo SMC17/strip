@@ -29,8 +29,8 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-fidelity
 ```
 
-Latest local gate: 186 unit tests plus UAS, assurance, platform, validation, and
-fidelity integration executables.
+Latest local gate: 199 unit tests plus UAS, assurance, platform, validation, fidelity,
+and proof-gates integration executables.
 
 ## Scaffold-level contracts
 
@@ -47,7 +47,10 @@ validated frontier model is claimed.
 
 - public license
 - independent atmosphere and dynamics cross-implementation comparisons
-- linked JSBSim/OpenVSP adapter conformance runs
+- JSBSim out-of-process comparator (`strip-jsbsim-shim` or `JSBSIM_CMD`) with published US76 fixtures
+- OpenVSP pinned conformance manifest (v3.42.0) with geometry digest verification
+- cross-target replay fingerprints with per-target divergence measurement
+- uncertainty propagation (Gaussian/interval composition, linear and affine chains)
 - full scenario-schema ingestion and canonical evidence-package export
 - uncertainty propagation rather than status-only representation
 - cross-target replay measurements

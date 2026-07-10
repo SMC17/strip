@@ -20,6 +20,7 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip atmosphere 1000 preliminary_design
 ./zig-out/bin/strip-validation
 ./zig-out/bin/strip-fidelity
+./zig-out/bin/strip-proof-gates
 ```
 
 Checks currently cover:
@@ -38,6 +39,10 @@ Checks currently cover:
 - validation schemas, 18-source manifest, coverage matrix, and perturbed comparator failure
 - flight-test telemetry, regression, residuals, maneuver cards, and sealed evidence manifests
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) with explicit unavailability
+- JSBSim out-of-process comparator against development shim or `JSBSIM_CMD`
+- OpenVSP pinned geometry digest conformance (no linked runtime)
+- cross-target RK4 replay fingerprints and floating-point divergence reporting
+- uncertainty propagation beyond status-only representation
 - deterministic UAS wind/link-loss integration and assurance weakest-link behavior
 
 Primary grounding sources are cataloged in `sources/primary-sources.json` with

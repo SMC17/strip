@@ -1,6 +1,9 @@
 //! External-adapter contracts. Implementations must declare availability.
 const std = @import("std");
 
+pub const jsbsim = @import("jsbsim.zig");
+pub const openvsp = @import("openvsp.zig");
+
 pub const Availability = union(enum) {
     available: struct { implementation: []const u8, version: []const u8 },
     unavailable: []const u8,
@@ -33,6 +36,11 @@ pub const public_catalog = [_]Adapter{
     .{ .name = "MAVLink", .availability = .{ .unavailable = "contract only; transport not linked" } },
     .{ .name = "public-weather-airspace", .availability = .{ .unavailable = "contract only; network access excluded from kernel" } },
 };
+
+test {
+    _ = jsbsim;
+    _ = openvsp;
+}
 
 test "unavailable scaffold fails explicitly" {
     const adapter: Adapter = .{

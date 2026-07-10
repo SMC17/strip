@@ -101,6 +101,33 @@ pub fn build(b: *std.Build) void {
     const run_fidelity_step = b.step("run-fidelity", "Run coupled fidelity integration fixture");
     run_fidelity_step.dependOn(&run_fidelity.step);
 
+    const jsbsim_shim = b.addExecutable(.{
+        .name = "strip-jsbsim-shim",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/jsbsim_shim.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    const jsbsim_install = b.addInstallArtifact(jsbsim_shim, .{});
+    b.getInstallStep().dependOn(&jsbsim_install.step);
+
+    const proof_cli = b.addExecutable(.{
+        .name = "strip-proof-gates",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/proof_gates.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(proof_cli);
+    const run_proof = b.addRunArtifact(proof_cli);
+    run_proof.step.dependOn(&jsbsim_install.step);
+    const run_proof_step = b.step("run-proof-gates", "Run JSBSim, OpenVSP, replay, and uncertainty proof gates");
+    run_proof_step.dependOn(&run_proof.step);
+
     const verify_step = b.step("verify", "Run tests and integration fixtures");
     verify_step.dependOn(test_step);
     verify_step.dependOn(&run_uas.step);
@@ -108,4 +135,5 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_platform.step);
     verify_step.dependOn(&run_validation.step);
     verify_step.dependOn(&run_fidelity.step);
+    verify_step.dependOn(&run_proof.step);
 }

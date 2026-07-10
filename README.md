@@ -34,7 +34,11 @@ zig build
 ./zig-out/bin/strip-validation
 ./zig-out/bin/strip-fidelity
 ./zig-out/bin/strip-proof-gates
+./zig-out/bin/strip-record-replay-baseline
 ```
+
+CI installs `jsbsim` via pip, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, and runs a
+multi-arch replay-baseline matrix on `ubuntu-24.04-arm` and `macos-latest`.
 
 Valid intended-use values are `education`, `research`,
 `preliminary_design`, and `simulation_training`.

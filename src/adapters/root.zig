@@ -3,6 +3,7 @@ const std = @import("std");
 
 pub const jsbsim = @import("jsbsim.zig");
 pub const openvsp = @import("openvsp.zig");
+pub const openvsp_tessellation = @import("openvsp_tessellation.zig");
 
 pub const Availability = union(enum) {
     available: struct { implementation: []const u8, version: []const u8 },
@@ -40,6 +41,7 @@ pub const public_catalog = [_]Adapter{
 test {
     _ = jsbsim;
     _ = openvsp;
+    _ = openvsp_tessellation;
 }
 
 test "unavailable scaffold fails explicitly" {

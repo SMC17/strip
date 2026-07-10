@@ -16,9 +16,16 @@ jobs:
         with:
           version: 0.16.0
       - name: Check formatting
-        run: zig fmt --check build.zig src apps
+        run: zig fmt --check build.zig src apps tools
+      - name: Install JSBSim Python runner
+        run: python -m pip install --disable-pip-version-check jsbsim
       - name: Run unit and integration gates
+        env:
+          JSBSIM_CMD: tools/jsbsim_cmd.sh
+          STRIP_JSBSIM_SHIM: ${{ github.workspace }}/zig-out/bin/strip-jsbsim-shim
         run: zig build verify
+      - name: Record replay baseline (x86_64 linux Debug)
+        run: ./zig-out/bin/strip-record-replay-baseline
       - name: Validate strict schema fixtures
         run: |
           python -m pip install --disable-pip-version-check jsonschema
@@ -44,3 +51,30 @@ jobs:
                   raise AssertionError(f"{invalid} unexpectedly passed")
               assert schema.get("additionalProperties") is False
           PY
+
+  replay-baseline-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            arch_label: aarch64-linux
+          - os: macos-latest
+            arch_label: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Install JSBSim Python runner
+        run: python3 -m pip install --disable-pip-version-check jsbsim
+      - name: Build and run proof gates (ReleaseSafe)
+        env:
+          JSBSIM_CMD: tools/jsbsim_cmd.sh
+          STRIP_JSBSIM_SHIM: ${{ github.workspace }}/zig-out/bin/strip-jsbsim-shim
+        run: |
+          zig build -Doptimize=ReleaseSafe
+          ./zig-out/bin/strip-proof-gates
+      - name: Record replay baseline for ${{ matrix.arch_label }}
+        run: ./zig-out/bin/strip-record-replay-baseline

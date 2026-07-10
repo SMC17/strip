@@ -21,7 +21,18 @@ pub fn main(init: std.process.Init) !u8 {
     };
     const digest = try artifact.digest();
 
-    var buffer: [4096]u8 = undefined;
+    var mesh = try strip.adapters.openvsp_tessellation.tessellateBoxWing(
+        init.gpa,
+        artifact,
+        4,
+        4,
+    );
+    defer init.gpa.free(mesh.triangles);
+    const mesh_digest = try mesh.digest();
+    const mesh_area = mesh.surfaceArea();
+    const mesh_count = mesh.triangleCount();
+
+    var buffer: [8192]u8 = undefined;
     var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
@@ -35,5 +46,10 @@ pub fn main(init: std.process.Init) !u8 {
     try writer.print("target_os={s}\n", .{@tagName(builtin.os.tag)});
     try writer.print("target_optimize={s}\n", .{@tagName(builtin.mode)});
     try writer.print("openvsp_digest=sha256:{s}\n", .{digest.hex});
+    try writer.print("tessellation_segments_span=4\n", .{});
+    try writer.print("tessellation_segments_chord=4\n", .{});
+    try writer.print("tessellation_triangle_count={d}\n", .{mesh_count});
+    try writer.print("tessellation_surface_area_m2={d:.12}\n", .{mesh_area});
+    try writer.print("tessellation_mesh_digest=sha256:{s}\n", .{mesh_digest.hex});
     return 0;
 }

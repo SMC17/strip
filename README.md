@@ -35,10 +35,13 @@ zig build
 ./zig-out/bin/strip-fidelity
 ./zig-out/bin/strip-proof-gates
 ./zig-out/bin/strip-record-replay-baseline
+./zig-out/bin/strip-promote-replay-baseline
 ```
 
-CI installs `jsbsim` via pip, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, and runs a
-multi-arch replay-baseline matrix on `ubuntu-24.04-arm` and `macos-latest`.
+CI installs `jsbsim==1.3.1`, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, runs proof-gates v2
+(atmosphere + F-16 fixed-wing + OpenVSP export + campaign calibration + flight evidence),
+and uploads replay baseline artifacts from `ubuntu-24.04-arm` and `macos-latest` matrix legs.
+Promote baselines with `tools/promote_replay_from_ci.sh`.
 
 Valid intended-use values are `education`, `research`,
 `preliminary_design`, and `simulation_training`.

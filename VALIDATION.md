@@ -39,10 +39,11 @@ Checks currently cover:
 - validation schemas, 18-source manifest, coverage matrix, and perturbed comparator failure
 - flight-test telemetry, regression, residuals, maneuver cards, and sealed evidence manifests
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) with explicit unavailability
-- JSBSim out-of-process comparator via `JSBSIM_CMD` (`tools/jsbsim_cmd.sh` + pip `jsbsim`) or development shim; evidence tier reported explicitly
-- OpenVSP pinned geometry digest conformance (v3.42.0) and analytic tessellation mesh digest/area/count
-- cross-target RK4 replay fingerprints with `pending` baselines for aarch64/linux and macOS CI matrix legs
-- uncertainty: analytic affine propagation, Monte Carlo calibration, and flight-data fusion with quality gates
+- JSBSim atmosphere + F-16 fixed-wing short-horizon integration via `JSBSIM_CMD` / pip `jsbsim`
+- OpenVSP digest, analytic tessellation, and `OPENSP_CMD`/analytic STL export conformance
+- cross-target RK4 replay fingerprints with `pending_count` and CI baseline promotion tooling
+- uncertainty: analytic affine, Monte Carlo calibration, flight-campaign holdout coverage, fusion
+- flight-qualification evidence framework (Gate 5): sealed manifest + split policy; never operational claims
 - deterministic UAS wind/link-loss integration and assurance weakest-link behavior
 
 Primary grounding sources are cataloged in `sources/primary-sources.json` with
@@ -61,11 +62,10 @@ otherwise stated; catalog presence is not model-validation evidence.
 
 ## Not measured
 
-- agreement against independent vehicle-dynamics implementations (JSBSim fixed-wing, OpenVSP CAD export)
-- numerical reproducibility across architectures (aarch64/macos replay baselines still pending)
-- linked external adapters or learned-model performance
-- operational, certification, accreditation, real-time, or hardware use
-- flight, HIL, or FAA Part 60 qualification
+- Strip-native vs JSBSim coefficient-level agreement (different vehicle models)
+- OpenVSP aerodynamic/structural suitability from mesh export alone
+- replay baselines on aarch64/macos until CI artifacts are promoted into the manifest
+- operational flight qualification, certification, HIL hardware, or FAA accreditation
 
 ## Error lens
 

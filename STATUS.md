@@ -32,31 +32,37 @@ zig build test -Doptimize=ReleaseSafe
 Latest local gate: 202 unit tests plus UAS, assurance, platform, validation, fidelity,
 and proof-gates integration executables.
 
-## Proof gates (v1)
+## Proof gates (v2)
 
 | Gate | Evidence tier | Honest limit |
 |------|---------------|--------------|
-| JSBSim | `cross_implementation` when `JSBSIM_CMD` resolves to `tools/jsbsim_cmd.sh` + pip `jsbsim`; `subprocess_shim` otherwise | Python weather-balloon host; not a fixed-wing vehicle cross-check |
-| OpenVSP digest | pinned geometry manifest v3.42.0 | Canonical description only; no linked OpenVSP runtime |
-| OpenVSP tessellation | analytic box-wing mesher | Mesh digest/area/count; not CAD export or CFD suitability |
-| Replay | pinned x86_64/linux Debug+ReleaseSafe; `pending` aarch64/linux and macOS | Multi-arch CI matrix records baselines; not cross-arch certification |
-| Uncertainty | analytic affine propagation + Monte Carlo calibration + flight-data fusion | Not operational calibration against flight-test campaigns |
+| JSBSim atmosphere | `cross_implementation` via pip `jsbsim` | US76-class atmosphere; weather-balloon host |
+| JSBSim fixed-wing | `cross_implementation` via F-16 short integration | JSBSim vehicle host; not Strip native aero tables |
+| OpenVSP digest | pinned geometry manifest v3.42.0 | Canonical description; no linked OpenVSP runtime required |
+| OpenVSP tessellation | analytic box-wing mesher | Mesh digest/area/count regression |
+| OpenVSP export | `OPENSP_CMD` or `analytic_stl_exporter` | STL export conformance; not CFD suitability |
+| Replay | pinned x86_64/linux; `pending_count` for aarch64/macos | Promote via `strip-promote-replay-baseline` + CI artifacts |
+| Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
+| Flight evidence (Gate 5) | `software_only` framework | Sealed manifest + split policy; `operational_qualification_claimed: false` |
 
 Proof gate runner:
 
 ```sh
 JSBSIM_CMD=tools/jsbsim_cmd.sh zig build run-proof-gates
-./zig-out/bin/strip-record-replay-baseline   # emit manifest case for current target
-zig build gen-proof-fixtures                 # regenerate pinned digests
+./zig-out/bin/strip-record-replay-baseline
+cat baseline.json | ./zig-out/bin/strip-promote-replay-baseline > fixtures/validation/replay/rk4-cross-target.json
+tools/promote_replay_from_ci.sh baseline.json
 ```
+
+Latest local gate: 208 unit tests plus integration executables and proof-gates v2.
 
 ## Next proof work
 
 - public license
-- pin aarch64/linux and macOS replay baselines from CI matrix output
-- wire `OPENSP_CMD` for subprocess CAD export conformance (beyond analytic mesher)
-- JSBSim fixed-wing vehicle model comparison (beyond atmosphere host)
-- full scenario-schema ingestion and canonical evidence-package export
+- promote aarch64/linux and macOS replay baselines from CI matrix artifacts
+- wire real `OPENSP_CMD` OpenVSP 3.42.0 CAD export when binary available in CI
+- JSBSim fixed-wing comparison against Strip native coefficient provider at matched conditions
+- ingest NASA TP-1538 coefficient tables and expand vehicle cross-check envelope
 
 ## Scaffold-level contracts
 

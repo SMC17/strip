@@ -253,6 +253,177 @@ pub fn compareAtmosphere(
     return validation.compare(validity, acceptance, &samples);
 }
 
+pub const FixedWingIntegrateQuery = struct {
+    model: []const u8 = "f16",
+    altitude_ft: f64 = 10000,
+    vt_fps: f64 = 800,
+    alpha_deg: f64 = 5,
+    theta_deg: f64 = 5,
+    steps: u32 = 50,
+};
+
+pub const FixedWingIntegrateResult = struct {
+    model: []const u8,
+    steps: u32,
+    altitude_m: f64,
+    vt_mps: f64,
+    alpha_deg: f64,
+    theta_deg: f64,
+    q_radps: f64,
+    ax_mps2: f64,
+    az_mps2: f64,
+    qdot_radps2: f64,
+    backend: BackendKind,
+};
+
+pub const FixedWingResponse = struct {
+    schema: []const u8,
+    backend: []const u8,
+    query: []const u8,
+    model: []const u8,
+    steps: u32,
+    altitude_m: f64,
+    vt_mps: f64,
+    alpha_deg: f64,
+    theta_deg: f64,
+    q_radps: f64,
+    ax_mps2: f64,
+    az_mps2: f64,
+    qdot_radps2: f64,
+};
+
+pub fn queryFixedWingIntegrateSubprocess(
+    io: std.Io,
+    gpa: std.mem.Allocator,
+    backend: Backend,
+    query: FixedWingIntegrateQuery,
+) !FixedWingIntegrateResult {
+    if (backend.kind == .unavailable) return error.BackendUnavailable;
+
+    var request_buffer: [512]u8 = undefined;
+    const request_json = try std.fmt.bufPrint(&request_buffer, "{{\"schema\":\"{s}\",\"query\":\"fixed_wing_integrate\",\"model\":\"{s}\",\"altitude_ft\":{d},\"vt_fps\":{d},\"alpha_deg\":{d},\"theta_deg\":{d},\"steps\":{d}}}", .{
+        protocol_schema,
+        query.model,
+        query.altitude_ft,
+        query.vt_fps,
+        query.alpha_deg,
+        query.theta_deg,
+        query.steps,
+    });
+
+    var child = try std.process.spawn(io, .{
+        .argv = &.{ backend.command, "fixed-wing" },
+        .stdin = .pipe,
+        .stdout = .pipe,
+        .stderr = .ignore,
+    });
+
+    const stdin = child.stdin orelse return error.MissingPipe;
+    var stdin_writer_buffer: [512]u8 = undefined;
+    var stdin_writer = stdin.writer(io, &stdin_writer_buffer);
+    try stdin_writer.interface.writeAll(request_json);
+    try stdin_writer.interface.writeAll("\n");
+    try stdin_writer.interface.flush();
+
+    const stdout = child.stdout orelse return error.MissingPipe;
+    var stdout_reader_buffer: [4096]u8 = undefined;
+    var stdout_reader = stdout.reader(io, &stdout_reader_buffer);
+    var response_line: []const u8 = "";
+    while (true) {
+        const line = try stdout_reader.interface.takeDelimiterInclusive('\n');
+        const trimmed = std.mem.trim(u8, line, " \t\r\n");
+        if (trimmed.len > 0 and trimmed[0] == '{') {
+            response_line = trimmed;
+            break;
+        }
+    }
+    const term = try child.wait(io);
+    switch (term) {
+        .exited => |code| if (code != 0) return error.SubprocessFailed,
+        else => return error.SubprocessFailed,
+    }
+
+    var parsed = try std.json.parseFromSlice(FixedWingResponse, gpa, response_line, .{
+        .ignore_unknown_fields = true,
+        .max_value_len = 256,
+    });
+    defer parsed.deinit();
+    if (!std.mem.eql(u8, parsed.value.schema, protocol_schema)) return error.InvalidResponseSchema;
+    const resolved_backend = parseBackendTag(parsed.value.backend);
+    return .{
+        .model = parsed.value.model,
+        .steps = parsed.value.steps,
+        .altitude_m = parsed.value.altitude_m,
+        .vt_mps = parsed.value.vt_mps,
+        .alpha_deg = parsed.value.alpha_deg,
+        .theta_deg = parsed.value.theta_deg,
+        .q_radps = parsed.value.q_radps,
+        .ax_mps2 = parsed.value.ax_mps2,
+        .az_mps2 = parsed.value.az_mps2,
+        .qdot_radps2 = parsed.value.qdot_radps2,
+        .backend = if (resolved_backend == .unavailable) backend.kind else resolved_backend,
+    };
+}
+
+pub fn compareFixedWingIntegrate(
+    reference: FixedWingIntegrateResult,
+    observed: FixedWingIntegrateResult,
+    acceptance: types.Acceptance,
+) !validation.Summary {
+    const validity: envelope.Envelope = .{ .axes = &.{
+        .{ .variable = "step", .unit = "1", .minimum = 0, .maximum = 100 },
+    } };
+    const coord = [_]f64{@as(f64, @floatFromInt(reference.steps))};
+    const samples = [_]validation.Sample{
+        .{ .coordinates = &coord, .variable = "altitude_m", .reference = reference.altitude_m, .observed = observed.altitude_m },
+        .{ .coordinates = &coord, .variable = "vt_mps", .reference = reference.vt_mps, .observed = observed.vt_mps },
+        .{ .coordinates = &coord, .variable = "alpha_deg", .reference = reference.alpha_deg, .observed = observed.alpha_deg },
+        .{ .coordinates = &coord, .variable = "theta_deg", .reference = reference.theta_deg, .observed = observed.theta_deg },
+        .{ .coordinates = &coord, .variable = "q_radps", .reference = reference.q_radps, .observed = observed.q_radps },
+        .{ .coordinates = &coord, .variable = "ax_mps2", .reference = reference.ax_mps2, .observed = observed.ax_mps2 },
+        .{ .coordinates = &coord, .variable = "az_mps2", .reference = reference.az_mps2, .observed = observed.az_mps2 },
+        .{ .coordinates = &coord, .variable = "qdot_radps2", .reference = reference.qdot_radps2, .observed = observed.qdot_radps2 },
+    };
+    return validation.compare(validity, acceptance, &samples);
+}
+
+pub fn evaluateFixedWingGate(
+    subprocess: FixedWingIntegrateResult,
+    fixture: Fixture,
+) !struct { summary: validation.Summary, acceptance: types.Acceptance } {
+    const acceptance = acceptanceForBackend(subprocess.backend);
+    const reference = try fixtureToFixedWingResult(fixture);
+    const summary = try compareFixedWingIntegrate(reference, subprocess, acceptance);
+    return .{ .summary = summary, .acceptance = acceptance };
+}
+
+fn fixtureToFixedWingResult(fixture: Fixture) !FixedWingIntegrateResult {
+    var result: FixedWingIntegrateResult = .{
+        .model = "f16",
+        .steps = 50,
+        .altitude_m = 0,
+        .vt_mps = 0,
+        .alpha_deg = 0,
+        .theta_deg = 0,
+        .q_radps = 0,
+        .ax_mps2 = 0,
+        .az_mps2 = 0,
+        .qdot_radps2 = 0,
+        .backend = .published_fixture,
+    };
+    for (fixture.samples) |sample| {
+        if (std.mem.eql(u8, sample.variable, "altitude_m")) result.altitude_m = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "vt_mps")) result.vt_mps = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "alpha_deg")) result.alpha_deg = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "theta_deg")) result.theta_deg = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "q_radps")) result.q_radps = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "ax_mps2")) result.ax_mps2 = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "az_mps2")) result.az_mps2 = sample.reference;
+        if (std.mem.eql(u8, sample.variable, "qdot_radps2")) result.qdot_radps2 = sample.reference;
+    }
+    return result;
+}
+
 pub fn parseFixture(allocator: std.mem.Allocator, bytes: []const u8) !std.json.Parsed(Fixture) {
     if (bytes.len > 256 * 1024) return error.InputTooLarge;
     var parsed = try std.json.parseFromSlice(Fixture, allocator, bytes, .{
@@ -326,5 +497,36 @@ test "native weather atmosphere matches resolved JSBSim subprocess" {
         },
         subprocess,
     );
+    try std.testing.expect(evaluation.summary.allPassed());
+}
+
+test "JSBSim fixed-wing integrate matches pinned fixture when backend available" {
+    const shim_path = "zig-out/bin/strip-jsbsim-shim";
+    const backend = try resolveBackend(
+        std.testing.io,
+        std.testing.allocator,
+        shim_path,
+        null,
+        "tools/jsbsim_fixed_wing.py",
+        "tools/jsbsim_cmd.sh",
+    );
+    if (backend.kind == .unavailable) return error.SkipZigTest;
+
+    const subprocess = try queryFixedWingIntegrateSubprocess(
+        std.testing.io,
+        std.testing.allocator,
+        backend,
+        .{},
+    );
+    const bytes = try std.Io.Dir.cwd().readFileAlloc(
+        std.testing.io,
+        "fixtures/validation/jsbsim/fixed-wing-integrate-comparator.json",
+        std.testing.allocator,
+        .limited(256 * 1024),
+    );
+    defer std.testing.allocator.free(bytes);
+    var fixture = try parseFixture(std.testing.allocator, bytes);
+    defer fixture.deinit();
+    const evaluation = try evaluateFixedWingGate(subprocess, fixture.value);
     try std.testing.expect(evaluation.summary.allPassed());
 }

@@ -1,5 +1,6 @@
 const std = @import("std");
 const strip = @import("strip");
+const json = strip.serialization.canonical_json;
 
 fn writeUsage(writer: *std.Io.Writer) !void {
     try writer.writeAll(
@@ -10,10 +11,32 @@ fn writeUsage(writer: *std.Io.Writer) !void {
 }
 
 fn writeInvalidInput(writer: *std.Io.Writer, intended_use: strip.evidence.IntendedUse) !void {
-    try writer.print(
-        "{{\"schema\":\"strip.result.atmosphere.v0\",\"context\":{{\"intended_use\":\"{s}\"}},\"validity\":{{\"status\":\"invalid_input\"}},\"result\":null}}\n",
-        .{@tagName(intended_use)},
-    );
+    var root = try json.Object.begin(writer);
+    try root.key("context");
+    var context = try json.Object.begin(writer);
+    try context.key("intended_use");
+    try json.writeString(writer, @tagName(intended_use));
+    try context.end();
+    try root.key("result");
+    try writer.writeAll("null");
+    try root.key("schema");
+    try json.writeString(writer, "strip.result.atmosphere.v0");
+    try root.key("validity");
+    var validity = try json.Object.begin(writer);
+    try validity.key("status");
+    try json.writeString(writer, "invalid_input");
+    try validity.end();
+    try root.end();
+    try writer.writeByte('\n');
+}
+
+fn writeQuantity(writer: *std.Io.Writer, unit: []const u8, value: f64) !void {
+    var quantity = try json.Object.begin(writer);
+    try quantity.key("unit");
+    try json.writeString(writer, unit);
+    try quantity.key("value");
+    try json.writeNumber(writer, value);
+    try quantity.end();
 }
 
 fn writeEvaluation(
@@ -22,35 +45,65 @@ fn writeEvaluation(
     intended_use: strip.evidence.IntendedUse,
 ) !void {
     const model = strip.atmosphere.manifest;
-    try writer.print(
-        "{{\"schema\":\"strip.result.atmosphere.v0\",\"context\":{{\"intended_use\":\"{s}\"}},\"input\":{{\"geopotential_altitude\":{{\"value\":{d},\"unit\":\"m\"}}}},\"model\":{{\"id\":\"{s}\",\"version\":\"{s}\",\"proof_level\":\"{s}\",\"source\":\"{s}\"}},\"validity\":{{\"status\":\"{s}\",\"envelope\":{{\"min\":{d},\"max\":{d},\"unit\":\"{s}\"}}}},\"result\":",
-        .{
-            @tagName(intended_use),
-            evaluation.altitude.meters,
-            model.id,
-            model.version,
-            @tagName(model.proof_level),
-            model.source,
-            @tagName(evaluation.validity),
-            model.valid_min,
-            model.valid_max,
-            model.valid_unit,
-        },
-    );
+    var root = try json.Object.begin(writer);
+    try root.key("context");
+    var context = try json.Object.begin(writer);
+    try context.key("intended_use");
+    try json.writeString(writer, @tagName(intended_use));
+    try context.end();
 
+    try root.key("input");
+    var input = try json.Object.begin(writer);
+    try input.key("geopotential_altitude");
+    try writeQuantity(writer, "m", evaluation.altitude.meters);
+    try input.end();
+
+    try root.key("model");
+    var model_json = try json.Object.begin(writer);
+    try model_json.key("id");
+    try json.writeString(writer, model.id);
+    try model_json.key("proof_level");
+    try json.writeString(writer, @tagName(model.proof_level));
+    try model_json.key("source");
+    try json.writeString(writer, model.source);
+    try model_json.key("version");
+    try json.writeString(writer, model.version);
+    try model_json.end();
+
+    try root.key("result");
     if (evaluation.state) |state| {
-        try writer.print(
-            "{{\"temperature\":{{\"value\":{d},\"unit\":\"K\"}},\"pressure\":{{\"value\":{d},\"unit\":\"Pa\"}},\"density\":{{\"value\":{d},\"unit\":\"kg/m^3\"}},\"speed_of_sound\":{{\"value\":{d},\"unit\":\"m/s\"}}}}}}\n",
-            .{
-                state.temperature.kelvin,
-                state.pressure.pascals,
-                state.density.kilograms_per_cubic_meter,
-                state.speed_of_sound.meters_per_second,
-            },
-        );
+        var result = try json.Object.begin(writer);
+        try result.key("density");
+        try writeQuantity(writer, "kg/m^3", state.density.kilograms_per_cubic_meter);
+        try result.key("pressure");
+        try writeQuantity(writer, "Pa", state.pressure.pascals);
+        try result.key("speed_of_sound");
+        try writeQuantity(writer, "m/s", state.speed_of_sound.meters_per_second);
+        try result.key("temperature");
+        try writeQuantity(writer, "K", state.temperature.kelvin);
+        try result.end();
     } else {
-        try writer.writeAll("null}\n");
+        try writer.writeAll("null");
     }
+
+    try root.key("schema");
+    try json.writeString(writer, "strip.result.atmosphere.v0");
+    try root.key("validity");
+    var validity = try json.Object.begin(writer);
+    try validity.key("envelope");
+    var envelope = try json.Object.begin(writer);
+    try envelope.key("max");
+    try json.writeNumber(writer, model.valid_max);
+    try envelope.key("min");
+    try json.writeNumber(writer, model.valid_min);
+    try envelope.key("unit");
+    try json.writeString(writer, model.valid_unit);
+    try envelope.end();
+    try validity.key("status");
+    try json.writeString(writer, @tagName(evaluation.validity));
+    try validity.end();
+    try root.end();
+    try writer.writeByte('\n');
 }
 
 pub fn main(init: std.process.Init) !u8 {

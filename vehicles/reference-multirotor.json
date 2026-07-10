@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "strip.reference.multirotor-x4",
+  "model_scope": "illustrative rigid quadrotor configuration for software tests; not identified against real hardware",
+  "frames": {
+    "body": "x-forward_y-right_z-down",
+    "local_world": "x-north_y-east_z-up"
+  },
+  "mass_properties": {
+    "mass_kg": 1.5,
+    "center_of_mass_body_m": [0.0, 0.0, 0.0],
+    "inertia_kg_m2": {
+      "xx": 0.029,
+      "yy": 0.029,
+      "zz": 0.052,
+      "xy": 0.0,
+      "xz": 0.0,
+      "yz": 0.0
+    }
+  },
+  "rotors": [
+    {
+      "id": "front_left",
+      "position_body_m": [0.18, -0.18, 0.0],
+      "rotation": "ccw"
+    },
+    {
+      "id": "front_right",
+      "position_body_m": [0.18, 0.18, 0.0],
+      "rotation": "cw"
+    },
+    {
+      "id": "rear_right",
+      "position_body_m": [-0.18, 0.18, 0.0],
+      "rotation": "ccw"
+    },
+    {
+      "id": "rear_left",
+      "position_body_m": [-0.18, -0.18, 0.0],
+      "rotation": "cw"
+    }
+  ],
+  "rotor_model": {
+    "command_fraction_minimum": 0.0,
+    "command_fraction_maximum": 1.0,
+    "maximum_thrust_per_rotor_n": 8.0,
+    "reaction_torque_per_thrust_m": 0.015,
+    "max_command_rate_per_s": 4.0,
+    "time_constant_s": 0.05
+  },
+  "sensors": {
+    "imu": {
+      "sample_period_s": 0.0025,
+      "accelerometer_range_mps2": 156.9064,
+      "gyroscope_range_radps": 34.906585,
+      "accelerometer_noise_std_mps2": 0.02,
+      "gyroscope_noise_std_radps": 0.001
+    },
+    "gnss": {
+      "update_period_s": 0.2,
+      "position_noise_std_m": 1.5,
+      "velocity_noise_std_mps": 0.08
+    }
+  },
+  "limitations": [
+    "rotor values are synthetic and intended only for bounded API and invariant tests",
+    "no rotor inflow, blade flapping, motor electrical dynamics, battery sag, ground effect, or aerodynamic interference",
+    "not suitable for flight planning, certification, control-law qualification, or hardware operation"
+  ]
+}

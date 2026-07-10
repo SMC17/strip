@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/result.schema.json",
+  "title": "Strip computation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "result_id", "model_digest", "scenario_digest", "context", "validity", "uncertainty", "result"],
+  "properties": {
+    "schema": { "const": "strip.result.v1" },
+    "result_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "model_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "scenario_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intended_use"],
+      "properties": {
+        "intended_use": { "enum": ["education", "research", "preliminary_design", "simulation_training"] },
+        "spatial_frame": { "type": ["string", "null"] },
+        "time_reference": { "type": ["string", "null"] }
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["valid", "outside_envelope", "invalid_input"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "uncertainty": { "$ref": "#/$defs/uncertainty" },
+    "result": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["quantities"],
+          "properties": {
+            "quantities": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/quantity" }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["quantified", "bounded", "estimated", "unknown", "not_applicable"] },
+        "kind": { "enum": ["standard_deviation", "confidence_interval", "absolute_bound", "relative_bound"] },
+        "value": { "type": "number", "minimum": 0 },
+        "unit": { "type": "string", "minLength": 1 },
+        "confidence": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 }
+      }
+    },
+    "quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "unit"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "unit": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

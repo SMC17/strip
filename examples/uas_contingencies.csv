@@ -1,0 +1,6 @@
+name,link,fault,geofence,designated_site_available,expected_action
+nominal,available,none,inside,true,continue_mission
+lost-link,lost,none,inside,true,return_to_home
+predicted-breach,available,none,predicted_breach,true,return_to_home
+propulsion-fault,available,propulsion_degraded,inside,true,land_at_designated_site
+breach-and-fault,lost,navigation_unreliable,breached,true,land_at_designated_site

@@ -1,0 +1,14 @@
+{
+  "schema": "strip.scenario.v1",
+  "scenario_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "model_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "intended_use": "research",
+  "inputs": [
+    {
+      "name": "geopotential_altitude",
+      "value": 0,
+      "unit": "m"
+    }
+  ],
+  "assumptions": ["dry ideal gas"]
+}

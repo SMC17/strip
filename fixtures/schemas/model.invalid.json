@@ -1,0 +1,12 @@
+{
+  "schema": "strip.model.v1",
+  "id": "unsafe",
+  "version": "0",
+  "digest": "not-a-digest",
+  "proof": {},
+  "provenance": {},
+  "dependencies": [],
+  "validity_envelope": {},
+  "uncertainty_status": "unknown",
+  "intended_uses": ["weapon"]
+}

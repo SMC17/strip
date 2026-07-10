@@ -239,14 +239,34 @@ pub fn formatReplayCaseJson(
     var hex: [64]u8 = undefined;
     _ = fp.formatHex(&hex);
     try writer.print(
-        "\"id\":\"{s}\",\"target\":{{\"arch\":\"{s}\",\"os\":\"{s}\",\"optimize\":\"{s}\"}},\"status\":\"pinned\",\"fingerprint_hex\":\"{s}\",\"fields\":[",
+        "{{\"id\":\"{s}\",\"target\":{{\"arch\":\"{s}\",\"os\":\"{s}\",\"optimize\":\"{s}\"}},\"status\":\"pinned\",\"fingerprint_hex\":\"{s}\",\"fields\":[",
         .{ replay_case_id, target.arch, target.os, target.optimize, hex },
     );
     for (fields, 0..) |value, index| {
         if (index > 0) try writer.writeAll(",");
         try writer.print("{d:.17}", .{value});
     }
-    try writer.writeAll("]");
+    try writer.writeAll("]}");
+}
+
+pub fn formatReplayBaselineJson(
+    replay_case_id: []const u8,
+    target: TargetTriple,
+    fields: []const f64,
+    writer: *std.Io.Writer,
+) !void {
+    const fp = fingerprintFields(fields);
+    var hex: [64]u8 = undefined;
+    _ = fp.formatHex(&hex);
+    try writer.print(
+        "{{\"schema\":\"strip.replay-baseline.v0\",\"id\":\"{s}\",\"target\":{{\"arch\":\"{s}\",\"os\":\"{s}\",\"optimize\":\"{s}\"}},\"status\":\"pinned\",\"fingerprint_hex\":\"{s}\",\"fields\":[",
+        .{ replay_case_id, target.arch, target.os, target.optimize, hex },
+    );
+    for (fields, 0..) |value, index| {
+        if (index > 0) try writer.writeAll(",");
+        try writer.print("{d:.17}", .{value});
+    }
+    try writer.writeAll("]}\n");
 }
 
 const builtin = @import("builtin");

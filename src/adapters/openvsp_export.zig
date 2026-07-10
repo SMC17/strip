@@ -76,9 +76,8 @@ pub fn resolveExportCommand(
     openvsp_cmd: ?[]const u8,
     default_cmd: ?[]const u8,
 ) ?[]const u8 {
-    if (openvsp_cmd) |cmd| {
-        if (cmd.len > 0 and fileExecutable(io, cmd)) return cmd;
-    }
+    // OPENSP_CMD names the real OpenVSP binary; the protocol wrapper reads it from the environment.
+    _ = openvsp_cmd;
     if (default_cmd) |cmd| {
         if (cmd.len > 0 and fileExecutable(io, cmd)) return cmd;
     }

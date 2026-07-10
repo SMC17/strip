@@ -1,0 +1,31 @@
+// Build a minimal box-wing model and export ASCII STL for Strip conformance gates.
+// __OUTPUT_PATH__ is substituted by tools/openvsp_export.py before invocation.
+
+void main()
+{
+    string out_path = "__OUTPUT_PATH__";
+    ClearVSPModel();
+
+    string fuse_id = AddGeom("FUSELAGE", "");
+    SetParmVal(fuse_id, "Length", "Design", 8.0);
+
+    string wing_id = AddGeom("WING", "");
+    SetParmVal(wing_id, "Span", "Design", 10.0);
+    SetParmVal(wing_id, "Root_Chord", "Design", 1.5);
+    SetParmVal(wing_id, "Tip_Chord", "Design", 1.5);
+    SetParmVal(wing_id, "X_Rel_Location", "Design", 2.0);
+
+    string tail_id = AddGeom("WING", "");
+    SetParmVal(tail_id, "Span", "Design", 3.0);
+    SetParmVal(tail_id, "Root_Chord", "Design", 0.8);
+    SetParmVal(tail_id, "Tip_Chord", "Design", 0.8);
+    SetParmVal(tail_id, "X_Rel_Location", "Design", 7.0);
+    SetParmVal(tail_id, "Z_Rel_Location", "Design", 1.0);
+
+    Update();
+    string mesh_id = ExportFile(out_path, SET_ALL, EXPORT_STL);
+    if (mesh_id != "") {
+        DeleteGeom(mesh_id);
+    }
+    Print(out_path + "\n");
+}

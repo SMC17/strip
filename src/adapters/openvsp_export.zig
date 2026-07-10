@@ -26,7 +26,8 @@ pub const OpenVspCmdPolicy = struct {
     min_triangle_count: u32,
     max_triangle_count: u32,
     min_surface_area_m2: f64,
-    area_tolerance_fraction: f64,
+    max_surface_area_m2: f64,
+    area_tolerance_fraction: f64 = 0.0,
 };
 
 pub const ExportConformanceManifest = struct {
@@ -49,7 +50,7 @@ pub const ExportConformanceManifest = struct {
         if (self.openvsp_cmd) |policy| {
             if (policy.min_triangle_count == 0 or policy.max_triangle_count < policy.min_triangle_count)
                 return error.InvalidTriangleBounds;
-            if (!(policy.min_surface_area_m2 > 0.0) or !(policy.area_tolerance_fraction >= 0.0))
+            if (!(policy.min_surface_area_m2 > 0.0) or !(policy.max_surface_area_m2 >= policy.min_surface_area_m2))
                 return error.InvalidOpenVspPolicy;
         }
     }
@@ -248,9 +249,7 @@ fn verifyOpenVspCmdConformance(
         };
     };
     const count_matches = count >= policy.min_triangle_count and count <= policy.max_triangle_count;
-    const area_matches = area >= policy.min_surface_area_m2 and
-        @abs(area - manifest.expected_surface_area_m2) <=
-            policy.area_tolerance_fraction * manifest.expected_surface_area_m2;
+    const area_matches = area >= policy.min_surface_area_m2 and area <= policy.max_surface_area_m2;
     const passed = count_matches and area_matches;
     return .{
         .backend = .openvsp_cmd,

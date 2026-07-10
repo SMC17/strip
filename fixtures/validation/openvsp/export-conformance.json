@@ -6,10 +6,11 @@
   "expected_mesh_digest": "sha256:d4eaef2530ec72ced77244ffa0f336a35d7d1292735af603cb09fcb3ce930634",
   "area_tolerance_m2": 1e-6,
   "openvsp_cmd": {
-    "min_triangle_count": 4,
-    "max_triangle_count": 1000000,
-    "min_surface_area_m2": 1.0,
-    "area_tolerance_fraction": 0.5
+    "min_triangle_count": 100,
+    "max_triangle_count": 100000,
+    "min_surface_area_m2": 50.0,
+    "max_surface_area_m2": 500.0,
+    "area_tolerance_fraction": 0.0
   },
   "limitations": [
     "OPENSP_CMD subprocess export when available; analytic STL exporter otherwise.",

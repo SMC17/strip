@@ -1,0 +1,14 @@
+.{
+    .name = .strip,
+    .version = "0.1.0",
+    .fingerprint = 0x2f4247253b6dc446,
+    .minimum_zig_version = "0.16.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "README.md",
+        "STATUS.md",
+        "VALIDATION.md",
+        "src",
+    },
+}

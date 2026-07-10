@@ -130,7 +130,7 @@ jobs:
           merge-multiple: true
       - name: Merge baselines into cross-target manifest
         run: |
-          zig build -q
+          zig build
           cp fixtures/validation/replay/rk4-cross-target.json /tmp/rk4-cross-target.json
           for baseline in replay-artifacts/replay-baseline-*.json; do
             cat "${baseline}" | ./zig-out/bin/strip-promote-replay-baseline > /tmp/rk4-promoted.json
@@ -161,6 +161,8 @@ jobs:
           version: 0.16.0
       - name: Install OpenVSP Ubuntu package
         run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils
           curl -fsSL -o openvsp.deb "https://openvsp.org/download.php?file=zips/old/linux/OpenVSP-3.42.0-Ubuntu-24.04_amd64.deb"
           sudo dpkg -i openvsp.deb || sudo apt-get install -f -y
           VSP_BIN="$(command -v vsp || true)"

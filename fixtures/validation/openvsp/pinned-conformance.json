@@ -1,0 +1,13 @@
+{
+  "schema": "strip.openvsp.conformance.v0",
+  "product": "OpenVSP",
+  "version": "3.42.0",
+  "artifact_name": "reference-box-wing",
+  "expected_component_count": 3,
+  "expected_geometry_digest": "sha256:d2779f68185657d5bf55d9c922331dab64c7268b0018a54ca11ba0a6f54e2158",
+  "tessellation_tolerance_m": 0.001,
+  "limitations": [
+    "Pinned manifest references canonical geometry description only; no OpenVSP runtime is linked.",
+    "Digest conformance does not validate CFD, structural, or manufacturing suitability."
+  ]
+}

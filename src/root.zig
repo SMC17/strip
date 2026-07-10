@@ -13,6 +13,7 @@ pub const geodesy = @import("geodesy/mod.zig");
 pub const time = @import("time/mod.zig");
 pub const random = @import("random/mod.zig");
 pub const trace = @import("trace/mod.zig");
+pub const replay = @import("replay/root.zig");
 
 pub const dynamics = @import("dynamics/mod.zig");
 pub const environment = @import("environment/mod.zig");
@@ -70,6 +71,7 @@ test {
     _ = time;
     _ = random;
     _ = trace;
+    _ = replay;
     _ = dynamics;
     _ = environment;
     _ = weather;

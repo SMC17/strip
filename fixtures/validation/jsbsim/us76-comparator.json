@@ -1,0 +1,42 @@
+{
+  "schema": "strip.jsbsim-comparator.v1",
+  "id": "jsbsim-us76-published-reference",
+  "source": "U.S. Standard Atmosphere, 1976 table values; fixture for comparator gate",
+  "jsbsim_version": null,
+  "deliberately_perturbed": true,
+  "envelope": {
+    "axes": [
+      { "variable": "altitude", "unit": "m", "minimum": 0, "maximum": 11000 }
+    ]
+  },
+  "acceptance": {
+    "absolute_tolerance": 0.5,
+    "relative_tolerance": 1e-6
+  },
+  "samples": [
+    {
+      "coordinates": [0],
+      "variable": "temperature_k",
+      "reference": 288.15,
+      "observed": 288.15
+    },
+    {
+      "coordinates": [0],
+      "variable": "pressure_pa",
+      "reference": 101325.0,
+      "observed": 101325.0
+    },
+    {
+      "coordinates": [11000],
+      "variable": "pressure_pa",
+      "reference": 22632.06,
+      "observed": 22632.06
+    },
+    {
+      "coordinates": [11000],
+      "variable": "temperature_k",
+      "reference": 216.65,
+      "observed": 217.20
+    }
+  ]
+}

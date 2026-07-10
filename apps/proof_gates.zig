@@ -171,45 +171,61 @@ pub fn main(init: std.process.Init) !u8 {
     const require_openvsp = init.environ_map.get("STRIP_REQUIRE_OPENSP_CMD") != null;
     if (strip.adapters.openvsp_export.resolveExportCommand(init.io, openvsp_cmd, "tools/openvsp_cmd.sh")) |cmd| {
         const output_path = "openvsp-export.stl";
-        const export_query = try strip.adapters.openvsp_export.queryExportSubprocess(
-            init.io,
-            allocator,
-            cmd,
-            output_path,
-        );
-        export_backend = @tagName(export_query.backend);
-        if (export_query.response.export_runtime_version) |version| {
-            export_runtime_version = version;
+        const export_query = blk: {
+            break :blk strip.adapters.openvsp_export.queryExportSubprocess(
+                init.io,
+                allocator,
+                cmd,
+                output_path,
+            ) catch {
+                failed = true;
+                if (require_openvsp) failed = true;
+                break :blk null;
+            };
+        };
+        if (export_query) |export_query_val| {
+            export_backend = @tagName(export_query_val.backend);
+            if (export_query_val.response.export_runtime_version) |version| {
+                export_runtime_version = version;
+            }
+            const export_mesh = blk: {
+                break :blk strip.adapters.openvsp_export.parseAsciiStl(
+                    allocator,
+                    init.io,
+                    output_path,
+                ) catch {
+                    failed = true;
+                    if (require_openvsp) failed = true;
+                    break :blk null;
+                };
+            };
+            if (export_mesh) |mesh| {
+                defer allocator.free(mesh.triangles);
+                const export_bytes = try std.Io.Dir.cwd().readFileAlloc(
+                    init.io,
+                    "fixtures/validation/openvsp/export-conformance.json",
+                    allocator,
+                    .limited(128 * 1024),
+                );
+                defer allocator.free(export_bytes);
+                var export_manifest = try std.json.parseFromSlice(
+                    strip.adapters.openvsp_export.ExportConformanceManifest,
+                    allocator,
+                    export_bytes,
+                    .{ .ignore_unknown_fields = true, .max_value_len = 4096 },
+                );
+                defer export_manifest.deinit();
+                const export_report = try strip.adapters.openvsp_export.verifyExportConformance(
+                    export_manifest.value,
+                    mesh,
+                    export_query_val.backend,
+                );
+                export_passed = export_report.passed;
+                export_real_passed = export_query_val.backend == .openvsp_cmd and export_report.passed;
+                if (!export_passed) failed = true;
+                if (require_openvsp and !export_real_passed) failed = true;
+            }
         }
-        const export_mesh = try strip.adapters.openvsp_export.parseAsciiStl(
-            allocator,
-            init.io,
-            output_path,
-        );
-        defer allocator.free(export_mesh.triangles);
-        const export_bytes = try std.Io.Dir.cwd().readFileAlloc(
-            init.io,
-            "fixtures/validation/openvsp/export-conformance.json",
-            allocator,
-            .limited(128 * 1024),
-        );
-        defer allocator.free(export_bytes);
-        var export_manifest = try std.json.parseFromSlice(
-            strip.adapters.openvsp_export.ExportConformanceManifest,
-            allocator,
-            export_bytes,
-            .{ .ignore_unknown_fields = true, .max_value_len = 4096 },
-        );
-        defer export_manifest.deinit();
-        const export_report = try strip.adapters.openvsp_export.verifyExportConformance(
-            export_manifest.value,
-            export_mesh,
-            export_query.backend,
-        );
-        export_passed = export_report.passed;
-        export_real_passed = export_query.backend == .openvsp_cmd and export_report.passed;
-        if (!export_passed) failed = true;
-        if (require_openvsp and !export_real_passed) failed = true;
     } else {
         failed = true;
     }

@@ -1,0 +1,11 @@
+{
+  "schema": "strip.result.v1",
+  "result_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "model_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "scenario_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "context": { "intended_use": "operational" },
+  "validity": { "status": "valid" },
+  "uncertainty": { "status": "unknown" },
+  "result": null,
+  "unexpected": true
+}

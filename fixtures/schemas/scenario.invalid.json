@@ -1,0 +1,8 @@
+{
+  "schema": "strip.scenario.v1",
+  "scenario_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "model_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "intended_use": "targeting",
+  "inputs": [],
+  "assumptions": []
+}

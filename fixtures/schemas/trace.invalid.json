@@ -1,0 +1,15 @@
+{
+  "schema": "strip.trace.v1",
+  "trace_id": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "result_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "steps": [
+    {
+      "sequence": 0,
+      "operation": "atmosphere.evaluate",
+      "input_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "output_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": "completed",
+      "hidden_state": "forbidden"
+    }
+  ]
+}

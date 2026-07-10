@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/scenario.schema.json",
+  "title": "Strip scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "scenario_id", "model_digest", "intended_use", "inputs", "assumptions"],
+  "properties": {
+    "schema": { "const": "strip.scenario.v1" },
+    "scenario_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "model_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "intended_use": { "enum": ["education", "research", "preliminary_design", "simulation_training"] },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value", "unit"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "value": { "type": "number" },
+          "unit": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "spatial_frame": { "type": ["string", "null"] },
+    "time_reference": { "type": ["string", "null"] }
+  }
+}

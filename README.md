@@ -38,12 +38,26 @@ zig build
 ./zig-out/bin/strip-promote-replay-baseline
 ```
 
-CI installs `jsbsim==1.3.1` in a venv, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, runs proof-gates v3
+CI installs `jsbsim==1.3.1` in a venv, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, and runs proof-gates v3
 (atmosphere + F-16 fixed-wing + shared-model coefficients + OpenVSP export + campaign calibration
-+ flight tier ladder), records replay baselines on `ubuntu-24.04-arm` and `macos-latest` (including
-Rosetta x86_64-macos), and publishes a promoted replay manifest from `replay-baseline-collect`.
-The `openvsp-real-export` job installs OpenVSP on `ubuntu-24.04` and requires `export_backend: openvsp_cmd`.
-Promote baselines with `tools/promote_replay_from_ci.sh` or download the `rk4-cross-target-promoted` artifact.
++ flight tier ladder). Replay baselines are recorded on `ubuntu-24.04-arm` and `macos-latest`
+(native aarch64 and Rosetta x86_64-macos); `replay-baseline-collect` merges them and asserts
+`pending_count: 0` in `fixtures/validation/replay/rk4-cross-target.json`.
+
+The `openvsp-real-export` job installs OpenVSP 3.42.0 on `ubuntu-24.04`, runs under xvfb, and
+requires `export_backend: openvsp_cmd` with structural mesh conformance (not analytic digest pin).
+Local/dev without `OPENSP_CMD` still passes Gate 2c via `analytic_stl_exporter`.
+
+### Proof gates v3 — honest limits
+
+| Row | What passes | What is *not* claimed |
+|-----|-------------|---------------------|
+| JSBSim coefficients (1c) | Shared `linear-aero` model agreement | F-16 or measured aircraft data |
+| OpenVSP export (2d) | Real `vsp -script` STL + triangle/area bands | Aerodynamic certification or analytic mesh equality |
+| Replay (3) | Per-arch pinned fingerprints; global `pending_count: 0` | Cross-arch bitwise equality as a requirement |
+| Flight evidence (5) | `software_only` + tier ladder (`partial` HIL) | `operational_qualification_claimed` (always false) |
+
+Promote replay baselines with `tools/promote_replay_from_ci.sh` or the `rk4-cross-target-promoted` CI artifact.
 
 Valid intended-use values are `education`, `research`,
 `preliminary_design`, and `simulation_training`.

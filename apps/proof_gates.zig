@@ -184,6 +184,7 @@ pub fn main(init: std.process.Init) !u8 {
             };
         };
         if (export_query) |export_query_val| {
+            defer strip.adapters.openvsp_export.freeExportResponse(allocator, export_query_val.response);
             export_backend = @tagName(export_query_val.backend);
             if (export_query_val.response.export_runtime_version) |version| {
                 export_runtime_version = version;

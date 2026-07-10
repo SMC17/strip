@@ -41,8 +41,8 @@ and proof-gates v3 integration executables.
 | JSBSim coefficients | `cross_implementation` on shared linear-aero model | Not F-16; synthetic shared grid only |
 | OpenVSP digest | pinned geometry manifest v3.42.0 | Canonical description; no linked OpenVSP runtime required |
 | OpenVSP tessellation | analytic box-wing mesher | Mesh digest/area/count regression |
-| OpenVSP export | `OPENSP_CMD` or `analytic_stl_exporter` | STL export conformance; real OpenVSP on ubuntu-24.04 CI |
-| Replay | pinned per-arch; fails if `pending_count > 0` | Promote via CI `replay-baseline-collect` artifact |
+| OpenVSP export | `OPENSP_CMD` via `openvsp_box_wing.vspscript` or `analytic_stl_exporter` | Structural mesh bounds for real export; analytic exact digest pin |
+| Replay | pinned per-arch (`pending_count: 0`); fails if any case pending | Five ReleaseSafe/Debug legs; same RK4 fingerprint across current matrix |
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
 | Flight evidence (Gate 5) | `software_only` + tier ladder | SIL/PIL partial; `operational_qualification_claimed: false` |
 
@@ -60,6 +60,15 @@ tools/promote_replay_from_ci.sh baseline.json
 - public license
 - ingest NASA TP-1538 coefficient tables and expand vehicle cross-check envelope
 - integrated HIL and flight-test tier evidence (hardware-backed; not synthetic fixtures)
+
+## CI (`verify` workflow)
+
+| Job | Runner | Purpose |
+|-----|--------|---------|
+| `zig-and-schemas` | `ubuntu-latest` | fmt, 211 tests, schema fixtures, x86_64-linux Debug replay artifact |
+| `replay-baseline-matrix` | `ubuntu-24.04-arm`, `macos-latest` (aarch64 + Rosetta x86_64) | ReleaseSafe proof-gates + per-arch replay baseline |
+| `replay-baseline-collect` | `ubuntu-latest` | merge baselines; assert `pending_count == 0` |
+| `openvsp-real-export` | `ubuntu-24.04` | OpenVSP 3.42.0 deb, xvfb, `STRIP_REQUIRE_OPENSP_CMD=1`, Gate 2d real mesh |
 
 ## Scaffold-level contracts
 

@@ -1,0 +1,19 @@
+{
+  "schema": "strip.dataset-manifest.v1",
+  "records": [
+    {
+      "id": "invalid",
+      "title": "Invalid digest fixture",
+      "publisher": "Strip test suite",
+      "edition": "test",
+      "version": "1",
+      "url": "http://insecure.invalid/source",
+      "license": "unknown",
+      "retrieved_at": "yesterday",
+      "digest": "sha256:not-a-digest",
+      "digest_scope": "locator_record",
+      "extraction": "",
+      "limitations": []
+    }
+  ]
+}

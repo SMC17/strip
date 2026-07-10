@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "strip.source.nasa-tp1538-f16",
+  "aircraft_family": "F-16",
+  "source": {
+    "publication": "NASA Technical Paper 1538",
+    "repository_locator": "NASA Technical Reports Server, publication number TP-1538",
+    "usage": "provenance scaffold only"
+  },
+  "ingestion_status": "not_ingested",
+  "validation_status": "not_validated",
+  "numeric_tables_included": false,
+  "planned_independent_variables": [
+    "angle_of_attack",
+    "sideslip",
+    "Mach",
+    "control_deflections",
+    "normalized_body_rates"
+  ],
+  "planned_coefficients": ["CX", "CY", "CZ", "Cl", "Cm", "Cn"],
+  "requirements_before_use": [
+    "obtain and archive a legally redistributable source artifact",
+    "record page and table locators for every transcribed value",
+    "independently audit transcription and units",
+    "define interpolation and outside-envelope policy",
+    "compare selected points against an independent implementation"
+  ],
+  "limitations": [
+    "this manifest contains no F-16 aerodynamic values",
+    "synthetic coefficients used by Strip tests are not measurements and are not F-16 data",
+    "not suitable for aircraft prediction, flight planning, control-law qualification, certification, or operation"
+  ]
+}

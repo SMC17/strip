@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/validation-case.schema.json",
+  "title": "Strip validation case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "subject", "comparator", "source_ids", "envelope", "expected_dimensions", "acceptance"],
+  "properties": {
+    "schema": { "const": "strip.validation-case.v1" },
+    "id": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "subject": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "comparator": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "source_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 96 }
+    },
+    "envelope": { "$ref": "#/$defs/envelope" },
+    "expected_dimensions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/evidenceDimension" }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["absolute_tolerance", "relative_tolerance"],
+      "properties": {
+        "absolute_tolerance": { "type": "number", "minimum": 0 },
+        "relative_tolerance": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "evidenceDimension": {
+      "enum": ["analytical", "unit_test", "cross_implementation", "public_benchmark", "experimental", "hardware_in_loop", "flight", "certification"]
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axes"],
+      "properties": {
+        "axes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["variable", "unit", "minimum", "maximum"],
+            "properties": {
+              "variable": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "unit": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "minimum": { "type": "number" },
+              "maximum": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

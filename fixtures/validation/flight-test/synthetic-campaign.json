@@ -1,0 +1,52 @@
+{
+  "schema": "strip.flight-test-campaign.v1",
+  "campaign_id": "synthetic-flight-test-001",
+  "configuration": {
+    "vehicle_id": "synthetic-reference-aircraft",
+    "configuration_id": "clean-light-cg-mid",
+    "revision": "1",
+    "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "test_cards": [
+    {
+      "card_id": "fw-pitch-doublet-001",
+      "vehicle": "fixed_wing",
+      "maneuver": "doublet",
+      "axis": "longitudinal"
+    },
+    {
+      "card_id": "fw-lateral-3211-001",
+      "vehicle": "fixed_wing",
+      "maneuver": "three_two_one_one",
+      "axis": "lateral"
+    },
+    {
+      "card_id": "fw-chirp-001",
+      "vehicle": "fixed_wing",
+      "maneuver": "chirp",
+      "axis": "directional"
+    },
+    {
+      "card_id": "mr-hover-001",
+      "vehicle": "multirotor",
+      "maneuver": "hover",
+      "axis": "vertical"
+    },
+    {
+      "card_id": "mr-roll-step-001",
+      "vehicle": "multirotor",
+      "maneuver": "axis_step",
+      "axis": "roll"
+    }
+  ],
+  "split_policy": {
+    "policy_id": "synthetic-split-001",
+    "sealed_before_analysis_utc": "2026-07-10T12:00:00Z",
+    "calibration_run_ids": ["run-cal-01", "run-cal-02"],
+    "blinded_holdout_run_ids": ["run-blind-01"]
+  },
+  "limitations": [
+    "Synthetic fixture only.",
+    "No aircraft, FSTD, operational approval, certification, or FAA qualification claim."
+  ]
+}

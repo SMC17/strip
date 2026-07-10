@@ -1,0 +1,17 @@
+{
+  "schema": "strip.validation-case.v1",
+  "id": "duplicate-dimensions",
+  "subject": "Invalid negative fixture",
+  "comparator": "None",
+  "source_ids": ["fixture"],
+  "envelope": {
+    "axes": [
+      { "variable": "mach", "unit": "1", "minimum": 1, "maximum": 0 }
+    ]
+  },
+  "expected_dimensions": ["unit_test", "unit_test"],
+  "acceptance": {
+    "absolute_tolerance": -1,
+    "relative_tolerance": 2
+  }
+}

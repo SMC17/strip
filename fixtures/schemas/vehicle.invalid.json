@@ -1,0 +1,17 @@
+{
+  "schema": "strip.vehicle.v1",
+  "id": "invalid-negative-mass",
+  "version": "1",
+  "description": "Negative fixture that must be rejected.",
+  "mass_kg": -1,
+  "reference_area_m2": 1,
+  "reference_span_m": 1,
+  "reference_chord_m": 1,
+  "inertia_kg_m2": { "xx": 1, "yy": 1, "zz": 1 },
+  "validity_envelope": {
+    "axes": [
+      { "variable": "mach", "unit": "1", "minimum": 0, "maximum": 0.2 }
+    ]
+  },
+  "source_ids": ["synthetic-negative-fixture"]
+}

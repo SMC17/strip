@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "fixture_class": "synthetic",
+  "purpose": "software invariant tests for allocation signs, clipping, lag, and rotor-out signaling",
+  "experimental_provenance": null,
+  "body_frame": "x-forward_y-right_z-down",
+  "rotors": [
+    {"position_body_m": [0.2, -0.2, 0.0], "direction": "counter_clockwise"},
+    {"position_body_m": [0.2, 0.2, 0.0], "direction": "clockwise"},
+    {"position_body_m": [-0.2, 0.2, 0.0], "direction": "counter_clockwise"},
+    {"position_body_m": [-0.2, -0.2, 0.0], "direction": "clockwise"}
+  ],
+  "bounds": {
+    "maximum_thrust_per_rotor_n": 10.0,
+    "reaction_torque_per_thrust_m": 0.02
+  },
+  "limitations": [
+    "Every numeric value in this file is synthetic.",
+    "This fixture must not be represented as UIUC-measured data.",
+    "It is not suitable for flight planning, hardware control, or qualification."
+  ]
+}

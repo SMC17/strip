@@ -72,16 +72,41 @@ pub const Quaternion = struct {
         return q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z;
     }
 
-    pub fn normalized(q: Quaternion) error{ZeroNorm}!Quaternion {
-        const magnitude = @sqrt(normSquared(q));
-        if (!(magnitude > 0.0) or !std.math.isFinite(magnitude)) return error.ZeroNorm;
+    pub fn isFinite(q: Quaternion) bool {
+        return std.math.isFinite(q.w) and std.math.isFinite(q.x) and
+            std.math.isFinite(q.y) and std.math.isFinite(q.z);
+    }
+
+    pub fn normalized(q: Quaternion) error{InvalidQuaternion}!Quaternion {
+        const squared = normSquared(q);
+        if (!(squared > 0.0) or !std.math.isFinite(squared)) return error.InvalidQuaternion;
+        const magnitude = @sqrt(squared);
         return scale(q, 1.0 / magnitude);
     }
 
-    pub fn rotate(q_raw: Quaternion, vector: Vec3) Vec3 {
-        const q = q_raw.normalized() catch return Vec3.zero;
+    pub fn conjugate(q: Quaternion) Quaternion {
+        return .{ .w = q.w, .x = -q.x, .y = -q.y, .z = -q.z };
+    }
+
+    pub fn inverse(q: Quaternion) error{InvalidQuaternion}!Quaternion {
+        const squared = normSquared(q);
+        if (!(squared > 0.0) or !std.math.isFinite(squared)) return error.InvalidQuaternion;
+        return q.conjugate().scale(1.0 / squared);
+    }
+
+    pub fn rotate(q_raw: Quaternion, vector: Vec3) error{ InvalidQuaternion, NonFiniteVector }!Vec3 {
+        if (!vector.isFinite()) return error.NonFiniteVector;
+        const q = try q_raw.normalized();
         const u = Vec3{ .x = q.x, .y = q.y, .z = q.z };
         return vector.add(u.cross(vector).scale(2.0 * q.w)).add(u.cross(u.cross(vector)).scale(2.0));
+    }
+
+    pub fn bodyToWorld(q: Quaternion, vector_body: Vec3) error{ InvalidQuaternion, NonFiniteVector }!Vec3 {
+        return q.rotate(vector_body);
+    }
+
+    pub fn worldToBody(q: Quaternion, vector_world: Vec3) error{ InvalidQuaternion, NonFiniteVector }!Vec3 {
+        return (try q.inverse()).rotate(vector_world);
     }
 
     pub fn derivativeBodyRate(q: Quaternion, angular_velocity_body: Vec3) Quaternion {
@@ -98,8 +123,33 @@ pub const Quaternion = struct {
 test "unit quaternion rotation preserves vector norm" {
     const half = std.math.pi / 4.0;
     const q = Quaternion{ .w = @cos(half), .x = 0.0, .y = 0.0, .z = @sin(half) };
-    const rotated = q.rotate(.{ .x = 1.0, .y = 0.0, .z = 0.0 });
+    const rotated = try q.rotate(.{ .x = 1.0, .y = 0.0, .z = 0.0 });
     try std.testing.expectApproxEqAbs(@as(f64, 0.0), rotated.x, 1e-12);
     try std.testing.expectApproxEqAbs(@as(f64, 1.0), rotated.y, 1e-12);
     try std.testing.expectApproxEqAbs(@as(f64, 1.0), rotated.normSquared(), 1e-12);
+}
+
+test "quaternion inverse round trips body and world vectors" {
+    const half = std.math.pi / 6.0;
+    const q = Quaternion{ .w = @cos(half), .x = @sin(half), .y = 0.0, .z = 0.0 };
+    const body = Vec3{ .x = 2.0, .y = -1.0, .z = 0.5 };
+    const world = try q.bodyToWorld(body);
+    const recovered = try q.worldToBody(world);
+    try std.testing.expectApproxEqAbs(body.x, recovered.x, 1e-12);
+    try std.testing.expectApproxEqAbs(body.y, recovered.y, 1e-12);
+    try std.testing.expectApproxEqAbs(body.z, recovered.z, 1e-12);
+}
+
+test "quaternion rotation refuses zero and non-finite inputs" {
+    try std.testing.expectError(error.InvalidQuaternion, (Quaternion{
+        .w = 0.0,
+        .x = 0.0,
+        .y = 0.0,
+        .z = 0.0,
+    }).rotate(.{ .x = 1.0, .y = 0.0, .z = 0.0 }));
+    try std.testing.expectError(error.NonFiniteVector, Quaternion.identity.rotate(.{
+        .x = std.math.nan(f64),
+        .y = 0.0,
+        .z = 0.0,
+    }));
 }

@@ -1,0 +1,29 @@
+{
+  "schema": "strip.comparator-fixture.v1",
+  "id": "comparator-perturbation-detection",
+  "deliberately_perturbed": true,
+  "envelope": {
+    "axes": [
+      { "variable": "mach", "unit": "1", "minimum": 0, "maximum": 0.3 },
+      { "variable": "altitude", "unit": "m", "minimum": 0, "maximum": 2000 }
+    ]
+  },
+  "acceptance": {
+    "absolute_tolerance": 0.001,
+    "relative_tolerance": 0.01
+  },
+  "samples": [
+    {
+      "coordinates": [0.1, 500],
+      "variable": "coefficient",
+      "reference": 1,
+      "observed": 1.005
+    },
+    {
+      "coordinates": [0.2, 1500],
+      "variable": "coefficient",
+      "reference": 0.8,
+      "observed": 0.95
+    }
+  ]
+}

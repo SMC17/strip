@@ -73,9 +73,39 @@ pub fn build(b: *std.Build) void {
     const run_platform_step = b.step("run-platform", "Inspect product and frontier surface");
     run_platform_step.dependOn(&run_platform.step);
 
+    const validation_cli = b.addExecutable(.{
+        .name = "strip-validation",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/validation_cli.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(validation_cli);
+    const run_validation = b.addRunArtifact(validation_cli);
+    const run_validation_step = b.step("run-validation", "Load source manifests and validation coverage");
+    run_validation_step.dependOn(&run_validation.step);
+
+    const fidelity_cli = b.addExecutable(.{
+        .name = "strip-fidelity",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/fidelity_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(fidelity_cli);
+    const run_fidelity = b.addRunArtifact(fidelity_cli);
+    const run_fidelity_step = b.step("run-fidelity", "Run coupled fidelity integration fixture");
+    run_fidelity_step.dependOn(&run_fidelity.step);
+
     const verify_step = b.step("verify", "Run tests and integration fixtures");
     verify_step.dependOn(test_step);
     verify_step.dependOn(&run_uas.step);
     verify_step.dependOn(&run_assurance.step);
     verify_step.dependOn(&run_platform.step);
+    verify_step.dependOn(&run_validation.step);
+    verify_step.dependOn(&run_fidelity.step);
 }

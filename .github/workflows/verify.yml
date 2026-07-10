@@ -162,7 +162,7 @@ jobs:
       - name: Install OpenVSP Ubuntu package
         run: |
           sudo apt-get update
-          sudo apt-get install -y desktop-file-utils xvfb
+          sudo apt-get install -y desktop-file-utils xvfb libgl1 libglx-mesa0
           curl -fsSL -o openvsp.deb "https://openvsp.org/download.php?file=zips/old/linux/OpenVSP-3.42.0-Ubuntu-24.04_amd64.deb"
           sudo dpkg -i openvsp.deb || sudo apt-get install -f -y
           VSP_BIN="$(command -v vsp || true)"

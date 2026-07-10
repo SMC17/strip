@@ -114,9 +114,14 @@ def analytic_export(request: dict) -> dict:
 def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
     out_path = request.get("output_path", "/tmp/strip-openvsp-export.stl")
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    script_path = os.path.join(script_dir, "openvsp_box_wing.py")
+    template_path = os.path.join(script_dir, "openvsp_box_wing.vspscript")
+    with open(template_path, encoding="ascii") as handle:
+        script_body = handle.read()
+    script_body = script_body.replace("__OUTPUT_PATH__", out_path.replace("\\", "/"))
+    script_path = out_path + ".vspscript"
+    with open(script_path, "w", encoding="ascii") as handle:
+        handle.write(script_body)
     env = os.environ.copy()
-    env["STRIP_OPENSP_OUTPUT"] = out_path
     proc = subprocess.run(
         [openvsp_cmd, "-script", script_path],
         check=False,

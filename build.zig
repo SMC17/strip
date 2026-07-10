@@ -128,6 +128,30 @@ pub fn build(b: *std.Build) void {
     const run_proof_step = b.step("run-proof-gates", "Run JSBSim, OpenVSP, replay, and uncertainty proof gates");
     run_proof_step.dependOn(&run_proof.step);
 
+    const replay_baseline_cli = b.addExecutable(.{
+        .name = "strip-record-replay-baseline",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/record_replay_baseline.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(replay_baseline_cli);
+
+    const gen_fixtures = b.addExecutable(.{
+        .name = "strip-gen-proof-fixtures",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/gen_proof_fixtures.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    const run_gen_fixtures = b.addRunArtifact(gen_fixtures);
+    const gen_fixtures_step = b.step("gen-proof-fixtures", "Emit pinned proof-gate digests for fixtures");
+    gen_fixtures_step.dependOn(&run_gen_fixtures.step);
+
     const verify_step = b.step("verify", "Run tests and integration fixtures");
     verify_step.dependOn(test_step);
     verify_step.dependOn(&run_uas.step);

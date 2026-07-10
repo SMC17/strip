@@ -39,10 +39,10 @@ Checks currently cover:
 - validation schemas, 18-source manifest, coverage matrix, and perturbed comparator failure
 - flight-test telemetry, regression, residuals, maneuver cards, and sealed evidence manifests
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) with explicit unavailability
-- JSBSim out-of-process comparator against development shim or `JSBSIM_CMD`
-- OpenVSP pinned geometry digest conformance (no linked runtime)
-- cross-target RK4 replay fingerprints and floating-point divergence reporting
-- uncertainty propagation beyond status-only representation
+- JSBSim out-of-process comparator via `JSBSIM_CMD` (`tools/jsbsim_cmd.sh` + pip `jsbsim`) or development shim; evidence tier reported explicitly
+- OpenVSP pinned geometry digest conformance (v3.42.0) and analytic tessellation mesh digest/area/count
+- cross-target RK4 replay fingerprints with `pending` baselines for aarch64/linux and macOS CI matrix legs
+- uncertainty: analytic affine propagation, Monte Carlo calibration, and flight-data fusion with quality gates
 - deterministic UAS wind/link-loss integration and assurance weakest-link behavior
 
 Primary grounding sources are cataloged in `sources/primary-sources.json` with
@@ -61,10 +61,9 @@ otherwise stated; catalog presence is not model-validation evidence.
 
 ## Not measured
 
-- agreement against independent implementations (JSBSim, OpenVSP, etc.)
-- numerical reproducibility across architectures
+- agreement against independent vehicle-dynamics implementations (JSBSim fixed-wing, OpenVSP CAD export)
+- numerical reproducibility across architectures (aarch64/macos replay baselines still pending)
 - linked external adapters or learned-model performance
-- uncertainty propagation/calibration beyond status representation
 - operational, certification, accreditation, real-time, or hardware use
 - flight, HIL, or FAA Part 60 qualification
 

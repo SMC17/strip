@@ -29,8 +29,34 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-fidelity
 ```
 
-Latest local gate: 199 unit tests plus UAS, assurance, platform, validation, fidelity,
+Latest local gate: 202 unit tests plus UAS, assurance, platform, validation, fidelity,
 and proof-gates integration executables.
+
+## Proof gates (v1)
+
+| Gate | Evidence tier | Honest limit |
+|------|---------------|--------------|
+| JSBSim | `cross_implementation` when `JSBSIM_CMD` resolves to `tools/jsbsim_cmd.sh` + pip `jsbsim`; `subprocess_shim` otherwise | Python weather-balloon host; not a fixed-wing vehicle cross-check |
+| OpenVSP digest | pinned geometry manifest v3.42.0 | Canonical description only; no linked OpenVSP runtime |
+| OpenVSP tessellation | analytic box-wing mesher | Mesh digest/area/count; not CAD export or CFD suitability |
+| Replay | pinned x86_64/linux Debug+ReleaseSafe; `pending` aarch64/linux and macOS | Multi-arch CI matrix records baselines; not cross-arch certification |
+| Uncertainty | analytic affine propagation + Monte Carlo calibration + flight-data fusion | Not operational calibration against flight-test campaigns |
+
+Proof gate runner:
+
+```sh
+JSBSIM_CMD=tools/jsbsim_cmd.sh zig build run-proof-gates
+./zig-out/bin/strip-record-replay-baseline   # emit manifest case for current target
+zig build gen-proof-fixtures                 # regenerate pinned digests
+```
+
+## Next proof work
+
+- public license
+- pin aarch64/linux and macOS replay baselines from CI matrix output
+- wire `OPENSP_CMD` for subprocess CAD export conformance (beyond analytic mesher)
+- JSBSim fixed-wing vehicle model comparison (beyond atmosphere host)
+- full scenario-schema ingestion and canonical evidence-package export
 
 ## Scaffold-level contracts
 
@@ -42,15 +68,3 @@ and proof-gates integration executables.
 
 These contracts compile and have boundary tests; no linked external system or
 validated frontier model is claimed.
-
-## Next proof work
-
-- public license
-- independent atmosphere and dynamics cross-implementation comparisons
-- JSBSim out-of-process comparator (`strip-jsbsim-shim` or `JSBSIM_CMD`) with published US76 fixtures
-- OpenVSP pinned conformance manifest (v3.42.0) with geometry digest verification
-- cross-target replay fingerprints with per-target divergence measurement
-- uncertainty propagation (Gaussian/interval composition, linear and affine chains)
-- full scenario-schema ingestion and canonical evidence-package export
-- uncertainty propagation rather than status-only representation
-- cross-target replay measurements

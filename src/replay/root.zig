@@ -82,8 +82,16 @@ pub const Divergence = struct {
 pub const ReplayCase = struct {
     id: []const u8,
     target: TargetTriple,
+    status: []const u8 = "pinned",
     fingerprint_hex: []const u8,
     fields: []const f64,
+};
+
+pub const BaselineStatus = enum {
+    matched,
+    pending,
+    mismatched,
+    missing,
 };
 
 pub const ReplayManifest = struct {
@@ -99,19 +107,25 @@ pub const ReplayManifest = struct {
         if (self.cases.len == 0 or self.cases.len > 32) return error.InvalidCaseCount;
         for (self.cases, 0..) |replay_case, index| {
             if (replay_case.id.len == 0 or replay_case.id.len > 96) return error.InvalidCaseId;
-            if (replay_case.fingerprint_hex.len != 64) return error.InvalidFingerprint;
-            for (replay_case.fingerprint_hex) |c| {
-                if (!std.ascii.isHex(c) or std.ascii.isUpper(c)) return error.InvalidFingerprint;
-            }
-            if (replay_case.fields.len == 0 or replay_case.fields.len > 64)
-                return error.InvalidFieldCount;
+            if (!std.mem.eql(u8, replay_case.status, "pinned") and
+                !std.mem.eql(u8, replay_case.status, "pending"))
+                return error.InvalidCaseStatus;
+            if (std.mem.eql(u8, replay_case.status, "pinned")) {
+                if (replay_case.fingerprint_hex.len != 64) return error.InvalidFingerprint;
+                for (replay_case.fingerprint_hex) |c| {
+                    if (!std.ascii.isHex(c) or std.ascii.isUpper(c)) return error.InvalidFingerprint;
+                }
+                if (replay_case.fields.len == 0 or replay_case.fields.len > 64)
+                    return error.InvalidFieldCount;
+                const computed = fingerprintFields(replay_case.fields);
+                var hex: [64]u8 = undefined;
+                _ = computed.formatHex(&hex);
+                if (!std.mem.eql(u8, &hex, replay_case.fingerprint_hex)) return error.FingerprintMismatch;
+            } else if (replay_case.fingerprint_hex.len != 0 or replay_case.fields.len != 0)
+                return error.PendingCaseMustBeEmpty;
             for (self.cases[0..index]) |prior| {
                 if (std.mem.eql(u8, prior.id, replay_case.id)) return error.DuplicateCaseId;
             }
-            const computed = fingerprintFields(replay_case.fields);
-            var hex: [64]u8 = undefined;
-            _ = computed.formatHex(&hex);
-            if (!std.mem.eql(u8, &hex, replay_case.fingerprint_hex)) return error.FingerprintMismatch;
         }
     }
 };
@@ -175,16 +189,64 @@ pub fn measureAgainstManifest(
     manifest: ReplayManifest,
     target: TargetTriple,
     observed_fields: []const f64,
-) !struct { case_id: ?[]const u8, divergence: Divergence, fingerprint: Fingerprint } {
+) !struct {
+    case_id: ?[]const u8,
+    baseline_status: BaselineStatus,
+    divergence: Divergence,
+    fingerprint: Fingerprint,
+} {
     const observed_fp = fingerprintFields(observed_fields);
     for (manifest.cases) |replay_case| {
         if (!std.mem.eql(u8, replay_case.target.arch, target.arch)) continue;
         if (!std.mem.eql(u8, replay_case.target.os, target.os)) continue;
         if (!std.mem.eql(u8, replay_case.target.optimize, target.optimize)) continue;
+        if (std.mem.eql(u8, replay_case.status, "pending")) {
+            return .{
+                .case_id = replay_case.id,
+                .baseline_status = .pending,
+                .divergence = .{
+                    .maximum_absolute_delta = 0,
+                    .maximum_relative_delta = 0,
+                    .mismatched_field_count = 0,
+                    .fingerprint_matches = false,
+                },
+                .fingerprint = observed_fp,
+            };
+        }
         const divergence = try Divergence.fromFields(replay_case.fields, observed_fields);
-        return .{ .case_id = replay_case.id, .divergence = divergence, .fingerprint = observed_fp };
+        return .{
+            .case_id = replay_case.id,
+            .baseline_status = if (divergence.fingerprint_matches) .matched else .mismatched,
+            .divergence = divergence,
+            .fingerprint = observed_fp,
+        };
     }
-    return .{ .case_id = null, .divergence = .{ .maximum_absolute_delta = 0, .maximum_relative_delta = 0, .mismatched_field_count = 0, .fingerprint_matches = false }, .fingerprint = observed_fp };
+    return .{
+        .case_id = null,
+        .baseline_status = .missing,
+        .divergence = .{ .maximum_absolute_delta = 0, .maximum_relative_delta = 0, .mismatched_field_count = 0, .fingerprint_matches = false },
+        .fingerprint = observed_fp,
+    };
+}
+
+pub fn formatReplayCaseJson(
+    replay_case_id: []const u8,
+    target: TargetTriple,
+    fields: []const f64,
+    writer: *std.Io.Writer,
+) !void {
+    const fp = fingerprintFields(fields);
+    var hex: [64]u8 = undefined;
+    _ = fp.formatHex(&hex);
+    try writer.print(
+        "{{\"id\":\"{s}\",\"target\":{{\"arch\":\"{s}\",\"os\":\"{s}\",\"optimize\":\"{s}\"}},\"status\":\"pinned\",\"fingerprint_hex\":\"{s}\",\"fields\":[",
+        .{ replay_case_id, target.arch, target.os, target.optimize, hex },
+    );
+    for (fields, 0..) |value, index| {
+        if (index > 0) try writer.writeAll(",");
+        try writer.print("{d:.17}", .{value});
+    }
+    try writer.writeAll("]}");
 }
 
 const builtin = @import("builtin");
@@ -220,6 +282,7 @@ test "replay manifest matches current target constant-acceleration fingerprint" 
     const target = currentTarget(builtin.mode);
     const measurement = try measureAgainstManifest(manifest.value, target, fields);
     try std.testing.expect(measurement.case_id != null);
+    try std.testing.expectEqual(.matched, measurement.baseline_status);
     try std.testing.expect(measurement.divergence.fingerprint_matches);
 }
 

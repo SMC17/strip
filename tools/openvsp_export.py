@@ -133,7 +133,7 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
         env=env,
         timeout=180,
     )
-    if proc.returncode != 0:
+    if proc.returncode != 0 and not os.path.isfile(out_path):
         raise RuntimeError(proc.stderr or proc.stdout or "OPENSP_CMD script failed")
     if not os.path.isfile(out_path):
         raise RuntimeError("OPENSP_CMD export did not produce STL output")

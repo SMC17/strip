@@ -1,0 +1,73 @@
+{
+  "schema": "strip.jsbsim-coefficient-comparator.v1",
+  "id": "shared-linear-aero-coefficients",
+  "source": "vehicles/jsbsim-linear-aero + fixtures/validation/fixed-wing/synthetic-coefficients.json analytic relations",
+  "model": "linear-aero",
+  "not_aircraft_data": true,
+  "acceptance": {
+    "absolute_tolerance": 0.0001,
+    "relative_tolerance": 0.000001
+  },
+  "probes": [
+    {
+      "alpha_deg": -5.729577951,
+      "beta_deg": 0.0,
+      "vt_fps": 100.0,
+      "altitude_ft": 1000.0,
+      "coefficients": {
+        "cx": -0.04,
+        "cy": 0.0,
+        "cz": 0.1,
+        "cl": 0.0,
+        "cm": 0.05,
+        "cn": 0.0
+      }
+    },
+    {
+      "alpha_deg": 0.0,
+      "beta_deg": 0.0,
+      "vt_fps": 100.0,
+      "altitude_ft": 1000.0,
+      "coefficients": {
+        "cx": -0.04,
+        "cy": 0.0,
+        "cz": 0.0,
+        "cl": 0.0,
+        "cm": 0.0,
+        "cn": 0.0
+      }
+    },
+    {
+      "alpha_deg": 5.729577951,
+      "beta_deg": 0.0,
+      "vt_fps": 100.0,
+      "altitude_ft": 1000.0,
+      "coefficients": {
+        "cx": -0.04,
+        "cy": 0.0,
+        "cz": -0.1,
+        "cl": 0.0,
+        "cm": -0.05,
+        "cn": 0.0
+      }
+    },
+    {
+      "alpha_deg": 0.0,
+      "beta_deg": 0.0,
+      "vt_fps": 200.0,
+      "altitude_ft": 1000.0,
+      "coefficients": {
+        "cx": -0.04,
+        "cy": 0.0,
+        "cz": 0.0,
+        "cl": 0.0,
+        "cm": 0.0,
+        "cn": 0.0
+      }
+    }
+  ],
+  "limitations": [
+    "Shared synthetic linear model only; not F-16 or any measured aircraft data.",
+    "Mach variation is carried in probe metadata but the linear model is Mach-invariant on this grid."
+  ]
+}

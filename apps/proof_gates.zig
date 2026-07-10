@@ -1,8 +1,12 @@
-//! Execute proof gates v2 with explicit evidence posture across all engineering lanes.
+//! Execute proof gates v3 with explicit evidence posture across all engineering lanes.
 
 const std = @import("std");
 const strip = @import("strip");
 const builtin = @import("builtin");
+
+fn tierStatusTag(status: strip.flight_test.qualification.DimensionStatus) []const u8 {
+    return @tagName(status);
+}
 
 pub fn main(init: std.process.Init) !u8 {
     const allocator = init.gpa;
@@ -74,6 +78,34 @@ pub fn main(init: std.process.Init) !u8 {
         if (!jsbsim_fw_passed) failed = true;
     } else failed = true;
 
+    // Gate 1c: Strip-native vs JSBSim coefficient agreement on shared linear model.
+    var jsbsim_coeff_passed = false;
+    var jsbsim_coeff_backend: []const u8 = "unavailable";
+    var jsbsim_coeff_evidence: []const u8 = "unavailable";
+    if (backend.kind != .unavailable) {
+        const coeff_bytes = try std.Io.Dir.cwd().readFileAlloc(
+            init.io,
+            "fixtures/validation/jsbsim/coefficient-comparator.json",
+            allocator,
+            .limited(256 * 1024),
+        );
+        defer allocator.free(coeff_bytes);
+        var coeff_comparator = try strip.adapters.jsbsim.parseCoefficientComparator(allocator, coeff_bytes);
+        defer coeff_comparator.deinit();
+        const native_model = strip.fixed_wing.synthetic_fixture.syntheticLinearModel();
+        const coeff_eval = try strip.adapters.jsbsim.evaluateCoefficientGate(
+            init.io,
+            allocator,
+            backend,
+            coeff_comparator.value,
+            native_model,
+        );
+        jsbsim_coeff_backend = @tagName(backend.kind);
+        jsbsim_coeff_evidence = @tagName(strip.adapters.jsbsim.evidenceTier(backend.kind));
+        jsbsim_coeff_passed = coeff_eval.passed;
+        if (!jsbsim_coeff_passed) failed = true;
+    } else failed = true;
+
     // Gate 2a: OpenVSP pinned geometry digest.
     const openvsp_bytes = try std.Io.Dir.cwd().readFileAlloc(
         init.io,
@@ -116,32 +148,45 @@ pub fn main(init: std.process.Init) !u8 {
     );
     defer tess_manifest.deinit();
     try tess_manifest.value.validate();
-    const mesh = try strip.adapters.openvsp_tessellation.tessellateBoxWing(
+    const tess_mesh = try strip.adapters.openvsp_tessellation.tessellateBoxWing(
         allocator,
         artifact,
         tess_manifest.value.segments_span,
         tess_manifest.value.segments_chord,
     );
-    defer allocator.free(mesh.triangles);
+    defer allocator.free(tess_mesh.triangles);
     const tess_report = try strip.adapters.openvsp_tessellation.verifyTessellation(
         tess_manifest.value,
         artifact,
-        mesh,
+        tess_mesh,
     );
     if (!tess_report.passed) failed = true;
 
-    // Gate 2c: OPENSP_CMD / analytic STL export conformance.
+    // Gate 2c/2d: OPENSP_CMD / analytic STL export conformance from exported mesh.
     var export_passed = false;
+    var export_real_passed = false;
     var export_backend: []const u8 = "unavailable";
+    var export_runtime_version: []const u8 = "none";
     const openvsp_cmd = init.environ_map.get("OPENSP_CMD");
+    const require_openvsp = init.environ_map.get("STRIP_REQUIRE_OPENSP_CMD") != null;
     if (strip.adapters.openvsp_export.resolveExportCommand(init.io, openvsp_cmd, "tools/openvsp_cmd.sh")) |cmd| {
+        const output_path = "openvsp-export.stl";
         const export_query = try strip.adapters.openvsp_export.queryExportSubprocess(
             init.io,
             allocator,
             cmd,
-            "/tmp/strip-openvsp-export.stl",
+            output_path,
         );
         export_backend = @tagName(export_query.backend);
+        if (export_query.response.export_runtime_version) |version| {
+            export_runtime_version = version;
+        }
+        const export_mesh = try strip.adapters.openvsp_export.parseAsciiStl(
+            allocator,
+            init.io,
+            output_path,
+        );
+        defer allocator.free(export_mesh.triangles);
         const export_bytes = try std.Io.Dir.cwd().readFileAlloc(
             init.io,
             "fixtures/validation/openvsp/export-conformance.json",
@@ -158,12 +203,13 @@ pub fn main(init: std.process.Init) !u8 {
         defer export_manifest.deinit();
         const export_report = try strip.adapters.openvsp_export.verifyExportConformance(
             export_manifest.value,
-            mesh,
+            export_mesh,
             export_query.backend,
         );
-        export_passed = export_report.passed and
-            export_query.response.triangle_count == export_manifest.value.expected_triangle_count;
+        export_passed = export_report.passed;
+        export_real_passed = export_query.backend == .openvsp_cmd and export_report.passed;
         if (!export_passed) failed = true;
+        if (require_openvsp and !export_real_passed) failed = true;
     } else {
         failed = true;
     }
@@ -194,8 +240,10 @@ pub fn main(init: std.process.Init) !u8 {
     if (replay_measurement.baseline_status == .mismatched or
         replay_measurement.baseline_status == .missing)
         failed = true;
+    const allow_pending = init.environ_map.get("STRIP_ALLOW_PENDING_REPLAY") != null;
+    if (!allow_pending and replay_pending_count > 0) failed = true;
 
-    // Gate 4a–4c: analytic, MC, fusion.
+    // Gate 4a–4d: uncertainty and campaign calibration.
     const x = try strip.uncertainty.propagate.fromGaussian(1.0, .{ .mean = 1.0, .variance = 0.01 });
     const y = try strip.uncertainty.propagate.fromGaussian(2.0, .{ .mean = 2.0, .variance = 0.04 });
     const propagated = try strip.uncertainty.propagate.composeAffine(&.{ 3.0, -0.5 }, &.{ x, y }, 1.0);
@@ -219,7 +267,6 @@ pub fn main(init: std.process.Init) !u8 {
     });
     if (!fused.observation_used or fused.fused_standard_uncertainty >= 1.0) failed = true;
 
-    // Gate 4d: flight-campaign calibration + holdout coverage.
     const campaign_bytes = try std.Io.Dir.cwd().readFileAlloc(
         init.io,
         "fixtures/validation/flight-test/synthetic-campaign.json",
@@ -247,19 +294,19 @@ pub fn main(init: std.process.Init) !u8 {
     );
     if (!campaign_report.holdout_passed) failed = true;
 
-    // Gate 5: flight-qualification evidence framework (structure only).
+    // Gate 5: flight-qualification evidence framework with tier ladder.
     const qualification_report = try strip.flight_test.qualification.evaluateFromFixtures(
         allocator,
         init.io,
     );
     if (!qualification_report.passed) failed = true;
 
-    var buffer: [16384]u8 = undefined;
+    var buffer: [20480]u8 = undefined;
     var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.proof-gates.v2\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_backend\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.proof-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
         .{
             jsbsim_atmos_backend,
             jsbsim_atmos_evidence,
@@ -267,10 +314,15 @@ pub fn main(init: std.process.Init) !u8 {
             jsbsim_fw_backend,
             jsbsim_fw_evidence,
             jsbsim_fw_passed,
+            jsbsim_coeff_backend,
+            jsbsim_coeff_evidence,
+            jsbsim_coeff_passed,
             openvsp_report.passed,
             tess_report.passed,
             export_passed,
+            export_real_passed,
             export_backend,
+            export_runtime_version,
             strip.adapters.openvsp.pinned_version,
             replay_measurement.case_id orelse "missing",
             @tagName(replay_measurement.baseline_status),
@@ -282,6 +334,9 @@ pub fn main(init: std.process.Init) !u8 {
             campaign_report.holdout_coverage_one_sigma,
             fused.fused_standard_uncertainty,
             qualification_report.passed,
+            tierStatusTag(qualification_report.tier_ladder.software_only),
+            tierStatusTag(qualification_report.tier_ladder.hardware_in_loop),
+            tierStatusTag(qualification_report.tier_ladder.flight_test),
         },
     );
     return if (failed) 1 else 0;

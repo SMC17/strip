@@ -38,10 +38,12 @@ zig build
 ./zig-out/bin/strip-promote-replay-baseline
 ```
 
-CI installs `jsbsim==1.3.1`, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, runs proof-gates v2
-(atmosphere + F-16 fixed-wing + OpenVSP export + campaign calibration + flight evidence),
-and uploads replay baseline artifacts from `ubuntu-24.04-arm` and `macos-latest` matrix legs.
-Promote baselines with `tools/promote_replay_from_ci.sh`.
+CI installs `jsbsim==1.3.1` in a venv, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, runs proof-gates v3
+(atmosphere + F-16 fixed-wing + shared-model coefficients + OpenVSP export + campaign calibration
++ flight tier ladder), records replay baselines on `ubuntu-24.04-arm` and `macos-latest` (including
+Rosetta x86_64-macos), and publishes a promoted replay manifest from `replay-baseline-collect`.
+The `openvsp-real-export` job installs OpenVSP on `ubuntu-24.04` and requires `export_backend: openvsp_cmd`.
+Promote baselines with `tools/promote_replay_from_ci.sh` or download the `rk4-cross-target-promoted` artifact.
 
 Valid intended-use values are `education`, `research`,
 `preliminary_design`, and `simulation_training`.

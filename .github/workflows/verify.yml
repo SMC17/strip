@@ -18,12 +18,18 @@ jobs:
       - name: Check formatting
         run: zig fmt --check build.zig src apps tools
       - name: Install JSBSim Python runner
-        run: python -m pip install --disable-pip-version-check jsbsim==1.3.1
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --disable-pip-version-check jsbsim==1.3.1
       - name: Run unit and integration gates
         env:
           JSBSIM_CMD: tools/jsbsim_cmd.sh
           STRIP_JSBSIM_SHIM: ${{ github.workspace }}/zig-out/bin/strip-jsbsim-shim
+          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
         run: zig build verify
+      - name: Install replay baseline recorder
+        run: zig build
       - name: Record replay baseline (x86_64 linux Debug)
         run: ./zig-out/bin/strip-record-replay-baseline > replay-baseline-x86_64-linux-Debug.json
       - name: Upload replay baseline artifact
@@ -33,7 +39,8 @@ jobs:
           path: replay-baseline-x86_64-linux-Debug.json
       - name: Validate strict schema fixtures
         run: |
-          python -m pip install --disable-pip-version-check jsonschema
+          source .venv/bin/activate
+          pip install --disable-pip-version-check jsonschema
           python - <<'PY'
           import json
           from pathlib import Path
@@ -64,8 +71,13 @@ jobs:
         include:
           - os: ubuntu-24.04-arm
             arch_label: aarch64-linux
+            rosetta: false
           - os: macos-latest
-            arch_label: macos
+            arch_label: aarch64-macos
+            rosetta: false
+          - os: macos-latest
+            arch_label: x86_64-macos
+            rosetta: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -73,18 +85,110 @@ jobs:
         with:
           version: 0.16.0
       - name: Install JSBSim Python runner
-        run: python3 -m pip install --disable-pip-version-check jsbsim==1.3.1
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --disable-pip-version-check jsbsim==1.3.1
       - name: Build and run proof gates (ReleaseSafe)
         env:
           JSBSIM_CMD: tools/jsbsim_cmd.sh
           STRIP_JSBSIM_SHIM: ${{ github.workspace }}/zig-out/bin/strip-jsbsim-shim
+          STRIP_ALLOW_PENDING_REPLAY: "1"
+          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
         run: |
-          zig build -Doptimize=ReleaseSafe
+          if [[ "${{ matrix.rosetta }}" == "true" ]]; then
+            zig build -Dtarget=x86_64-macos -Doptimize=ReleaseSafe
+          else
+            zig build -Doptimize=ReleaseSafe
+          fi
           ./zig-out/bin/strip-proof-gates
       - name: Record replay baseline for ${{ matrix.arch_label }}
-        run: ./zig-out/bin/strip-record-replay-baseline > replay-baseline-${{ matrix.arch_label }}-ReleaseSafe.json
+        run: |
+          if [[ "${{ matrix.rosetta }}" == "true" ]]; then
+            arch -x86_64 ./zig-out/bin/strip-record-replay-baseline > replay-baseline-${{ matrix.arch_label }}-ReleaseSafe.json
+          else
+            ./zig-out/bin/strip-record-replay-baseline > replay-baseline-${{ matrix.arch_label }}-ReleaseSafe.json
+          fi
       - name: Upload replay baseline artifact
         uses: actions/upload-artifact@v4
         with:
           name: replay-baseline-${{ matrix.arch_label }}-ReleaseSafe
           path: replay-baseline-${{ matrix.arch_label }}-ReleaseSafe.json
+
+  replay-baseline-collect:
+    needs: replay-baseline-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Download replay baseline artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: replay-artifacts
+          pattern: replay-baseline-*
+          merge-multiple: true
+      - name: Merge baselines into cross-target manifest
+        run: |
+          zig build -q
+          cp fixtures/validation/replay/rk4-cross-target.json /tmp/rk4-cross-target.json
+          for baseline in replay-artifacts/replay-baseline-*.json; do
+            cat "${baseline}" | ./zig-out/bin/strip-promote-replay-baseline > /tmp/rk4-promoted.json
+            cp /tmp/rk4-promoted.json /tmp/rk4-cross-target.json
+            cp /tmp/rk4-promoted.json fixtures/validation/replay/rk4-cross-target.json
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("fixtures/validation/replay/rk4-cross-target.json").read_text())
+          pending = [c["id"] for c in manifest["cases"] if c.get("status") == "pending"]
+          if pending:
+              raise SystemExit(f"pending cases remain: {pending}")
+          print("all replay cases pinned")
+          PY
+      - name: Upload promoted replay manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: rk4-cross-target-promoted
+          path: fixtures/validation/replay/rk4-cross-target.json
+
+  openvsp-real-export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Install OpenVSP Ubuntu package
+        run: |
+          curl -fsSL -o openvsp.deb "https://openvsp.org/download.php?file=installers/Ubuntu/OpenVSP-3.51.0-Ubuntu-24.04_amd64.deb"
+          sudo dpkg -i openvsp.deb || sudo apt-get install -f -y
+          which vsp || ls /usr/local/bin/vsp || ls /opt/OpenVSP/bin/vsp
+          VSP_BIN="$(command -v vsp || echo /usr/local/bin/vsp)"
+          echo "OPENSP_CMD=${VSP_BIN}" >> "${GITHUB_ENV}"
+      - name: Install JSBSim Python runner
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --disable-pip-version-check jsbsim==1.3.1
+      - name: Build and run proof gates with real OpenVSP
+        env:
+          JSBSIM_CMD: tools/jsbsim_cmd.sh
+          STRIP_JSBSIM_SHIM: ${{ github.workspace }}/zig-out/bin/strip-jsbsim-shim
+          OPENSP_CMD: ${{ env.OPENSP_CMD }}
+          STRIP_REQUIRE_OPENSP_CMD: "1"
+          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
+        run: |
+          zig build -Doptimize=ReleaseSafe
+          ./zig-out/bin/strip-proof-gates | tee proof-gates.json
+          python3 - <<'PY'
+          import json, sys
+          report = json.loads(open("proof-gates.json").read())
+          ov = report.get("openvsp", {})
+          if ov.get("export_backend") != "openvsp_cmd":
+              raise SystemExit(f"expected openvsp_cmd backend, got {ov.get('export_backend')}")
+          if not ov.get("export_real_passed"):
+              raise SystemExit("export_real_passed is false")
+          print("real OpenVSP export gate passed")
+          PY

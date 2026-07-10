@@ -40,10 +40,12 @@ Checks currently cover:
 - flight-test telemetry, regression, residuals, maneuver cards, and sealed evidence manifests
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) with explicit unavailability
 - JSBSim atmosphere + F-16 fixed-wing short-horizon integration via `JSBSIM_CMD` / pip `jsbsim`
+- JSBSim vs Strip-native coefficient agreement on shared `linear-aero` model (Gate 1c)
 - OpenVSP digest, analytic tessellation, and `OPENSP_CMD`/analytic STL export conformance
-- cross-target RK4 replay fingerprints with `pending_count` and CI baseline promotion tooling
+- real OpenVSP CAD export gate on `ubuntu-24.04` CI (`openvsp-real-export` job)
+- cross-target RK4 replay fingerprints; fails when `pending_count > 0` after promotion
 - uncertainty: analytic affine, Monte Carlo calibration, flight-campaign holdout coverage, fusion
-- flight-qualification evidence framework (Gate 5): sealed manifest + split policy; never operational claims
+- flight-qualification evidence framework (Gate 5): tier ladder SIL/PIL partial; never operational claims
 - deterministic UAS wind/link-loss integration and assurance weakest-link behavior
 
 Primary grounding sources are cataloged in `sources/primary-sources.json` with
@@ -62,9 +64,8 @@ otherwise stated; catalog presence is not model-validation evidence.
 
 ## Not measured
 
-- Strip-native vs JSBSim coefficient-level agreement (different vehicle models)
+- F-16 coefficient-level agreement (Gate 1b is dynamics host only; Gate 1c uses shared synthetic model)
 - OpenVSP aerodynamic/structural suitability from mesh export alone
-- replay baselines on aarch64/macos until CI artifacts are promoted into the manifest
 - operational flight qualification, certification, HIL hardware, or FAA accreditation
 
 ## Error lens

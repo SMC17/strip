@@ -29,21 +29,22 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-fidelity
 ```
 
-Latest local gate: 202 unit tests plus UAS, assurance, platform, validation, fidelity,
-and proof-gates integration executables.
+Latest local gate: 211 unit tests plus UAS, assurance, platform, validation, fidelity,
+and proof-gates v3 integration executables.
 
-## Proof gates (v2)
+## Proof gates (v3)
 
 | Gate | Evidence tier | Honest limit |
 |------|---------------|--------------|
 | JSBSim atmosphere | `cross_implementation` via pip `jsbsim` | US76-class atmosphere; weather-balloon host |
 | JSBSim fixed-wing | `cross_implementation` via F-16 short integration | JSBSim vehicle host; not Strip native aero tables |
+| JSBSim coefficients | `cross_implementation` on shared linear-aero model | Not F-16; synthetic shared grid only |
 | OpenVSP digest | pinned geometry manifest v3.42.0 | Canonical description; no linked OpenVSP runtime required |
 | OpenVSP tessellation | analytic box-wing mesher | Mesh digest/area/count regression |
-| OpenVSP export | `OPENSP_CMD` or `analytic_stl_exporter` | STL export conformance; not CFD suitability |
-| Replay | pinned x86_64/linux; `pending_count` for aarch64/macos | Promote via `strip-promote-replay-baseline` + CI artifacts |
+| OpenVSP export | `OPENSP_CMD` or `analytic_stl_exporter` | STL export conformance; real OpenVSP on ubuntu-24.04 CI |
+| Replay | pinned per-arch; fails if `pending_count > 0` | Promote via CI `replay-baseline-collect` artifact |
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
-| Flight evidence (Gate 5) | `software_only` framework | Sealed manifest + split policy; `operational_qualification_claimed: false` |
+| Flight evidence (Gate 5) | `software_only` + tier ladder | SIL/PIL partial; `operational_qualification_claimed: false` |
 
 Proof gate runner:
 
@@ -54,15 +55,11 @@ cat baseline.json | ./zig-out/bin/strip-promote-replay-baseline > fixtures/valid
 tools/promote_replay_from_ci.sh baseline.json
 ```
 
-Latest local gate: 208 unit tests plus integration executables and proof-gates v2.
-
 ## Next proof work
 
 - public license
-- promote aarch64/linux and macOS replay baselines from CI matrix artifacts
-- wire real `OPENSP_CMD` OpenVSP 3.42.0 CAD export when binary available in CI
-- JSBSim fixed-wing comparison against Strip native coefficient provider at matched conditions
 - ingest NASA TP-1538 coefficient tables and expand vehicle cross-check envelope
+- integrated HIL and flight-test tier evidence (hardware-backed; not synthetic fixtures)
 
 ## Scaffold-level contracts
 

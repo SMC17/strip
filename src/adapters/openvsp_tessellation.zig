@@ -56,8 +56,10 @@ pub const Mesh = struct {
     }
 
     pub fn digest(self: Mesh) !serialization.Identifier {
-        var buffer: [65536]u8 = undefined;
-        return serialization.sha256(try self.canonicalBytes(&buffer));
+        const needed = self.triangles.len * 9 * 16 + 256;
+        const buffer = try std.heap.page_allocator.alloc(u8, @max(needed, 4096));
+        defer std.heap.page_allocator.free(buffer);
+        return serialization.sha256(try self.canonicalBytes(buffer));
     }
 };
 

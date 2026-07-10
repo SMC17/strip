@@ -184,6 +184,9 @@ jobs:
           export PATH="${{ github.workspace }}/.venv/bin:${PATH}"
           export DISPLAY=:99
           Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 3
+          echo '{"schema":"strip.openvsp-export-protocol.v0","output_path":"openvsp-smoke.stl"}' | python3 tools/openvsp_export.py export | tee export-smoke.json
+          python3 -c "import json; r=json.load(open('export-smoke.json')); assert r['backend']=='openvsp_cmd', r"
           zig build -Doptimize=ReleaseSafe
           ./zig-out/bin/strip-proof-gates | tee proof-gates.json
           python3 - <<'PY'

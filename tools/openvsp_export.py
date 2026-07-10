@@ -112,7 +112,7 @@ def analytic_export(request: dict) -> dict:
 
 
 def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
-    out_path = request.get("output_path", "/tmp/strip-openvsp-export.stl")
+    out_path = os.path.abspath(request.get("output_path", "/tmp/strip-openvsp-export.stl"))
     script_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(script_dir, "openvsp_box_wing.vspscript")
     with open(template_path, encoding="ascii") as handle:
@@ -122,12 +122,16 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
     with open(script_path, "w", encoding="ascii") as handle:
         handle.write(script_body)
     env = os.environ.copy()
+    command = [openvsp_cmd, "-script", script_path]
+    if not env.get("DISPLAY") and os.path.isfile("/usr/bin/xvfb-run"):
+        command = ["xvfb-run", "-a", openvsp_cmd, "-script", script_path]
     proc = subprocess.run(
-        [openvsp_cmd, "-script", script_path],
+        command,
         check=False,
         capture_output=True,
         text=True,
         env=env,
+        timeout=180,
     )
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr or proc.stdout or "OPENSP_CMD script failed")

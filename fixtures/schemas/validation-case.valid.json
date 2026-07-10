@@ -1,0 +1,18 @@
+{
+  "schema": "strip.validation-case.v1",
+  "id": "comparator-perturbation-detection",
+  "subject": "Synthetic scalar comparator",
+  "comparator": "Independent fixture values with one deliberate perturbation",
+  "source_ids": ["synthetic-comparator-fixture"],
+  "envelope": {
+    "axes": [
+      { "variable": "mach", "unit": "1", "minimum": 0, "maximum": 0.3 },
+      { "variable": "altitude", "unit": "m", "minimum": 0, "maximum": 2000 }
+    ]
+  },
+  "expected_dimensions": ["unit_test", "cross_implementation", "experimental"],
+  "acceptance": {
+    "absolute_tolerance": 0.001,
+    "relative_tolerance": 0.01
+  }
+}

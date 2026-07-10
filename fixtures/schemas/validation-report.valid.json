@@ -1,0 +1,47 @@
+{
+  "schema": "strip.validation-report.v1",
+  "id": "report-comparator-perturbation-detection",
+  "case_id": "comparator-perturbation-detection",
+  "generated_at": "2026-07-10T21:20:00Z",
+  "status": "failed",
+  "comparisons": [
+    {
+      "variable": "coefficient",
+      "reference": 1,
+      "observed": 1.005,
+      "absolute_error": 0.005,
+      "tolerance": 0.01,
+      "status": "passed"
+    },
+    {
+      "variable": "coefficient",
+      "reference": 0.8,
+      "observed": 0.95,
+      "absolute_error": 0.15,
+      "tolerance": 0.008,
+      "status": "failed"
+    }
+  ],
+  "evidence": [
+    {
+      "dimension": "unit_test",
+      "status": "missing",
+      "note": "This static fixture does not claim execution evidence."
+    },
+    {
+      "dimension": "cross_implementation",
+      "status": "failed",
+      "evidence_id": "fixture:comparator-perturbed",
+      "note": "The deliberate perturbation exceeds the predeclared tolerance."
+    },
+    {
+      "dimension": "experimental",
+      "status": "missing",
+      "note": "No experimental dataset is attached."
+    }
+  ],
+  "limitations": [
+    "Synthetic values test failure detection only.",
+    "This is not physical-model validation or independent implementation evidence."
+  ]
+}

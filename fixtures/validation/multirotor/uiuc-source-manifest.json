@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "dataset": "UIUC Propeller Database",
+  "publisher": "University of Illinois Urbana-Champaign, Department of Aerospace Engineering",
+  "retrieved_utc": "2026-07-10",
+  "landing_page": "https://m-selig.ae.illinois.edu/props/propDB.html",
+  "volume_page": "https://m-selig.ae.illinois.edu/props/volume-2/propDB-volume-2.html",
+  "source_file": {
+    "url": "https://m-selig.ae.illinois.edu/props/volume-2/data/apcff_9x4_static_1016rd.txt",
+    "propeller_id": "apcff_9x4",
+    "header_as_published": ["RPM", "CT", "CP"],
+    "transcription": "The three records below are copied verbatim as decimal values from the named UIUC source file; no interpolation or fitting was performed.",
+    "records": [
+      {"rpm": 1513.333, "ct": 0.074892, "cp": 0.040710},
+      {"rpm": 1706.667, "ct": 0.078324, "cp": 0.041786},
+      {"rpm": 2046.667, "ct": 0.078347, "cp": 0.040186}
+    ]
+  },
+  "coefficient_convention": {
+    "source_columns": "CT and CP",
+    "model_conversion": "CQ = CP / (2*pi); T = CT*rho*n^2*D^4; Q = CQ*rho*n^2*D^5",
+    "warning": "A few transcribed static points are validation inputs, not a validated interpolation map or a complete motor-propeller model."
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "strip.uiuc-coefficient-reference-x4",
+  "model_scope": "mixed-provenance software fixture; one published propeller coefficient record plus explicitly synthetic vehicle, motor, and battery parameters",
+  "frames": {
+    "body": "x-forward_y-right_z-down",
+    "local_world": "x-north_y-east_z-up"
+  },
+  "provenance": {
+    "transcribed_propeller_record": {
+      "source": "UIUC Propeller Database Volume 2, apcff_9x4_static_1016rd.txt",
+      "url": "https://m-selig.ae.illinois.edu/props/volume-2/data/apcff_9x4_static_1016rd.txt",
+      "rpm": 1513.333,
+      "ct": 0.074892,
+      "cp": 0.040710,
+      "diameter_m": 0.2286,
+      "diameter_note": "exact conversion of the 9 inch nominal diameter encoded by the source propeller identifier"
+    },
+    "synthetic_fields": [
+      "mass_properties",
+      "rotor placement and rotation directions",
+      "maximum rotor speed",
+      "motor time constant",
+      "battery configuration",
+      "drag and ground-effect bounds"
+    ]
+  },
+  "mass_properties": {
+    "mass_kg": 1.5,
+    "inertia_kg_m2": {"xx": 0.03, "yy": 0.03, "zz": 0.05}
+  },
+  "rotors": [
+    {"id": "front_left", "position_body_m": [0.2, -0.2, 0.0], "direction": "counter_clockwise"},
+    {"id": "front_right", "position_body_m": [0.2, 0.2, 0.0], "direction": "clockwise"},
+    {"id": "rear_right", "position_body_m": [-0.2, 0.2, 0.0], "direction": "counter_clockwise"},
+    {"id": "rear_left", "position_body_m": [-0.2, -0.2, 0.0], "direction": "clockwise"}
+  ],
+  "coefficient_model": {
+    "diameter_m": 0.2286,
+    "thrust_coefficient": 0.074892,
+    "power_coefficient": 0.040710,
+    "torque_coefficient_expression": "0.040710 / (2*pi)",
+    "maximum_omega_radps": 500.0,
+    "motor_time_constant_s": 0.08
+  },
+  "battery": {
+    "capacity_coulomb": 18000.0,
+    "ocv_empty_v": 12.0,
+    "ocv_full_v": 16.8,
+    "internal_resistance_ohm": 0.08,
+    "maximum_discharge_current_a": 40.0,
+    "thermal_capacity_j_per_k": 600.0,
+    "cooling_w_per_k": 2.0
+  },
+  "limitations": [
+    "Only the named propeller record is transcribed experimental data.",
+    "No claim is made that the transcribed operating point matches the synthetic vehicle, motor, ESC, or battery.",
+    "The static coefficient is not an inflow map and does not model advance ratio, Reynolds effects, blade flapping, or interference.",
+    "Not suitable for flight planning, hardware operation, certification, or control-law qualification."
+  ]
+}

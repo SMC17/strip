@@ -10,13 +10,19 @@ identifies its model, units, intended use, validity envelope, and proof.
 - evidence, provenance, dependency, uncertainty, schema, and public-use types
 - typed vector/frame math and WGS84 geodetic/ECEF/NED transforms
 - deterministic time, event ordering, named RNG streams, identities, and replay
-- a bounded atmosphere model and rigid-body 6-DOF flight kernel
+- a bounded atmosphere model and coupled rigid-body 6-DOF flight kernel
+- fixed-wing aerodynamics, multirotor propulsion, trim, and analysis primitives
+- weather/turbulence through 86 km, terrain, perception timing, and human factors
+- deterministic multi-rate runtime, scene composition, collision, and sensor timing
+- validation envelopes, 18-source manifests, coverage matrix, and flight-test analytics
+- typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) and frontier adapter catalog
 - mass, aerodynamic-table, actuator, PID, IMU, and GNSS primitives
 - deterministic scenario, Monte Carlo, UAS contingency, and simulation modules
 - an executable requirement-to-evidence graph
 - typed AeroIR, agent, frontier-research, adapter, twin, and public-safe
   resilience contracts
-- CLI surfaces for atmosphere, UAS range, assurance, and platform inventory
+- CLI surfaces for atmosphere, UAS range, assurance, platform inventory,
+  validation coverage, and coupled fidelity demo
 
 ```sh
 zig build verify
@@ -25,6 +31,8 @@ zig build
 ./zig-out/bin/strip-uas-range
 ./zig-out/bin/strip-assurance
 ./zig-out/bin/strip-platform
+./zig-out/bin/strip-validation
+./zig-out/bin/strip-fidelity
 ```
 
 Valid intended-use values are `education`, `research`,
@@ -40,12 +48,15 @@ exit status 2:
 ## Architecture
 
 1. evidence kernel: units, frames, provenance, validity, uncertainty, identity
-2. deterministic primitives: atmosphere, geodesy, mass properties, 6-DOF
-3. scenario runtime: events, faults, replay, Monte Carlo
-4. composition: reference vehicles, controls, sensors, links, and UAS workflow
-5. assurance: requirements, tests, evidence dependencies, stale/cycle checks
-6. constrained intelligence: typed tools, permissions, replay, evaluator contracts
-7. product surfaces: consumer lab, civil assurance, mission engineering
+2. deterministic primitives: atmosphere through 86 km, geodesy, mass properties, coupled 6-DOF
+3. vehicle physics: fixed-wing, multirotor, propulsion, trim, contact, and energy
+4. scenario runtime: multi-rate scheduler, rollback structures, collision, scene composition
+5. environment: weather/turbulence, terrain, airports, perception timing, human factors
+6. validation: envelopes, source manifests, coverage matrix, comparators, flight-test analytics
+7. composition: reference vehicles, controls, sensors, links, and UAS workflow
+8. assurance: requirements, tests, evidence dependencies, stale/cycle checks
+9. constrained intelligence: typed tools, permissions, replay, evaluator contracts
+10. product surfaces: consumer lab, civil assurance, mission engineering
 
 The executable UAS fixture composes 6-DOF translation, hover thrust, wind,
 GNSS sampling, link loss, geofence state, and deterministic contingency policy.

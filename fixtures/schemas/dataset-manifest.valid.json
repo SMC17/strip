@@ -1,0 +1,19 @@
+{
+  "schema": "strip.dataset-manifest.v1",
+  "records": [
+    {
+      "id": "synthetic-comparator-fixture",
+      "title": "Synthetic comparator failure fixture",
+      "publisher": "Strip test suite",
+      "edition": "test fixture",
+      "version": "1",
+      "url": "https://example.invalid/strip/synthetic-comparator-fixture",
+      "license": "CC0-1.0 test metadata",
+      "retrieved_at": "2026-07-10",
+      "digest": "sha256:00ff94c1e0df81fc56790c0f2288d0c58f98377bf375bb7bdc95616626b0b6dd",
+      "digest_scope": "fixture_content",
+      "extraction": "Hand-authored synthetic values; no external material copied.",
+      "limitations": ["Not a physical or independent validation dataset."]
+    }
+  ]
+}

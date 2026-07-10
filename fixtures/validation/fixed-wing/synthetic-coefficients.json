@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "strip.validation.fixed-wing.synthetic-v1",
+  "data_class": "synthetic",
+  "not_aircraft_data": true,
+  "frame": "body_x_forward_y_right_z_down",
+  "coefficient_order": ["CX", "CY", "CZ", "Cl", "Cm", "Cn"],
+  "independent_variables": {
+    "alpha_rad": [-0.3, 0.3],
+    "beta_rad": [-0.2, 0.2],
+    "mach": [0.0, 0.5]
+  },
+  "generating_relations": {
+    "CX": "-0.04",
+    "CY": "-beta",
+    "CZ": "-4*alpha",
+    "Cl": "0",
+    "Cm": "-0.5*alpha",
+    "Cn": "0"
+  },
+  "outside_envelope": "refuse",
+  "purpose": "software interpolation, sign, symmetry, and convergence tests only"
+}

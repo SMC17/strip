@@ -1,0 +1,5 @@
+sequence,monotonic_ns,utc_ns,channel,value,standard_uncertainty,quality,split
+1,0,1700000000000000000,body_ax,1.0,0.1,valid,calibration
+2,1000000000,1700000001000025000,body_ax,3.0,0.1,valid,calibration
+3,2000000000,1700000002000050000,body_ax,,0.1,missing,calibration
+4,3000000000,1700000003000075000,body_ax,7.0,0.1,valid,blinded_holdout

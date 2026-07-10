@@ -1,0 +1,30 @@
+{
+  "schema": "strip.flight-test-evidence.v1",
+  "package_id": "synthetic-flight-test-001",
+  "created_utc": "2026-07-10T12:00:00Z",
+  "test_card_id": "fw-pitch-doublet-001",
+  "configuration_id": "clean-light-cg-mid",
+  "split_policy_id": "synthetic-split-001",
+  "toolchain": "Zig 0.16; dependency-free",
+  "artifacts": [
+    {
+      "relative_path": "telemetry/run-cal-01.csv",
+      "media_type": "text/csv",
+      "bytes": 128,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "relative_path": "analytics/holdout-residuals.json",
+      "media_type": "application/json",
+      "bytes": 256,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "package_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "sealed": true,
+  "operational_qualification_claimed": false,
+  "limitations": [
+    "This package records local synthetic unit-test evidence only.",
+    "No flight hardware, HIL hardware, FSTD, operational suitability, certification, or regulatory qualification was evaluated."
+  ]
+}

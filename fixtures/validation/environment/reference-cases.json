@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "qualification": false,
+  "purpose": "Deterministic unit-test inputs; not independent validation evidence",
+  "sources": [
+    {
+      "id": "USSA1976",
+      "edition": "NOAA-S/T 76-1562",
+      "locator": "Part 1, equations 23a/23b and tables 3/4"
+    },
+    {
+      "id": "MIL-F-8785C",
+      "edition": "1980",
+      "locator": "paragraph 3.7.2 and figures 7-8"
+    },
+    {
+      "id": "IEEE-952-2020",
+      "edition": "2020",
+      "locator": "Allan variance noise-process terminology"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ussa76-sea-level",
+      "input": {
+        "geopotential_altitude_m": 0.0
+      },
+      "expected": {
+        "temperature_k": 288.15,
+        "pressure_pa": 101325.0
+      }
+    },
+    {
+      "id": "dem-bilinear-center",
+      "input": {
+        "grid_elevations_m": [0.0, 10.0, 20.0, 30.0],
+        "query_fraction": [0.5, 0.5],
+        "vertical_datum": "egm96_geoid"
+      },
+      "expected": {
+        "elevation_m": 15.0
+      }
+    },
+    {
+      "id": "channel-saturation",
+      "input": {
+        "truth": 120.0,
+        "minimum": 0.0,
+        "maximum": 100.0,
+        "quantum": 0.5
+      },
+      "expected": {
+        "value": 100.0,
+        "status": "saturated_high"
+      }
+    }
+  ]
+}

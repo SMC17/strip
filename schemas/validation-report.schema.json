@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/validation-report.schema.json",
+  "title": "Strip validation report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "case_id", "generated_at", "status", "comparisons", "evidence", "limitations"],
+  "properties": {
+    "schema": { "const": "strip.validation-report.v1" },
+    "id": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "case_id": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["passed", "failed", "incomplete"] },
+    "comparisons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["variable", "reference", "observed", "absolute_error", "tolerance", "status"],
+        "properties": {
+          "variable": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "reference": { "type": "number" },
+          "observed": { "type": "number" },
+          "absolute_error": { "type": "number", "minimum": 0 },
+          "tolerance": { "type": "number", "minimum": 0 },
+          "status": { "enum": ["passed", "failed"] }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dimension", "status", "note"],
+        "properties": {
+          "dimension": { "$ref": "#/$defs/evidenceDimension" },
+          "status": { "enum": ["missing", "passed", "failed"] },
+          "evidence_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 160 },
+          "note": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    }
+  },
+  "$defs": {
+    "evidenceDimension": {
+      "enum": ["analytical", "unit_test", "cross_implementation", "public_benchmark", "experimental", "hardware_in_loop", "flight", "certification"]
+    }
+  }
+}

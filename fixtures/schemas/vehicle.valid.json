@@ -1,0 +1,26 @@
+{
+  "schema": "strip.vehicle.v1",
+  "id": "strip.demo-uas",
+  "version": "1.0.0",
+  "description": "Synthetic configuration for parser and validation tests; not flight data.",
+  "mass_kg": 12.5,
+  "reference_area_m2": 0.82,
+  "reference_span_m": 2.4,
+  "reference_chord_m": 0.36,
+  "inertia_kg_m2": {
+    "xx": 1.2,
+    "yy": 2.1,
+    "zz": 2.8,
+    "xy": 0.02,
+    "xz": 0,
+    "yz": -0.01
+  },
+  "validity_envelope": {
+    "axes": [
+      { "variable": "mach", "unit": "1", "minimum": 0, "maximum": 0.25 },
+      { "variable": "geometric_altitude", "unit": "m", "minimum": 0, "maximum": 3000 },
+      { "variable": "angle_of_attack", "unit": "deg", "minimum": -8, "maximum": 12 }
+    ]
+  },
+  "source_ids": ["uiuc-prop-db", "us-standard-atmosphere-1976"]
+}

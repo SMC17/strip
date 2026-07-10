@@ -27,5 +27,4 @@ void main()
     if (mesh_id != "") {
         DeleteGeom(mesh_id);
     }
-    Print(out_path + "\n");
 }

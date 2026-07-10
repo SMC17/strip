@@ -22,6 +22,29 @@ pub const ExportResponse = struct {
     export_runtime_version: ?[]const u8 = null,
 };
 
+fn cloneExportResponse(gpa: std.mem.Allocator, src: ExportResponse) !ExportResponse {
+    return .{
+        .schema = try gpa.dupe(u8, src.schema),
+        .backend = try gpa.dupe(u8, src.backend),
+        .triangle_count = src.triangle_count,
+        .surface_area_m2 = src.surface_area_m2,
+        .output_path = try gpa.dupe(u8, src.output_path),
+        .mesh_digest = if (src.mesh_digest) |digest| try gpa.dupe(u8, digest) else null,
+        .export_runtime_version = if (src.export_runtime_version) |version|
+            try gpa.dupe(u8, version)
+        else
+            null,
+    };
+}
+
+pub fn freeExportResponse(gpa: std.mem.Allocator, response: ExportResponse) void {
+    gpa.free(response.schema);
+    gpa.free(response.backend);
+    gpa.free(response.output_path);
+    if (response.mesh_digest) |digest| gpa.free(digest);
+    if (response.export_runtime_version) |version| gpa.free(version);
+}
+
 pub const OpenVspCmdPolicy = struct {
     min_triangle_count: u32,
     max_triangle_count: u32,
@@ -139,7 +162,8 @@ pub fn queryExportSubprocess(
     defer parsed.deinit();
     if (!std.mem.eql(u8, parsed.value.schema, protocol_schema)) return error.InvalidResponseSchema;
     const backend = parseBackendTag(parsed.value.backend);
-    return .{ .response = parsed.value, .backend = backend };
+    const response = try cloneExportResponse(gpa, parsed.value);
+    return .{ .response = response, .backend = backend };
 }
 
 pub fn parseAsciiStl(
@@ -282,12 +306,13 @@ test "ascii STL parser reads exported mesh file" {
     const cmd = resolveExportCommand(std.testing.io, null, "tools/openvsp_cmd.sh") orelse
         return error.SkipZigTest;
     const output_path = "openvsp-export-test.stl";
-    _ = queryExportSubprocess(
+    const query = queryExportSubprocess(
         std.testing.io,
         std.testing.allocator,
         cmd,
         output_path,
     ) catch return error.SkipZigTest;
+    defer freeExportResponse(std.testing.allocator, query.response);
     const mesh = parseAsciiStl(std.testing.allocator, std.testing.io, output_path) catch |err| switch (err) {
         error.EmptyMesh => return error.SkipZigTest,
         else => return err,

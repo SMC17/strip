@@ -41,9 +41,9 @@ Checks currently cover:
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) with explicit unavailability
 - JSBSim atmosphere + F-16 fixed-wing short-horizon integration via `JSBSIM_CMD` / pip `jsbsim`
 - JSBSim vs Strip-native coefficient agreement on shared `linear-aero` model (Gate 1c)
-- OpenVSP digest, analytic tessellation, and `OPENSP_CMD`/analytic STL export conformance
-- real OpenVSP CAD export gate on `ubuntu-24.04` CI (`openvsp-real-export` job)
-- cross-target RK4 replay fingerprints; fails when `pending_count > 0` after promotion
+- OpenVSP digest, analytic tessellation, and `tools/openvsp_cmd.sh` STL export conformance
+- real OpenVSP CAD export (Gate 2d): `vsp -script tools/openvsp_box_wing.vspscript` on `ubuntu-24.04` CI
+- cross-target RK4 replay fingerprints in `fixtures/validation/replay/rk4-cross-target.json` (`pending_count: 0`)
 - uncertainty: analytic affine, Monte Carlo calibration, flight-campaign holdout coverage, fusion
 - flight-qualification evidence framework (Gate 5): tier ladder SIL/PIL partial; never operational claims
 - deterministic UAS wind/link-loss integration and assurance weakest-link behavior
@@ -65,7 +65,7 @@ otherwise stated; catalog presence is not model-validation evidence.
 ## Not measured
 
 - F-16 coefficient-level agreement (Gate 1b is dynamics host only; Gate 1c uses shared synthetic model)
-- OpenVSP aerodynamic/structural suitability from mesh export alone
+- OpenVSP aerodynamic/structural suitability from mesh export alone (Gate 2d is structural conformance only)
 - operational flight qualification, certification, HIL hardware, or FAA accreditation
 
 ## Error lens

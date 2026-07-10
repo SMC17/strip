@@ -139,6 +139,17 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(replay_baseline_cli);
 
+    const promote_replay_cli = b.addExecutable(.{
+        .name = "strip-promote-replay-baseline",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/promote_replay_baseline.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(promote_replay_cli);
+
     const gen_fixtures = b.addExecutable(.{
         .name = "strip-gen-proof-fixtures",
         .root_module = b.createModule(.{

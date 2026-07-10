@@ -13,6 +13,9 @@ pub const cards = @import("cards.zig");
 pub const hil = @import("hil.zig");
 pub const evidence = @import("evidence.zig");
 pub const metadata = @import("metadata.zig");
+pub const campaign = @import("campaign.zig");
+pub const telemetry_csv = @import("telemetry_csv.zig");
+pub const qualification = @import("qualification.zig");
 
 test {
     _ = telemetry;
@@ -27,4 +30,7 @@ test {
     _ = hil;
     _ = evidence;
     _ = metadata;
+    _ = campaign;
+    _ = telemetry_csv;
+    _ = qualification;
 }

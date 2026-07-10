@@ -166,7 +166,7 @@ pub fn main(init: std.process.Init) !u8 {
     var export_passed = false;
     var export_real_passed = false;
     var export_backend: []const u8 = "unavailable";
-    var export_runtime_version: []const u8 = "none";
+    const export_runtime_version: []const u8 = init.environ_map.get("OPENSP_RUNTIME_VERSION") orelse "none";
     const openvsp_cmd = init.environ_map.get("OPENSP_CMD");
     const require_openvsp = init.environ_map.get("STRIP_REQUIRE_OPENSP_CMD") != null;
     if (strip.adapters.openvsp_export.resolveExportCommand(init.io, openvsp_cmd, "tools/openvsp_cmd.sh")) |cmd| {
@@ -186,9 +186,6 @@ pub fn main(init: std.process.Init) !u8 {
         if (export_query) |export_query_val| {
             defer strip.adapters.openvsp_export.freeExportResponse(allocator, export_query_val.response);
             export_backend = @tagName(export_query_val.backend);
-            if (export_query_val.response.export_runtime_version) |version| {
-                export_runtime_version = version;
-            }
             const export_mesh = blk: {
                 break :blk strip.adapters.openvsp_export.parseAsciiStl(
                     allocator,

@@ -212,11 +212,13 @@ pub fn main(init: std.process.Init) !u8 {
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.evidence.bundle.v1\",\"program_id\":\"{s}\",\"output_dir\":\"{s}\",\"bundle_digest\":\"sha256:{s}\",\"signature\":{s},\"artifact_digests\":{{\"sources\":\"sha256:{s}\",\"validation_case\":\"sha256:{s}\",\"validation_report\":\"sha256:{s}\",\"campaign\":\"sha256:{s}\",\"assurance_fixture\":\"sha256:{s}\",\"assurance_graph\":\"sha256:{s}\",\"model_package\":\"sha256:{s}\"}},\"source_count\":{d},\"model_count\":{d},\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"report_status\":\"{s}\",\"assurance_claim\":\"{s}\",\"assurance_internally_consistent\":{},\"assurance_limiting_strength\":\"{s}\",\"assurance_diagnostic_count\":{d},\"operational_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.evidence.bundle.v1\",\"program_id\":\"{s}\",\"output_dir\":\"{s}\",\"bundle_digest\":\"sha256:{s}\",\"execution_identity\":{{\"content_sha256\":\"sha256:{s}\",\"program_id\":\"{s}\"}},\"signature\":{s},\"artifact_digests\":{{\"sources\":\"sha256:{s}\",\"validation_case\":\"sha256:{s}\",\"validation_report\":\"sha256:{s}\",\"campaign\":\"sha256:{s}\",\"assurance_fixture\":\"sha256:{s}\",\"assurance_graph\":\"sha256:{s}\",\"model_package\":\"sha256:{s}\"}},\"source_count\":{d},\"model_count\":{d},\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"report_status\":\"{s}\",\"assurance_claim\":\"{s}\",\"assurance_internally_consistent\":{},\"assurance_limiting_strength\":\"{s}\",\"assurance_diagnostic_count\":{d},\"operational_qualification_claimed\":false}}\n",
         .{
             program.id,
             output_dir,
             &bundle_digest_hex,
+            &bundle_digest_hex,
+            program.id,
             signature_json,
             &source_digest,
             &case_digest,

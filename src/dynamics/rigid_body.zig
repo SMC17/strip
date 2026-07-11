@@ -225,6 +225,7 @@ pub fn rk4StepCoupledResult(
             .unit = "s",
         },
         .envelope = manifest.effectiveEnvelope("time_s"),
+        .execution_identity = .fromModel(manifest),
     };
 }
 
@@ -244,6 +245,7 @@ pub fn rk4StepResult(
         .validity = .valid,
         .evaluated_point = .{ .variable = "time_s", .value = dt_s, .unit = "s" },
         .envelope = manifest.effectiveEnvelope("time_s"),
+        .execution_identity = .fromModel(manifest),
     };
 }
 

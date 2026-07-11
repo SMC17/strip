@@ -80,6 +80,7 @@ pub fn reconstructResult(
                 .unit = "Pa",
             },
             .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
         };
     }
     const wrench = try reconstruct(coefficient, dynamic_pressure_pa, geometry);
@@ -94,6 +95,7 @@ pub fn reconstructResult(
             .unit = "Pa",
         },
         .envelope = envelope,
+        .execution_identity = .fromModel(manifest),
     };
 }
 

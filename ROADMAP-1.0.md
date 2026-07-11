@@ -21,7 +21,7 @@ The simulator is one evidence producer. Assurance, HIL, flight test, and externa
 | Software verification | Early | 211 unit tests; CI green on `main` |
 | Physical validation | Minimal | Synthetic fixtures dominate |
 | Evidence semantics | Prototype | Ordinal proof levels; no credibility vector |
-| Reproducibility | Partial | Zig/JSBSim pinned; OpenVSP deb not checksummed |
+| Reproducibility | Stronger | Zig/JSBSim pinned; actions by SHA; OpenVSP deb checksummed; run-manifest v1 |
 | Operational/cert relevance | None | By design |
 
 **As a disciplined prototype:** ~6/10.  
@@ -64,7 +64,7 @@ takeoff → climb → waypoint → descent → landing
 |----|-------|--------|
 | P0.1 | Subprocess JSON string lifetime (JSBSim integrate/coeff, OpenVSP export) | **Fixed** 2026-07-10 |
 | P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Partial** — `export_real_passed` requires landmark or digest; `openvsp_cmd_mesh_digest` pinned from OpenVSP 3.42.0 CI |
-| P0.3 | Stale STL / nonzero vsp exit accepted | **Partial** — delete-before-export; exit policy still relaxed |
+| P0.3 | Stale STL / nonzero vsp exit accepted | **Fixed** 2026-07-11 — delete-before-export; nonzero `vsp` exit always fails |
 | P0.4 | `watertight_required` ignored | **Fixed** 2026-07-10 |
 | P0.5 | Canonical buffer heuristics | **Fixed** 2026-07-10 — streaming encoder hashes coordinates in place |
 | P0.6 | Duplicate atmosphere (`atmosphere.zig` 0–11 km vs `weather` 0–86 km) | **Fixed** 2026-07-10 — `strip.atmosphere` delegates to `weather.atmosphere` |
@@ -80,13 +80,13 @@ takeoff → climb → waypoint → descent → landing
 - [x] Streaming canonical encoder → SHA-256 (no size heuristics)
 - [x] Per-variable JSBSim acceptance metrics
 - [x] Strip Verify credibility step in `zig build verify`
-- [ ] `model-package` schema v1 + `run-manifest` schema v1
+- [x] `model-package` schema v1 + `run-manifest` schema v1
 - [ ] Per-variable comparator tolerances with documented rationale
-- [ ] Experimental modules removed from primary product claims (see `EXPERIMENTAL.md`)
-- [ ] Public license file
-- [ ] CI deps pinned by digest/commit (actions SHAs, jsonschema, OpenVSP deb)
-- [ ] Reproducible Linux build documented
-- [ ] Every authoritative output carries execution identity
+- [x] Experimental modules removed from primary product claims (see `EXPERIMENTAL.md`; nest under `strip.experimental`)
+- [x] Public license file
+- [x] CI deps pinned by digest/commit (actions SHAs, jsonschema version gate, OpenVSP deb SHA-256)
+- [x] Reproducible Linux build documented
+- [x] Every authoritative output carries execution identity
 
 ## Stage 2 — Enforce the thesis in types (Months 3–6)
 
@@ -158,11 +158,13 @@ Produces immutable bundle: 10k runs, fault scenarios, SIL/HIL/flight comparisons
 
 ## Hard rule
 
-**Every new feature must increase evidence density, reduce revalidation cost, improve interoperability, or close the loop with physical reality.** Otherwise it stays in `experimental/` or does not ship.
+**Every new feature must increase evidence density, reduce revalidation cost, improve interoperability, or close the loop with physical reality.** Otherwise it stays under `strip.experimental` or does not ship.
 
 ## References
 
 - [STATUS.md](STATUS.md) — current executable surface
 - [VALIDATION.md](VALIDATION.md) — proof level and limitations
 - [EXPERIMENTAL.md](EXPERIMENTAL.md) — frozen contracts
+- [docs/REPRODUCIBLE-BUILD.md](docs/REPRODUCIBLE-BUILD.md) — pinned Linux build
+- [website/](website/) — Docusaurus onboarding + diagrams
 - [docs/PLATFORM-EXTERNAL.md](docs/PLATFORM-EXTERNAL.md) — OpenRouter and external wiring policy

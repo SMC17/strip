@@ -134,6 +134,7 @@ pub fn evaluateResult(
             .unit = "m",
         },
         .envelope = evaluation.envelope,
+        .execution_identity = .fromModel(evaluation.model),
     };
 }
 

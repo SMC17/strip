@@ -135,8 +135,13 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
         env=env,
         timeout=180,
     )
-    if proc.returncode != 0 and not os.path.isfile(out_path):
-        raise RuntimeError(proc.stderr or proc.stdout or "OPENSP_CMD script failed")
+    # P0.3: nonzero vsp exit is always a failure — never accept a stale/partial STL.
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError(
+            f"OPENSP_CMD exited {proc.returncode}"
+            + (f": {detail}" if detail else "")
+        )
     if not os.path.isfile(out_path):
         raise RuntimeError("OPENSP_CMD export did not produce STL output")
     metrics = mesh_metrics(out_path)

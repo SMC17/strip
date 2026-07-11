@@ -1,10 +1,11 @@
 # Strip Status
 
-Date: 2026-07-10
+Date: 2026-07-11
 
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
-**CI:** `verify` runs tests, verification-gates, strip-verify, evidence compiler, and campaign scaffold (64-run cap). Separate `campaign-10k` job runs the full 10k Monte Carlo with Ed25519 attestation and SIL/HIL/flight tier ladder.
+**Docs site:** [website/](website/) — Docusaurus onboarding + architecture/verification graphs.  
+**CI:** `verify` runs tests, verification-gates, strip-verify, evidence compiler, and campaign scaffold (64-run cap). Separate `campaign-10k` job runs the full 10k Monte Carlo with Ed25519 attestation and SIL/HIL/flight tier ladder. Actions pinned by commit SHA; OpenVSP deb SHA-256 checked in CI.
 
 ## Executable surface
 
@@ -19,7 +20,8 @@ Date: 2026-07-10
 - validation envelopes, source manifests (19 primary sources, content-hashed), coverage matrix, comparators
 - flight-test telemetry, regression, residuals, maneuvers, HIL contracts, evidence packages
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) and frontier adapter catalog
-- assurance graph JSON ingest, model-package schema, and product/frontier inventory
+- assurance graph JSON ingest, model-package + run-manifest schemas, and product inventory
+- experimental frontier modules only via `strip.experimental.*` (see [EXPERIMENTAL.md](EXPERIMENTAL.md))
 
 Proof level: `unit-tested`
 
@@ -35,8 +37,9 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-fidelity
 ```
 
-Latest local gate: 219 unit tests plus UAS, assurance, platform, validation, fidelity,
+Latest local gate: unit tests plus UAS, assurance, platform, validation, fidelity,
 evidence compiler, campaign bundle, and verification-gates v3 integration executables.
+Authoritative `NumericalResult` paths and evidence/campaign manifests carry `execution_identity`.
 
 ## Verification gates (v3)
 
@@ -47,7 +50,7 @@ evidence compiler, campaign bundle, and verification-gates v3 integration execut
 | JSBSim coefficients | `cross_implementation` on shared linear-aero model | Not F-16; synthetic shared grid only |
 | OpenVSP digest | pinned geometry manifest v3.42.0 | Canonical description; no linked OpenVSP runtime required |
 | OpenVSP tessellation | analytic box-wing mesher | Mesh digest/area/count regression |
-| OpenVSP export | `OPENSP_CMD` via `openvsp_box_wing.vspscript` or `analytic_stl_exporter` | Structural mesh bounds for real export; analytic exact digest pin |
+| OpenVSP export | `OPENSP_CMD` via `openvsp_box_wing.vspscript` or `analytic_stl_exporter` | Nonzero vsp exit fails; structural mesh bounds; analytic exact digest pin |
 | Replay | pinned per-arch (`pending_count: 0`); fails if any case pending | Five ReleaseSafe/Debug legs; same RK4 fingerprint across current matrix |
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
 | Flight evidence (Gate 5) | `software_only` + tier ladder | SIL/PIL partial; `operational_qualification_claimed: false` |
@@ -63,18 +66,20 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- public license
-- ingest NASA TP-1538 coefficient tables and expand vehicle cross-check envelope
-- integrated HIL and flight-test tier evidence (hardware-backed; not synthetic fixtures)
+- Per-variable comparator tolerances with documented rationale (last Stage 1 checkbox)
+- Expand `NumericalResult` / credibility vector beyond atmosphere, RK4, fixed-wing forces
+- Reference UAS Month-6: real (not synthetic) validation data for the assurance case
+- Certification-delta, model passports, physical HIL bench, flight evidence (`flight_test` stays `missing` until then)
 
 ## CI (`verify` workflow)
 
 | Job | Runner | Purpose |
 |-----|--------|---------|
-| `zig-and-schemas` | `ubuntu-latest` | fmt, 211 tests, schema fixtures, x86_64-linux Debug replay artifact |
+| `zig-and-schemas` | `ubuntu-latest` | fmt, tests, schema fixtures (incl. run-manifest), x86_64-linux Debug replay artifact |
 | `replay-baseline-matrix` | `ubuntu-24.04-arm`, `macos-latest` (aarch64 + Rosetta x86_64) | ReleaseSafe verification-gates + per-arch replay baseline |
 | `replay-baseline-collect` | `ubuntu-latest` | merge baselines; assert `pending_count == 0` |
-| `openvsp-real-export` | `ubuntu-24.04` | OpenVSP 3.42.0 deb, xvfb, `STRIP_REQUIRE_OPENSP_CMD=1`, Gate 2d real mesh |
+| `openvsp-real-export` | `ubuntu-24.04` | OpenVSP 3.42.0 deb (SHA-256 pinned), xvfb, `STRIP_REQUIRE_OPENSP_CMD=1`, Gate 2d real mesh |
+| `campaign-10k` | `ubuntu-latest` | Full 10k Monte Carlo + execution_identity + tier ladder |
 
 ## Scaffold-level contracts
 

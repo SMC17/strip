@@ -42,6 +42,7 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-flight-seal build --out /tmp/strip-flight-seal --require-holdout
 STRIP_FLIGHT_PACKAGE=/tmp/strip-flight-seal ./zig-out/bin/strip-verification-gates
 ./zig-out/bin/strip-mavlink-sitl selftest
+./zig-out/bin/strip-trajectory selftest
 ./zig-out/bin/strip-certification-delta diff <baseline.json> <candidate.json>
 ./zig-out/bin/strip-model-passport issue strip.atmosphere.us76-layered
 ```
@@ -79,6 +80,7 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
+- Trajectory counterfactual branch (same JSONL prefix, alternate model/policy) — see `docs/TRAJECTORY.md`
 - Replace held-out sensor-model CSV with a real flight/ulog export before Month-6 flight claim
 - Wire UDP MAVLink to a live `px4-sitl` binary (loopback selftest is offline-only today)
 - WeatherNext live against a real Vertex/WeatherLab endpoint when credentials exist

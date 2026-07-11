@@ -1,0 +1,10 @@
+{"sequence":0,"event_id":"e0","kind":"trajectory_created","delivery_id":"d0","detail":"reference-uas-atmosphere trajectory"}
+{"sequence":1,"event_id":"e1","kind":"objective_received","delivery_id":"d1","detail":"Confirm US76 sea-level and 11km table points within metric_acceptance"}
+{"sequence":2,"event_id":"e2","kind":"context_attached","delivery_id":"d2","detail":"fixtures/validation/uas/us76-atmosphere-case.json"}
+{"sequence":3,"event_id":"e3","kind":"action_proposed","delivery_id":"d3","action":{"kind":"run_validation","action_id":"a-us76","objective":"Join US76 case to report and require coverage_complete","target":"reports/validation/us76-atmosphere.json","risk":"simulation","verification":["v-us76"]}}
+{"sequence":4,"event_id":"e4","kind":"policy_evaluated","delivery_id":"d4","policy":"approved","detail":"read_only validation join"}
+{"sequence":5,"event_id":"e5","kind":"action_executed","delivery_id":"d5","detail":"strip-validation us76_atmosphere"}
+{"sequence":6,"event_id":"e6","kind":"observation_recorded","delivery_id":"d6","detail":"coverage_complete=true cross_implementation=passed"}
+{"sequence":7,"event_id":"v-us76","kind":"verification_completed","delivery_id":"d7","verification_status":"passed","detail":"US76 analytical+unit_test+cross_implementation"}
+{"sequence":8,"event_id":"c1","kind":"claim_asserted","delivery_id":"d8","evidence_refs":["v-us76"],"detail":"US76 atmosphere coverage is complete for the reference case"}
+{"sequence":9,"event_id":"e9","kind":"run_completed","delivery_id":"d9","detail":"trajectory closed; operational_qualification_claimed=false"}

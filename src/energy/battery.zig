@@ -2,6 +2,30 @@
 //! Parameters are caller-supplied; this module does not claim cell identification.
 
 const std = @import("std");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.energy.lumped-battery",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Lumped OCV-R battery accounting; caller-supplied cell parameters",
+    .assumptions = &.{
+        "linear OCV vs SOC",
+        "constant internal resistance",
+        "no electrochemical identification claim",
+    },
+    .valid_min = 0.0,
+    .valid_max = 1.0e6,
+    .valid_unit = "W",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .analytical,
+        .comparison = .none,
+        .validation = .none,
+    },
+};
 
 pub const Config = struct {
     capacity_coulomb: f64,
@@ -138,6 +162,46 @@ pub const Battery = struct {
             .depleted = self.state_of_charge == 0.0,
         };
     }
+
+    pub fn stepPowerResult(
+        self: *Battery,
+        context: evidence.Context,
+        requested_power_w: f64,
+        dt_s: f64,
+    ) error{InvalidStep}!numerical_result.NumericalResult(?Step) {
+        const envelope = manifest.effectiveEnvelope("requested_power_w");
+        if (!envelope.contains(requested_power_w)) {
+            return .{
+                .value = null,
+                .model = manifest,
+                .context = context,
+                .validity = .outside_envelope,
+                .evaluated_point = .{
+                    .variable = "requested_power_w",
+                    .value = requested_power_w,
+                    .unit = "W",
+                },
+                .envelope = envelope,
+                .execution_identity = .fromModel(manifest),
+                .credibility = .fromProof(manifest.effectiveProof()),
+            };
+        }
+        const step = try self.stepPower(requested_power_w, dt_s);
+        return .{
+            .value = step,
+            .model = manifest,
+            .context = context,
+            .validity = .valid,
+            .evaluated_point = .{
+                .variable = "requested_power_w",
+                .value = requested_power_w,
+                .unit = "W",
+            },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
+        };
+    }
 };
 
 pub const Step = struct {
@@ -208,4 +272,13 @@ test "battery stepping is deterministic" {
         try std.testing.expectEqualDeep(a, b);
     }
     try std.testing.expectEqualDeep(first, second);
+}
+
+test "battery stepPowerResult is authoritative inside envelope" {
+    var battery = try Battery.init(testConfig(), 1.0, 293.15);
+    const context = try evidence.Context.init(.research);
+    const numbered = try battery.stepPowerResult(context, 50.0, 0.1);
+    try std.testing.expect(numbered.isAuthoritative());
+    try std.testing.expect(numbered.value != null);
+    try std.testing.expectEqual(@as(u8, 2), numbered.credibility.uncertainty);
 }

@@ -1,0 +1,18 @@
+{
+  "schema": "strip.certification-delta.v0",
+  "id": "delta-reference-uas-scaffold",
+  "baseline_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "candidate_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "changed_artifacts": [
+    {
+      "path": "programs/reference-uas-models.json",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "impact": "model"
+    }
+  ],
+  "required_revalidation": [
+    "fixtures/validation/uas/us76-atmosphere-case.json",
+    "campaigns/reference-uas-contingency.toml"
+  ],
+  "operational_qualification_claimed": false
+}

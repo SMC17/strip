@@ -17,8 +17,10 @@ Canonical pin table lives in the repo: [`docs/REPRODUCIBLE-BUILD.md`](https://gi
 
 ## Docs site (this site)
 
+From the Strip repo root (absolute path on this workstation: `/home/stax/sovereign-physics/strip`):
+
 ```sh
-cd website
+cd /home/stax/sovereign-physics/strip/website
 npm ci
 npm run build
 npm start

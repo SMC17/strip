@@ -1,0 +1,66 @@
+{
+  "schema": "strip.validation-report.v1",
+  "id": "report-reference-uas-us76-atmosphere",
+  "case_id": "reference-uas-us76-atmosphere",
+  "generated_at": "2026-07-11T03:10:00Z",
+  "status": "passed",
+  "comparisons": [
+    {
+      "variable": "temperature_k",
+      "reference": 288.15,
+      "observed": 288.15,
+      "absolute_error": 0.0,
+      "tolerance": 0.5,
+      "status": "passed"
+    },
+    {
+      "variable": "pressure_pa",
+      "reference": 101325.0,
+      "observed": 101325.0,
+      "absolute_error": 0.0,
+      "tolerance": 50.0,
+      "status": "passed"
+    },
+    {
+      "variable": "temperature_k",
+      "reference": 216.65,
+      "observed": 216.65,
+      "absolute_error": 0.0,
+      "tolerance": 0.5,
+      "status": "passed"
+    },
+    {
+      "variable": "pressure_pa",
+      "reference": 22632.06,
+      "observed": 22632.06,
+      "absolute_error": 0.0,
+      "tolerance": 50.0,
+      "status": "passed"
+    }
+  ],
+  "evidence": [
+    {
+      "dimension": "analytical",
+      "status": "passed",
+      "evidence_id": "source:us-standard-atmosphere-1976",
+      "note": "Published US76 table points at 0 m and 11 km geopotential (NOAA-S/T 76-1562)."
+    },
+    {
+      "dimension": "unit_test",
+      "status": "passed",
+      "evidence_id": "test:atmosphere.sea-level",
+      "note": "Strip native layered atmosphere matches table points within metric_acceptance."
+    },
+    {
+      "dimension": "cross_implementation",
+      "status": "passed",
+      "evidence_id": "gate:jsbsim-atmosphere",
+      "note": "JSBSim Python atmosphere gate uses the same per-variable metric_acceptance set."
+    }
+  ],
+  "limitations": [
+    "Table points are published US76 values, not flight telemetry.",
+    "Cross-implementation uses JSBSim as an independent host, not a physical sensor.",
+    "Campaign Monte Carlo faults remain synthetic SIL inputs; flight_test tier stays missing."
+  ]
+}

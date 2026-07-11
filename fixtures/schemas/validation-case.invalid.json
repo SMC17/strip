@@ -13,5 +13,14 @@
   "acceptance": {
     "absolute_tolerance": -1,
     "relative_tolerance": 2
-  }
+  },
+  "metric_acceptance": [
+    {
+      "variable": "mach",
+      "unit": "1",
+      "absolute_tolerance": 0.1,
+      "relative_tolerance": 0.1,
+      "rationale": "Present so schema parse reaches envelope validation"
+    }
+  ]
 }

@@ -3,8 +3,32 @@
 
 const std = @import("std");
 const math = @import("math.zig");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
 
 pub const max_rotors = 8;
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.multirotor.rotor-static-coefficient",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Static CT/CP rotor model; UIUC points are validation inputs only",
+    .assumptions = &.{
+        "static thrust/torque coefficients",
+        "no blade-element dynamics",
+        "density and omega within caller envelope",
+    },
+    .valid_min = 0.5,
+    .valid_max = 1.5,
+    .valid_unit = "kg/m^3",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .none,
+        .comparison = .public_benchmark,
+        .validation = .experimental,
+    },
+};
 
 pub const Direction = enum(i8) {
     clockwise = -1,
@@ -47,6 +71,46 @@ pub const CoefficientModel = struct {
             .thrust_n = self.thrust_coefficient * density_kgpm3 * n2 * d4,
             .reaction_torque_nm = self.torque_coefficient * density_kgpm3 * n2 * d4 * self.diameter_m,
             .omega_radps = omega,
+        };
+    }
+
+    pub fn evaluateResult(
+        self: CoefficientModel,
+        context: evidence.Context,
+        density_kgpm3: f64,
+        omega_radps_raw: f64,
+    ) error{InvalidInput}!numerical_result.NumericalResult(?RotorOutput) {
+        const envelope = manifest.effectiveEnvelope("density_kg_m3");
+        if (!envelope.contains(density_kgpm3)) {
+            return .{
+                .value = null,
+                .model = manifest,
+                .context = context,
+                .validity = .outside_envelope,
+                .evaluated_point = .{
+                    .variable = "density_kg_m3",
+                    .value = density_kgpm3,
+                    .unit = "kg/m^3",
+                },
+                .envelope = envelope,
+                .execution_identity = .fromModel(manifest),
+                .credibility = .fromProof(manifest.effectiveProof()),
+            };
+        }
+        const output = try self.evaluate(density_kgpm3, omega_radps_raw);
+        return .{
+            .value = output,
+            .model = manifest,
+            .context = context,
+            .validity = .valid,
+            .evaluated_point = .{
+                .variable = "density_kg_m3",
+                .value = density_kgpm3,
+                .unit = "kg/m^3",
+            },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
         };
     }
 
@@ -244,4 +308,18 @@ test "placement direction and ground effect produce bounded wrench signs" {
     try std.testing.expect(wrench.moment_body_nm.x > 0.0);
     try std.testing.expect(wrench.moment_body_nm.y > 0.0);
     try std.testing.expect(wrench.moment_body_nm.z > 0.0);
+}
+
+test "rotor evaluateResult carries credibility vector" {
+    const model = CoefficientModel{
+        .diameter_m = 0.25,
+        .thrust_coefficient = 0.1,
+        .torque_coefficient = 0.01,
+        .max_omega_radps = 600.0,
+    };
+    const context = try evidence.Context.init(.preliminary_design);
+    const numbered = try model.evaluateResult(context, 1.225, 300.0);
+    try std.testing.expect(numbered.isAuthoritative());
+    try std.testing.expect(numbered.value != null);
+    try std.testing.expect(numbered.credibility.review >= 2);
 }

@@ -81,6 +81,7 @@ pub fn reconstructResult(
             },
             .envelope = envelope,
             .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
         };
     }
     const wrench = try reconstruct(coefficient, dynamic_pressure_pa, geometry);
@@ -96,6 +97,7 @@ pub fn reconstructResult(
         },
         .envelope = envelope,
         .execution_identity = .fromModel(manifest),
+        .credibility = .fromProof(manifest.effectiveProof()),
     };
 }
 

@@ -135,6 +135,7 @@ pub fn evaluateResult(
         },
         .envelope = evaluation.envelope,
         .execution_identity = .fromModel(evaluation.model),
+        .credibility = .fromProof(evaluation.model.effectiveProof()),
     };
 }
 

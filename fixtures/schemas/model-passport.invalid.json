@@ -1,0 +1,22 @@
+{
+  "schema": "strip.model-passport.v0",
+  "model_id": "",
+  "version": "0.2.0",
+  "digest": "bad",
+  "intended_uses": [],
+  "prohibited_uses": [],
+  "validity_envelope": {
+    "variable": "x",
+    "minimum": 1,
+    "maximum": 0,
+    "unit": "m"
+  },
+  "credibility": {
+    "pedigree": 9,
+    "verification": 2,
+    "validation": 0,
+    "uncertainty": 2,
+    "review": 2
+  },
+  "operational_qualification_claimed": true
+}

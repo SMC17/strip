@@ -20,7 +20,7 @@ The simulator is one evidence producer. Assurance, HIL, flight test, and externa
 | Numerical kernel | Promising | RK4 + tests; no adaptive suite yet |
 | Software verification | Early | 211 unit tests; CI green on `main` |
 | Physical validation | Minimal | Synthetic fixtures dominate |
-| Evidence semantics | Prototype | Ordinal proof levels; no credibility vector |
+| Evidence semantics | Stronger | Credibility vector C=(P,V,E,R,G) on NumericalResult; ordinal legacy still present |
 | Reproducibility | Stronger | Zig/JSBSim pinned; actions by SHA; OpenVSP deb checksummed; run-manifest v1 |
 | Operational/cert relevance | None | By design |
 
@@ -81,7 +81,7 @@ takeoff → climb → waypoint → descent → landing
 - [x] Per-variable JSBSim acceptance metrics
 - [x] Strip Verify credibility step in `zig build verify`
 - [x] `model-package` schema v1 + `run-manifest` schema v1
-- [ ] Per-variable comparator tolerances with documented rationale
+- [x] Per-variable comparator tolerances with documented rationale
 - [x] Experimental modules removed from primary product claims (see `EXPERIMENTAL.md`; nest under `strip.experimental`)
 - [x] Public license file
 - [x] CI deps pinned by digest/commit (actions SHAs, jsonschema version gate, OpenVSP deb SHA-256)
@@ -166,5 +166,8 @@ Produces immutable bundle: 10k runs, fault scenarios, SIL/HIL/flight comparisons
 - [VALIDATION.md](VALIDATION.md) — proof level and limitations
 - [EXPERIMENTAL.md](EXPERIMENTAL.md) — frozen contracts
 - [docs/REPRODUCIBLE-BUILD.md](docs/REPRODUCIBLE-BUILD.md) — pinned Linux build
+- [docs/COMPARATOR-TOLERANCES.md](docs/COMPARATOR-TOLERANCES.md) — per-variable metrics + rationale
+- [docs/REFERENCE-UAS.md](docs/REFERENCE-UAS.md) — Month-6 vertical slice honesty map
+- [docs/LATER-WEDGES.md](docs/LATER-WEDGES.md) — certification-delta / passport scaffolds
 - [website/](website/) — Docusaurus onboarding + diagrams
 - [docs/PLATFORM-EXTERNAL.md](docs/PLATFORM-EXTERNAL.md) — OpenRouter and external wiring policy

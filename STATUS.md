@@ -4,7 +4,8 @@ Date: 2026-07-11
 
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
-**Docs site:** [website/](website/) — Docusaurus onboarding + architecture/verification graphs.  
+**Docs site:** `/home/stax/sovereign-physics/strip/website` — `cd` there, then `npm ci && npm start` (not `~/website`; `d` may be a docker alias).  
+**Reference UAS:** [docs/REFERENCE-UAS.md](docs/REFERENCE-UAS.md) — US76 + UIUC real validation inputs; SIL faults synthetic; `flight_test` missing.  
 **CI:** `verify` runs tests, verification-gates, strip-verify, evidence compiler, and campaign scaffold (64-run cap). Separate `campaign-10k` job runs the full 10k Monte Carlo with Ed25519 attestation and SIL/HIL/flight tier ladder. Actions pinned by commit SHA; OpenVSP deb SHA-256 checked in CI.
 
 ## Executable surface
@@ -66,10 +67,11 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Per-variable comparator tolerances with documented rationale (last Stage 1 checkbox)
-- Expand `NumericalResult` / credibility vector beyond atmosphere, RK4, fixed-wing forces
-- Reference UAS Month-6: real (not synthetic) validation data for the assurance case
-- Certification-delta, model passports, physical HIL bench, flight evidence (`flight_test` stays `missing` until then)
+- Expand `NumericalResult` / credibility vector to remaining authoritative models (sensors, trim, contact, …)
+- Physical HIL bench (replace synthetic io_loopback)
+- Sealed flight evidence package (`flight_test` stays `missing` until then)
+- Certification-delta engine + model passport issuance beyond schema scaffolds (see [docs/LATER-WEDGES.md](docs/LATER-WEDGES.md))
+- Held-out flight validation for Month-6 exit (campaign SIL faults remain synthetic by design)
 
 ## CI (`verify` workflow)
 

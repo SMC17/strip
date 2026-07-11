@@ -18,6 +18,7 @@ Goal: green `zig build verify`, one evidence bundle, one campaign scaffold — w
 ## 2. Verify
 
 ```sh
+cd /home/stax/sovereign-physics/strip
 python3 -m venv .venv
 .venv/bin/pip install --disable-pip-version-check jsbsim==1.3.1
 export PATH="$(pwd)/.venv/bin:$PATH"

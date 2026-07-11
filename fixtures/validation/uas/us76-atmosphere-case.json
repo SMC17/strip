@@ -1,0 +1,47 @@
+{
+  "schema": "strip.validation-case.v1",
+  "id": "reference-uas-us76-atmosphere",
+  "subject": "Reference UAS atmosphere envelope vs US76 published table points",
+  "comparator": "Strip native US76 layered atmosphere vs NOAA-S/T 76-1562 table values",
+  "source_ids": ["us-standard-atmosphere-1976"],
+  "envelope": {
+    "axes": [
+      { "variable": "geopotential_altitude_m", "unit": "m", "minimum": 0, "maximum": 11000 }
+    ]
+  },
+  "expected_dimensions": ["analytical", "unit_test", "cross_implementation"],
+  "acceptance": {
+    "absolute_tolerance": 0.5,
+    "relative_tolerance": 0.0001
+  },
+  "metric_acceptance": [
+    {
+      "variable": "temperature_k",
+      "unit": "K",
+      "absolute_tolerance": 0.5,
+      "relative_tolerance": 0.0001,
+      "rationale": "US76 table resolution; cross-implementation atmosphere gate"
+    },
+    {
+      "variable": "pressure_pa",
+      "unit": "Pa",
+      "absolute_tolerance": 50.0,
+      "relative_tolerance": 0.0001,
+      "rationale": "Hectopascal-scale tabular rounding at layer boundaries"
+    },
+    {
+      "variable": "density_kg_m3",
+      "unit": "kg/m^3",
+      "absolute_tolerance": 0.02,
+      "relative_tolerance": 0.001,
+      "rationale": "Derived from T and P; independent ideal-gas check"
+    },
+    {
+      "variable": "speed_of_sound_mps",
+      "unit": "m/s",
+      "absolute_tolerance": 0.5,
+      "relative_tolerance": 0.0001,
+      "rationale": "Square-root of gamma*R*T; small numerical spread expected"
+    }
+  ]
+}

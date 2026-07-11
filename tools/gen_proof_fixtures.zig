@@ -19,7 +19,7 @@ pub fn main(init: std.process.Init) !u8 {
             .{ .name = "HTail", .kind = "Wing", .span_m = 3.0, .chord_m = 0.8, .dihedral_deg = 10.0 },
         },
     };
-    const digest = try artifact.digest();
+    const digest = artifact.digest();
 
     var mesh = try strip.adapters.openvsp_tessellation.tessellateBoxWing(
         init.gpa,
@@ -28,7 +28,7 @@ pub fn main(init: std.process.Init) !u8 {
         4,
     );
     defer init.gpa.free(mesh.triangles);
-    const mesh_digest = try mesh.digest();
+    const mesh_digest = mesh.digest();
     const mesh_area = mesh.surfaceArea();
     const mesh_count = mesh.triangleCount();
 

@@ -5,7 +5,7 @@
 //! in a later lane; mesh digest conformance is the current executable gate.
 
 const std = @import("std");
-const serialization = @import("../serialization/digest.zig");
+const serialization = @import("../serialization/root.zig");
 const openvsp = @import("openvsp.zig");
 
 pub const Vec3 = struct { x: f64, y: f64, z: f64 };
@@ -97,11 +97,16 @@ pub const Mesh = struct {
         return buffer[0..index];
     }
 
-    pub fn digest(self: Mesh) !serialization.Identifier {
-        const needed = self.triangles.len * 9 * 16 + 256;
-        const buffer = try std.heap.page_allocator.alloc(u8, @max(needed, 4096));
-        defer std.heap.page_allocator.free(buffer);
-        return serialization.sha256(try self.canonicalBytes(buffer));
+    pub fn digest(self: Mesh) serialization.digest.Identifier {
+        var hasher = std.crypto.hash.sha2.Sha256.init(.{});
+        for (self.triangles) |tri| {
+            inline for (.{ tri.a, tri.b, tri.c }) |vertex| {
+                serialization.canonical_encoder.appendMeshCoord(&hasher, vertex.x);
+                serialization.canonical_encoder.appendMeshCoord(&hasher, vertex.y);
+                serialization.canonical_encoder.appendMeshCoord(&hasher, vertex.z);
+            }
+        }
+        return serialization.canonical_encoder.finishHasher(&hasher);
     }
 };
 
@@ -171,7 +176,7 @@ pub const TessellationManifest = struct {
 pub const TessellationReport = struct {
     triangle_count: u32,
     surface_area_m2: f64,
-    mesh_digest: serialization.Identifier,
+    mesh_digest: serialization.digest.Identifier,
     digest_matches: bool,
     count_matches: bool,
     passed: bool,
@@ -183,7 +188,7 @@ pub fn verifyTessellation(
     mesh: Mesh,
 ) !TessellationReport {
     try manifest.validate();
-    const digest = try mesh.digest();
+    const digest = mesh.digest();
     var digest_text: [71]u8 = undefined;
     @memcpy(digest_text[0..7], "sha256:");
     @memcpy(digest_text[7..], digest.hex[0..64]);

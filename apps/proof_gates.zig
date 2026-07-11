@@ -28,27 +28,30 @@ pub fn main(init: std.process.Init) !u8 {
     var jsbsim_atmos_evidence: []const u8 = "unavailable";
     if (backend.kind != .unavailable) {
         const altitude_m = 5000.0;
-        const native = try strip.weather.atmosphere.evaluate(altitude_m);
-        const subprocess = try strip.adapters.jsbsim.queryAtmosphereSubprocess(
-            init.io,
-            allocator,
-            backend,
-            .{ .geopotential_altitude_m = altitude_m },
-        );
-        jsbsim_atmos_backend = @tagName(subprocess.backend);
-        jsbsim_atmos_evidence = @tagName(strip.adapters.jsbsim.evidenceTier(subprocess.backend));
-        const evaluation = try strip.adapters.jsbsim.evaluateAtmosphereGate(
-            .{
-                .temperature_k = native.temperature_k,
-                .pressure_pa = native.pressure_pa,
-                .density_kg_m3 = native.density_kg_m3,
-                .speed_of_sound_mps = native.speed_of_sound_mps,
-                .backend = .published_fixture,
-            },
-            subprocess,
-        );
-        jsbsim_atmos_passed = evaluation.summary.allPassed();
-        if (!jsbsim_atmos_passed) failed = true;
+        const native_eval = strip.atmosphere.evaluate(try strip.units.GeopotentialAltitude.init(altitude_m));
+        if (native_eval.state) |native_state| {
+            const subprocess = try strip.adapters.jsbsim.queryAtmosphereSubprocess(
+                init.io,
+                allocator,
+                backend,
+                .{ .geopotential_altitude_m = altitude_m },
+            );
+            jsbsim_atmos_backend = @tagName(subprocess.backend);
+            jsbsim_atmos_evidence = @tagName(strip.adapters.jsbsim.evidenceTier(subprocess.backend));
+            const evaluation = try strip.adapters.jsbsim.evaluateAtmosphereGate(
+                .{
+                    .geopotential_altitude_m = altitude_m,
+                    .temperature_k = native_state.temperature.kelvin,
+                    .pressure_pa = native_state.pressure.pascals,
+                    .density_kg_m3 = native_state.density.kilograms_per_cubic_meter,
+                    .speed_of_sound_mps = native_state.speed_of_sound.meters_per_second,
+                    .backend = .published_fixture,
+                },
+                subprocess,
+            );
+            jsbsim_atmos_passed = evaluation.summary.allPassed();
+            if (!jsbsim_atmos_passed) failed = true;
+        } else failed = true;
     } else failed = true;
 
     // Gate 1b: JSBSim fixed-wing short-horizon integration (F-16 dynamics host).
@@ -165,6 +168,9 @@ pub fn main(init: std.process.Init) !u8 {
     // Gate 2c/2d: OPENSP_CMD / analytic STL export conformance from exported mesh.
     var export_passed = false;
     var export_real_passed = false;
+    var export_invocation_succeeded = false;
+    var export_mesh_valid = false;
+    var export_geometry_conformance: []const u8 = "failed";
     var export_backend: []const u8 = "unavailable";
     const export_runtime_version: []const u8 = init.environ_map.get("OPENSP_RUNTIME_VERSION") orelse "none";
     const openvsp_cmd = init.environ_map.get("OPENSP_CMD");
@@ -220,6 +226,9 @@ pub fn main(init: std.process.Init) !u8 {
                 );
                 export_passed = export_report.passed;
                 export_real_passed = export_query_val.backend == .openvsp_cmd and export_report.passed;
+                export_invocation_succeeded = export_report.invocation_succeeded;
+                export_mesh_valid = export_report.mesh_valid;
+                export_geometry_conformance = @tagName(export_report.geometry_conformance);
                 if (!export_passed) failed = true;
                 if (require_openvsp and !export_real_passed) failed = true;
             }
@@ -320,7 +329,7 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.proof-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.proof-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_invocation_succeeded\":{},\"export_mesh_valid\":{},\"export_geometry_conformance\":\"{s}\",\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
         .{
             jsbsim_atmos_backend,
             jsbsim_atmos_evidence,
@@ -335,6 +344,9 @@ pub fn main(init: std.process.Init) !u8 {
             tess_report.passed,
             export_passed,
             export_real_passed,
+            export_invocation_succeeded,
+            export_mesh_valid,
+            export_geometry_conformance,
             export_backend,
             export_runtime_version,
             strip.adapters.openvsp.pinned_version,

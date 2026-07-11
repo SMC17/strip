@@ -62,22 +62,24 @@ takeoff → climb → waypoint → descent → landing
 
 | ID | Issue | Status |
 |----|-------|--------|
-| P0.1 | Subprocess JSON string lifetime (JSBSim integrate/coeff, OpenVSP export) | **Partial** — OpenVSP cloned; JSBSim model field fixed 2026-07-10 |
-| P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Open** — rename claim to `export_smoke_passed`; add geometry landmarks |
+| P0.1 | Subprocess JSON string lifetime (JSBSim integrate/coeff, OpenVSP export) | **Fixed** 2026-07-10 |
+| P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Partial** — claims split: invocation / mesh_valid / geometry_conformance |
 | P0.3 | Stale STL / nonzero vsp exit accepted | **Partial** — delete-before-export; exit policy still relaxed |
 | P0.4 | `watertight_required` ignored | **Fixed** 2026-07-10 |
-| P0.5 | Canonical buffer heuristics | **Partial** — heap-sized digest; streaming encoder still needed |
-| P0.6 | Duplicate atmosphere (`atmosphere.zig` 0–11 km vs `weather` 0–86 km) | **Open** — merge behind one public API |
-| P0.7 | Global JSBSim tolerance (50 K, 50 m/s on all vars) | **Open** — per-variable `MetricAcceptance` |
+| P0.5 | Canonical buffer heuristics | **Fixed** 2026-07-10 — streaming encoder hashes coordinates in place |
+| P0.6 | Duplicate atmosphere (`atmosphere.zig` 0–11 km vs `weather` 0–86 km) | **Fixed** 2026-07-10 — `strip.atmosphere` delegates to `weather.atmosphere` |
+| P0.7 | Global JSBSim tolerance (50 K, 50 m/s on all vars) | **Fixed** 2026-07-10 — per-variable `MetricAcceptance` |
 | P0.8 | Validation report not joined to case `expected_dimensions` | **Open** |
 | P0.9 | 18-source manifest hashes URLs not document content | **Open** — extraction provenance |
 | P0.10 | `proof_gates` name overclaims | **Open** — rename to `verification_gates` |
 
 ### Stage 1 exit criteria
 
-- [ ] No dangling subprocess string escapes
-- [ ] One authoritative atmosphere implementation
-- [ ] Streaming canonical encoder → SHA-256 (no size heuristics)
+- [x] No dangling subprocess string escapes
+- [x] One authoritative atmosphere implementation
+- [x] Streaming canonical encoder → SHA-256 (no size heuristics)
+- [x] Per-variable JSBSim acceptance metrics
+- [x] Strip Verify credibility step in `zig build verify`
 - [ ] `model-package` schema v1 + `run-manifest` schema v1
 - [ ] Per-variable comparator tolerances with documented rationale
 - [ ] Experimental modules removed from primary product claims (see `EXPERIMENTAL.md`)

@@ -46,6 +46,7 @@ pub const AtmosphereQuery = struct {
 };
 
 pub const AtmosphereResult = struct {
+    geopotential_altitude_m: f64,
     temperature_k: f64,
     pressure_pa: f64,
     density_kg_m3: f64,
@@ -203,11 +204,99 @@ pub fn queryAtmosphereSubprocess(
 
     const resolved_backend = parseBackendTag(parsed.value.backend);
     return .{
+        .geopotential_altitude_m = query.geopotential_altitude_m,
         .temperature_k = parsed.value.temperature_k,
         .pressure_pa = parsed.value.pressure_pa,
         .density_kg_m3 = parsed.value.density_kg_m3,
         .speed_of_sound_mps = parsed.value.speed_of_sound_mps,
         .backend = if (resolved_backend == .unavailable) backend.kind else resolved_backend,
+    };
+}
+
+pub fn crossImplementationMetrics() types.MetricAcceptanceSet {
+    return .{ .metrics = &.{
+        .{
+            .variable = "temperature_k",
+            .unit = "K",
+            .absolute_tolerance = 0.5,
+            .relative_tolerance = 1e-4,
+            .rationale = "US76 table resolution; cross-implementation atmosphere gate",
+        },
+        .{
+            .variable = "pressure_pa",
+            .unit = "Pa",
+            .absolute_tolerance = 50.0,
+            .relative_tolerance = 1e-4,
+            .rationale = "Hectopascal-scale tabular rounding at layer boundaries",
+        },
+        .{
+            .variable = "density_kg_m3",
+            .unit = "kg/m^3",
+            .absolute_tolerance = 0.02,
+            .relative_tolerance = 1e-3,
+            .rationale = "Derived from T and P; independent ideal-gas check",
+        },
+        .{
+            .variable = "speed_of_sound_mps",
+            .unit = "m/s",
+            .absolute_tolerance = 0.5,
+            .relative_tolerance = 1e-4,
+            .rationale = "Square-root of gamma*R*T; small numerical spread expected",
+        },
+    } };
+}
+
+pub fn coefficientMetrics() types.MetricAcceptanceSet {
+    return .{ .metrics = &.{
+        .{
+            .variable = "cx",
+            .unit = "1",
+            .absolute_tolerance = 1e-4,
+            .relative_tolerance = 1e-3,
+            .rationale = "Shared linear model coefficient parity",
+        },
+        .{
+            .variable = "cy",
+            .unit = "1",
+            .absolute_tolerance = 1e-4,
+            .relative_tolerance = 1e-3,
+            .rationale = "Shared linear model coefficient parity",
+        },
+        .{
+            .variable = "cz",
+            .unit = "1",
+            .absolute_tolerance = 1e-4,
+            .relative_tolerance = 1e-3,
+            .rationale = "Shared linear model coefficient parity",
+        },
+        .{
+            .variable = "cl",
+            .unit = "1",
+            .absolute_tolerance = 1e-4,
+            .relative_tolerance = 1e-3,
+            .rationale = "Shared linear model coefficient parity",
+        },
+        .{
+            .variable = "cm",
+            .unit = "1",
+            .absolute_tolerance = 1e-4,
+            .relative_tolerance = 1e-3,
+            .rationale = "Shared linear model coefficient parity",
+        },
+        .{
+            .variable = "cn",
+            .unit = "1",
+            .absolute_tolerance = 1e-4,
+            .relative_tolerance = 1e-3,
+            .rationale = "Shared linear model coefficient parity",
+        },
+    } };
+}
+
+pub fn metricsForBackend(backend: BackendKind) types.MetricAcceptanceSet {
+    return switch (evidenceTier(backend)) {
+        .cross_implementation => crossImplementationMetrics(),
+        else => .{ .metrics = &.{} },
     };
 }
 
@@ -230,27 +319,31 @@ pub fn acceptanceForBackend(backend: BackendKind) types.Acceptance {
 pub fn evaluateAtmosphereGate(
     native: AtmosphereResult,
     subprocess: AtmosphereResult,
-) !struct { summary: validation.Summary, acceptance: types.Acceptance } {
+) !struct { summary: validation.Summary, acceptance: types.Acceptance, metrics: types.MetricAcceptanceSet } {
     const acceptance = acceptanceForBackend(subprocess.backend);
-    const summary = try compareAtmosphere(native, subprocess, acceptance);
-    return .{ .summary = summary, .acceptance = acceptance };
+    const metrics = metricsForBackend(subprocess.backend);
+    const summary = try compareAtmosphere(native, subprocess, metrics, acceptance);
+    return .{ .summary = summary, .acceptance = acceptance, .metrics = metrics };
 }
 
 pub fn compareAtmosphere(
     native: AtmosphereResult,
     reference: AtmosphereResult,
-    acceptance: types.Acceptance,
+    metrics: types.MetricAcceptanceSet,
+    fallback: types.Acceptance,
 ) !validation.Summary {
+    const altitude = reference.geopotential_altitude_m;
     const validity: envelope.Envelope = .{ .axes = &.{
-        .{ .variable = "altitude", .unit = "m", .minimum = -1.0e6, .maximum = 1.0e6 },
+        .{ .variable = "altitude", .unit = "m", .minimum = 0, .maximum = 86_000 },
     } };
+    const coord = [_]f64{altitude};
     const samples = [_]validation.Sample{
-        .{ .coordinates = &.{0}, .variable = "temperature_k", .reference = reference.temperature_k, .observed = native.temperature_k },
-        .{ .coordinates = &.{0}, .variable = "pressure_pa", .reference = reference.pressure_pa, .observed = native.pressure_pa },
-        .{ .coordinates = &.{0}, .variable = "density_kg_m3", .reference = reference.density_kg_m3, .observed = native.density_kg_m3 },
-        .{ .coordinates = &.{0}, .variable = "speed_of_sound_mps", .reference = reference.speed_of_sound_mps, .observed = native.speed_of_sound_mps },
+        .{ .coordinates = &coord, .variable = "temperature_k", .reference = reference.temperature_k, .observed = native.temperature_k },
+        .{ .coordinates = &coord, .variable = "pressure_pa", .reference = reference.pressure_pa, .observed = native.pressure_pa },
+        .{ .coordinates = &coord, .variable = "density_kg_m3", .reference = reference.density_kg_m3, .observed = native.density_kg_m3 },
+        .{ .coordinates = &coord, .variable = "speed_of_sound_mps", .reference = reference.speed_of_sound_mps, .observed = native.speed_of_sound_mps },
     };
-    return validation.compare(validity, acceptance, &samples);
+    return validation.compareWithMetrics(validity, metrics, fallback, &samples);
 }
 
 pub const FixedWingIntegrateQuery = struct {
@@ -602,7 +695,8 @@ pub fn nativeCoefficientsAtProbe(
 pub fn compareNativeVsSubprocess(
     native: @import("../fixed_wing/coefficients.zig").Six,
     observed: CoefficientResult,
-    acceptance: types.Acceptance,
+    metrics: types.MetricAcceptanceSet,
+    fallback: types.Acceptance,
     probe_index: usize,
 ) !validation.Summary {
     const validity: envelope.Envelope = .{ .axes = &.{
@@ -617,7 +711,7 @@ pub fn compareNativeVsSubprocess(
         .{ .coordinates = &coord, .variable = "cm", .reference = native.cm, .observed = observed.cm },
         .{ .coordinates = &coord, .variable = "cn", .reference = native.cn, .observed = observed.cn },
     };
-    return validation.compare(validity, acceptance, &samples);
+    return validation.compareWithMetrics(validity, metrics, fallback, &samples);
 }
 
 pub fn evaluateCoefficientGate(
@@ -628,11 +722,18 @@ pub fn evaluateCoefficientGate(
     native_model: @import("../fixed_wing/coefficients.zig").Model,
 ) !struct { summary: validation.Summary, acceptance: types.Acceptance, passed: bool } {
     const acceptance = acceptanceForBackend(backend.kind);
+    const metrics = metricsForBackend(backend.kind);
     var aggregate = validation.Summary{};
     for (comparator.probes, 0..) |probe, index| {
         const subprocess = try queryFixedWingCoefficientsSubprocess(io, gpa, backend, probe, comparator.model);
         const native = try native_model.grid.evaluate(subprocess.alpha_rad, subprocess.beta_rad, subprocess.mach);
-        const summary = try compareNativeVsSubprocess(native, subprocess, acceptance, index);
+        const summary = try compareNativeVsSubprocess(
+            native,
+            subprocess,
+            if (metrics.metrics.len > 0) metrics else coefficientMetrics(),
+            acceptance,
+            index,
+        );
         aggregate.len += summary.len;
         aggregate.passed += summary.passed;
         aggregate.failed += summary.failed;
@@ -676,7 +777,8 @@ test "native weather atmosphere matches resolved JSBSim subprocess" {
     if (backend.kind == .unavailable) return error.SkipZigTest;
 
     const altitude_m = 5000.0;
-    const native = try @import("../weather/root.zig").atmosphere.evaluate(altitude_m);
+    const native_eval = @import("../atmosphere.zig").evaluate(try @import("../units.zig").GeopotentialAltitude.init(altitude_m));
+    const native_state = native_eval.state.?;
     const subprocess = try queryAtmosphereSubprocess(
         std.testing.io,
         std.testing.allocator,
@@ -685,10 +787,11 @@ test "native weather atmosphere matches resolved JSBSim subprocess" {
     );
     const evaluation = try evaluateAtmosphereGate(
         .{
-            .temperature_k = native.temperature_k,
-            .pressure_pa = native.pressure_pa,
-            .density_kg_m3 = native.density_kg_m3,
-            .speed_of_sound_mps = native.speed_of_sound_mps,
+            .geopotential_altitude_m = altitude_m,
+            .temperature_k = native_state.temperature.kelvin,
+            .pressure_pa = native_state.pressure.pascals,
+            .density_kg_m3 = native_state.density.kilograms_per_cubic_meter,
+            .speed_of_sound_mps = native_state.speed_of_sound.meters_per_second,
             .backend = .published_fixture,
         },
         subprocess,

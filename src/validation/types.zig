@@ -29,6 +29,53 @@ pub const Acceptance = struct {
     }
 };
 
+pub const MetricAcceptance = struct {
+    variable: []const u8,
+    unit: []const u8,
+    absolute_tolerance: f64,
+    relative_tolerance: f64,
+    rationale: []const u8,
+
+    pub fn validate(self: MetricAcceptance) !void {
+        try bounded(self.variable, 1, 64);
+        try bounded(self.unit, 1, 32);
+        try bounded(self.rationale, 1, 256);
+        if (!std.math.isFinite(self.absolute_tolerance) or self.absolute_tolerance < 0)
+            return error.InvalidTolerance;
+        if (!std.math.isFinite(self.relative_tolerance) or
+            self.relative_tolerance < 0 or self.relative_tolerance > 1)
+            return error.InvalidTolerance;
+    }
+
+    pub fn toleranceFor(self: MetricAcceptance, reference: f64) f64 {
+        return @max(
+            self.absolute_tolerance,
+            self.relative_tolerance * @abs(reference),
+        );
+    }
+};
+
+pub const MetricAcceptanceSet = struct {
+    metrics: []const MetricAcceptance,
+
+    pub fn validate(self: MetricAcceptanceSet) !void {
+        if (self.metrics.len == 0 or self.metrics.len > 32) return error.InvalidMetricCount;
+        for (self.metrics, 0..) |metric, index| {
+            try metric.validate();
+            for (self.metrics[0..index]) |prior| {
+                if (std.mem.eql(u8, prior.variable, metric.variable)) return error.DuplicateMetricVariable;
+            }
+        }
+    }
+
+    pub fn forVariable(self: MetricAcceptanceSet, variable: []const u8) ?MetricAcceptance {
+        for (self.metrics) |metric| {
+            if (std.mem.eql(u8, metric.variable, variable)) return metric;
+        }
+        return null;
+    }
+};
+
 pub const ValidationCase = struct {
     schema: []const u8,
     id: []const u8,

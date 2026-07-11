@@ -44,7 +44,7 @@ fn writeEvaluation(
     evaluation: strip.atmosphere.Evaluation,
     intended_use: strip.evidence.IntendedUse,
 ) !void {
-    const model = strip.atmosphere.manifest;
+    const model = evaluation.model;
     var root = try json.Object.begin(writer);
     try root.key("context");
     var context = try json.Object.begin(writer);
@@ -93,11 +93,11 @@ fn writeEvaluation(
     try validity.key("envelope");
     var envelope = try json.Object.begin(writer);
     try envelope.key("max");
-    try json.writeNumber(writer, model.valid_max);
+    try json.writeNumber(writer, evaluation.envelope.maximum);
     try envelope.key("min");
-    try json.writeNumber(writer, model.valid_min);
+    try json.writeNumber(writer, evaluation.envelope.minimum);
     try envelope.key("unit");
-    try json.writeString(writer, model.valid_unit);
+    try json.writeString(writer, evaluation.envelope.unit);
     try envelope.end();
     try validity.key("status");
     try json.writeString(writer, @tagName(evaluation.validity));

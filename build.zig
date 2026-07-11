@@ -128,6 +128,20 @@ pub fn build(b: *std.Build) void {
     const run_proof_step = b.step("run-proof-gates", "Run JSBSim, OpenVSP, replay, and uncertainty proof gates");
     run_proof_step.dependOn(&run_proof.step);
 
+    const verify_cli = b.addExecutable(.{
+        .name = "strip-verify",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/strip_verify.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(verify_cli);
+    const run_verify_cli = b.addRunArtifact(verify_cli);
+    const run_verify_step = b.step("run-strip-verify", "Run Strip Verify credibility checks");
+    run_verify_step.dependOn(&run_verify_cli.step);
+
     const replay_baseline_cli = b.addExecutable(.{
         .name = "strip-record-replay-baseline",
         .root_module = b.createModule(.{
@@ -171,4 +185,5 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_validation.step);
     verify_step.dependOn(&run_fidelity.step);
     verify_step.dependOn(&run_proof.step);
+    verify_step.dependOn(&run_verify_cli.step);
 }

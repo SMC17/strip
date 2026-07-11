@@ -37,8 +37,19 @@ pub fn compare(
     acceptance: types.Acceptance,
     samples: []const Sample,
 ) !Summary {
+    const empty: types.MetricAcceptanceSet = .{ .metrics = &.{} };
+    return compareWithMetrics(validity, empty, acceptance, samples);
+}
+
+pub fn compareWithMetrics(
+    validity: envelope.Envelope,
+    metrics: types.MetricAcceptanceSet,
+    fallback: types.Acceptance,
+    samples: []const Sample,
+) !Summary {
     try validity.validate();
-    try acceptance.validate();
+    try fallback.validate();
+    if (metrics.metrics.len > 0) try metrics.validate();
     if (samples.len == 0 or samples.len > max_samples) return error.InvalidSampleCount;
 
     var summary: Summary = .{};
@@ -48,10 +59,13 @@ pub fn compare(
         if (!std.math.isFinite(sample.reference) or !std.math.isFinite(sample.observed))
             return error.NonFiniteSample;
         const absolute_error = @abs(sample.observed - sample.reference);
-        const tolerance = @max(
-            acceptance.absolute_tolerance,
-            acceptance.relative_tolerance * @abs(sample.reference),
-        );
+        const tolerance = if (metrics.forVariable(sample.variable)) |metric|
+            metric.toleranceFor(sample.reference)
+        else
+            @max(
+                fallback.absolute_tolerance,
+                fallback.relative_tolerance * @abs(sample.reference),
+            );
         const status: types.EvidenceStatus = if (absolute_error <= tolerance) .passed else .failed;
         summary.comparisons[summary.len] = .{
             .variable = sample.variable,

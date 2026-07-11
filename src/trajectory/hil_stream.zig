@@ -29,7 +29,8 @@ pub fn streamToJsonl(allocator: std.mem.Allocator, deadline_ns: u64) !StreamResu
     errdefer list.deinit(allocator);
 
     const hil_passed = prog.report.passed and prog.report.actuator_sensor_completed;
-    try list.appendSlice(allocator,
+    try list.appendSlice(
+        allocator,
         \\{"sequence":0,"event_id":"hil-e0","kind":"trajectory_created","delivery_id":"hil-d0","detail":"hil-stream"}
         \\{"sequence":1,"event_id":"hil-e1","kind":"objective_received","delivery_id":"hil-d1","detail":"Exercise physical_bench_protocol in-process"}
         \\{"sequence":2,"event_id":"hil-e2","kind":"action_proposed","delivery_id":"hil-d2","action":{"kind":"run_hil_protocol","action_id":"a-hil","objective":"HIL progression","target":"physical_bench_protocol","risk":"simulation","verification":["v-hil"]}}
@@ -109,7 +110,8 @@ pub fn streamUnix(allocator: std.mem.Allocator, io: std.Io, deadline_ns: u64) !S
     var list: std.ArrayList(u8) = .empty;
     errdefer list.deinit(allocator);
     const hil_passed = prog.report.passed and prog.report.actuator_sensor_completed;
-    try list.appendSlice(allocator,
+    try list.appendSlice(
+        allocator,
         \\{"sequence":0,"event_id":"hil-unix-e0","kind":"trajectory_created","delivery_id":"hil-unix-d0","detail":"hil-unix-stream"}
         \\{"sequence":1,"event_id":"hil-unix-e1","kind":"objective_received","delivery_id":"hil-unix-d1","detail":"Unix socket HIL daemon selftest"}
         \\{"sequence":2,"event_id":"hil-unix-e2","kind":"action_proposed","delivery_id":"hil-unix-d2","action":{"kind":"run_hil_protocol","action_id":"a-hil-unix","objective":"Unix HIL progression","target":"unix_socket_daemon","risk":"simulation","verification":["v-hil-unix"]}}
@@ -127,13 +129,15 @@ pub fn streamUnix(allocator: std.mem.Allocator, io: std.Io, deadline_ns: u64) !S
     defer allocator.free(vline);
     try list.appendSlice(allocator, vline);
     if (hil_passed) {
-        try list.appendSlice(allocator,
+        try list.appendSlice(
+            allocator,
             \\{"sequence":7,"event_id":"hil-unix-claim","kind":"claim_asserted","delivery_id":"hil-unix-d-c","evidence_refs":["v-hil-unix"],"detail":"Unix HIL selftest completed"}
             \\{"sequence":8,"event_id":"hil-unix-done","kind":"run_completed","delivery_id":"hil-unix-d-done","detail":"closed"}
             \\
         );
     } else {
-        try list.appendSlice(allocator,
+        try list.appendSlice(
+            allocator,
             \\{"sequence":7,"event_id":"hil-unix-done","kind":"run_completed","delivery_id":"hil-unix-d-done","detail":"closed without claim"}
             \\
         );
@@ -170,7 +174,8 @@ pub fn streamSerial(
     var list: std.ArrayList(u8) = .empty;
     errdefer list.deinit(allocator);
     const hil_passed = prog.report.passed and prog.report.actuator_sensor_completed;
-    try list.appendSlice(allocator,
+    try list.appendSlice(
+        allocator,
         \\{"sequence":0,"event_id":"hil-serial-e0","kind":"trajectory_created","delivery_id":"hil-serial-d0","detail":"hil-serial-stream"}
         \\{"sequence":1,"event_id":"hil-serial-e1","kind":"objective_received","delivery_id":"hil-serial-d1","detail":"Serial HIL device progression"}
         \\{"sequence":2,"event_id":"hil-serial-e2","kind":"action_proposed","delivery_id":"hil-serial-d2","action":{"kind":"run_hil_protocol","action_id":"a-hil-serial","objective":"Serial HIL progression","target":"serial_device","risk":"simulation","verification":["v-hil-serial"]}}
@@ -194,13 +199,15 @@ pub fn streamSerial(
     defer allocator.free(vline);
     try list.appendSlice(allocator, vline);
     if (hil_passed) {
-        try list.appendSlice(allocator,
+        try list.appendSlice(
+            allocator,
             \\{"sequence":7,"event_id":"hil-serial-claim","kind":"claim_asserted","delivery_id":"hil-serial-d-c","evidence_refs":["v-hil-serial"],"detail":"Serial HIL progression completed"}
             \\{"sequence":8,"event_id":"hil-serial-done","kind":"run_completed","delivery_id":"hil-serial-d-done","detail":"closed"}
             \\
         );
     } else {
-        try list.appendSlice(allocator,
+        try list.appendSlice(
+            allocator,
             \\{"sequence":7,"event_id":"hil-serial-done","kind":"run_completed","delivery_id":"hil-serial-d-done","detail":"closed without claim"}
             \\
         );
@@ -247,4 +254,3 @@ test "hil unix stream folds" {
     const report = try selftestUnix(std.testing.allocator, std.testing.io);
     try std.testing.expect(report.passed);
 }
-

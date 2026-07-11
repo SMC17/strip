@@ -29,15 +29,16 @@ pub const Entry = struct {
 };
 
 pub const catalog = [_]Entry{
-    .{ .id = "gemini", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini", .notes = "Text/multimodal generateContent via AI Studio key" },
-    .{ .id = "gemini-omni", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model", .notes = "Omni/multimodal variants; pick model id when available" },
-    .{ .id = "nano-banana", .family = "Models", .access = .catalog_only, .strip_surface = "catalog", .notes = "Product codename; map to published Gemini model id when calling live" },
-    .{ .id = "gemini-audio", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini", .notes = "Audio-capable Gemini models via same API key path" },
-    .{ .id = "gemma", .family = "Models", .access = .open_weights, .strip_surface = "catalog", .notes = "Open weights; local runtime not bundled in Strip verify" },
+    .{ .id = "gemini", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model gemini-3.5-flash", .notes = "Default live model gemini-3.5-flash" },
+    .{ .id = "gemini-3.1-flash-lite", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model gemini-3.1-flash-lite", .notes = "Fast/cheap text path" },
+    .{ .id = "gemini-omni-flash-preview", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model gemini-omni-flash-preview", .notes = "Omni preview; may hit free-tier quota 0" },
+    .{ .id = "nano-banana-pro-preview", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model nano-banana-pro-preview", .notes = "Image/gen preview id from Model Garden list" },
+    .{ .id = "gemma-4-26b-a4b-it", .family = "Models", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model gemma-4-26b-a4b-it", .notes = "Gemma 4 via Gemini API" },
+    .{ .id = "lyria-3-clip-preview", .family = "Models", .access = .gemini_api_key, .strip_surface = "catalog", .notes = "Music clip preview; generateContent may not apply" },
+    .{ .id = "lyria-3-pro-preview", .family = "Models", .access = .gemini_api_key, .strip_surface = "catalog", .notes = "Music pro preview" },
+    .{ .id = "veo", .family = "Models", .access = .vertex_cloud, .strip_surface = "catalog", .notes = "Video generation; typically Vertex" },
     .{ .id = "genie", .family = "Models", .access = .research_preview, .strip_surface = "catalog", .notes = "World model research; no Strip live client" },
-    .{ .id = "lyria", .family = "Models", .access = .catalog_only, .strip_surface = "catalog", .notes = "Music generation; platform candidate only" },
-    .{ .id = "veo", .family = "Models", .access = .vertex_cloud, .strip_surface = "catalog", .notes = "Video generation; typically Vertex / paid access" },
-    .{ .id = "gemini-robotics", .family = "Research", .access = .research_preview, .strip_surface = "catalog", .notes = "Robotics research stack; not Strip HIL" },
+    .{ .id = "gemini-robotics-er-1.6-preview", .family = "Research", .access = .gemini_api_key, .strip_surface = "strip-google gemini --model gemini-robotics-er-1.6-preview", .notes = "Robotics ER preview; not Strip HIL" },
     .{ .id = "alphafold", .family = "Science", .access = .science_portal, .strip_surface = "catalog", .notes = "Protein structure; out of aviation scope" },
     .{ .id = "alphagenome", .family = "Science", .access = .science_portal, .strip_surface = "catalog", .notes = "Genomics science portal" },
     .{ .id = "weathernext", .family = "Science", .access = .vertex_cloud, .strip_surface = "strip-weathernext", .notes = "Forecast candidate; Vertex EAP / custom endpoint" },
@@ -48,7 +49,7 @@ pub const catalog = [_]Entry{
 pub fn formatCatalogJson(allocator: std.mem.Allocator) ![]u8 {
     var list: std.ArrayList(u8) = .empty;
     errdefer list.deinit(allocator);
-    try list.appendSlice(allocator, "{\"schema\":\"strip.google.catalog.v0\",\"plane\":\"platform\",\"authoritative\":false,\"operational_qualification_claimed\":false,\"entries\":[");
+    try list.appendSlice(allocator, "{\"schema\":\"strip.google.catalog.v0\",\"plane\":\"platform\",\"authoritative\":false,\"operational_qualification_claimed\":false,\"default_gemini_model\":\"gemini-3.5-flash\",\"entries\":[");
     for (catalog, 0..) |entry, i| {
         if (i != 0) try list.appendSlice(allocator, ",");
         const item = try std.fmt.allocPrint(

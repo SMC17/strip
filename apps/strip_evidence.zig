@@ -196,7 +196,7 @@ pub fn main(init: std.process.Init) !u8 {
         model_digest,
     };
     const bundle_digest_hex = bundleDigest(&artifact_digests);
-    const key_pair = try strip.serialization.signing.ciKeyPair();
+    const key_pair = try strip.serialization.signing.resolveKeyPair(init.environ_map);
     const signature = try strip.serialization.signing.signDigestHex(key_pair, &bundle_digest_hex);
     var signature_json_buf: [512]u8 = undefined;
     const signature_json = try signature.formatJson(&signature_json_buf);

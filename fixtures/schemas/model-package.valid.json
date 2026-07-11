@@ -1,0 +1,32 @@
+{
+  "schema": "strip.model-package.v1",
+  "id": "reference-uas-models",
+  "version": "0.1.0",
+  "models": [
+    {
+      "schema": "strip.model.v1",
+      "id": "strip.atmosphere.us76-layered",
+      "version": "0.2.0",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": {
+        "implementation": "implemented",
+        "testing": "unit_tested",
+        "analysis": "analytical",
+        "comparison": "cross_implementation",
+        "validation": "none"
+      },
+      "provenance": {
+        "source": "us-standard-atmosphere-1976"
+      },
+      "dependencies": [],
+      "validity_envelope": {
+        "variable": "geopotential_altitude_m",
+        "minimum": 0.0,
+        "maximum": 86000.0,
+        "unit": "m"
+      },
+      "uncertainty_status": "bounded",
+      "intended_uses": ["preliminary_design", "simulation_training"]
+    }
+  ]
+}

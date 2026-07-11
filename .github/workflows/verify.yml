@@ -44,14 +44,22 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          from jsonschema import ValidationError
-          from jsonschema.validators import validator_for
+          from jsonschema import ValidationError, Draft202012Validator
+          from referencing import Registry, Resource
 
-          for schema_path in sorted(Path("schemas").glob("*.schema.json")):
+          schemas_dir = Path("schemas")
+          resources = []
+          for schema_path in sorted(schemas_dir.glob("*.schema.json")):
               schema = json.loads(schema_path.read_text())
-              validator_type = validator_for(schema)
-              validator_type.check_schema(schema)
-              validator = validator_type(schema)
+              resources.append((schema["$id"], Resource.from_contents(schema)))
+              # Also allow relative filename refs used by model-package.
+              resources.append((schema_path.name, Resource.from_contents(schema)))
+          registry = Registry().with_resources(resources)
+
+          for schema_path in sorted(schemas_dir.glob("*.schema.json")):
+              schema = json.loads(schema_path.read_text())
+              Draft202012Validator.check_schema(schema)
+              validator = Draft202012Validator(schema, registry=registry)
               valid = Path("fixtures/schemas") / schema_path.name.replace(".schema.json", ".valid.json")
               invalid = Path("fixtures/schemas") / schema_path.name.replace(".schema.json", ".invalid.json")
               validator.validate(json.loads(valid.read_text()))
@@ -62,6 +70,7 @@ jobs:
               else:
                   raise AssertionError(f"{invalid} unexpectedly passed")
               assert schema.get("additionalProperties") is False
+          print("schema fixtures ok")
           PY
 
   replay-baseline-matrix:
@@ -188,31 +197,38 @@ jobs:
           echo '{"schema":"strip.openvsp-export-protocol.v0","output_path":"openvsp-smoke.stl"}' | python3 tools/openvsp_export.py export | tee export-smoke.json
           python3 -c "import json; r=json.load(open('export-smoke.json')); assert r['backend']=='openvsp_cmd', r"
           zig build -Doptimize=ReleaseSafe
-          ./zig-out/bin/strip-verification-gates | tee verification-gates.json
+          ./zig-out/bin/strip-mesh-digest openvsp-smoke.stl | tee mesh-digest.txt
+          ZIG_DIGEST="$(head -n1 mesh-digest.txt)"
           python3 - <<'PY'
-          import json, sys
+          import json, os
           from pathlib import Path
-          smoke = json.loads(Path("export-smoke.json").read_text())
           pin = json.loads(Path("fixtures/validation/openvsp/export-conformance.json").read_text())
           expected = pin.get("openvsp_cmd_mesh_digest")
+          zig = Path("mesh-digest.txt").read_text().splitlines()[0].strip()
           if not expected:
-              raise SystemExit("openvsp_cmd_mesh_digest pin missing from export-conformance.json")
-          if smoke.get("mesh_digest") != expected:
-              raise SystemExit(f"export mesh_digest {smoke.get('mesh_digest')} != pin {expected}")
-          report = json.loads(open("verification-gates.json").read())
+              raise SystemExit("openvsp_cmd_mesh_digest pin missing")
+          if zig != expected:
+              raise SystemExit(f"Zig mesh digest {zig} != pin {expected}")
+          print("Zig openvsp_cmd_mesh_digest pin matched")
+          PY
+          STRIP_OPENVSP_STL=openvsp-smoke.stl ./zig-out/bin/strip-verification-gates | tee verification-gates.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          pin = json.loads(Path("fixtures/validation/openvsp/export-conformance.json").read_text())
+          expected = pin["openvsp_cmd_mesh_digest"]
+          report = json.loads(Path("verification-gates.json").read_text())
           ov = report.get("openvsp", {})
           if ov.get("export_backend") != "openvsp_cmd":
               raise SystemExit(f"expected openvsp_cmd backend, got {ov.get('export_backend')}")
           if not ov.get("export_real_passed"):
               raise SystemExit("export_real_passed is false")
+          if ov.get("export_mesh_digest") != expected:
+              raise SystemExit(f"gate digest {ov.get('export_mesh_digest')} != pin {expected}")
           conf = ov.get("export_geometry_conformance")
-          if conf not in ("landmark_match", "openvsp_cmd_digest_match", "analytic_digest_match"):
-              raise SystemExit(f"export_real_passed requires landmark/digest conformance, got {conf}")
-          if ov.get("export_mesh_digest") != expected and conf != "landmark_match":
-              raise SystemExit(
-                  f"gate mesh digest {ov.get('export_mesh_digest')} != pin {expected} (conf={conf})"
-              )
-          print("real OpenVSP export digest pin matched")
+          if conf != "openvsp_cmd_digest_match":
+              raise SystemExit(f"expected openvsp_cmd_digest_match, got {conf}")
+          print("real OpenVSP Zig digest pin matched with openvsp_cmd_digest_match")
           PY
       - name: Upload OpenVSP export smoke
         uses: actions/upload-artifact@v4
@@ -221,6 +237,8 @@ jobs:
           path: |
             export-smoke.json
             openvsp-smoke.stl
+            mesh-digest.txt
+            verification-gates.json
 
   campaign-10k:
     runs-on: ubuntu-latest
@@ -249,10 +267,10 @@ jobs:
           ladder = manifest.get("tier_ladder") or {}
           if ladder.get("software_only") != "passed":
               raise SystemExit(f"software_only tier not passed: {ladder}")
+          if ladder.get("hardware_in_loop") != "passed":
+              raise SystemExit(f"hardware_in_loop tier not passed: {ladder}")
           if ladder.get("flight_test") != "missing":
               raise SystemExit(f"flight_test must remain missing without flight evidence: {ladder}")
-          if "hardware_in_loop" not in ladder:
-              raise SystemExit("tier_ladder missing hardware_in_loop")
           print("campaign 10k bundle + tier ladder ok")
           PY
       - name: Upload campaign evidence bundle

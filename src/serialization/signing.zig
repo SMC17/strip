@@ -1,8 +1,8 @@
 //! Ed25519 attestation for evidence and campaign bundles.
 //!
-//! The committed CI keypair is a *development attestation key* only. It proves
-//! bundle integrity under a known public key; it is not a production HSM or
-//! organizational signing authority.
+//! Default committed CI keypair is a *development attestation key*. Production
+//! deployments override with `STRIP_SIGNING_SEED` (64 hex chars) and publish the
+//! matching public key via `STRIP_SIGNING_PUBLIC_KEY` or an updated fixture.
 const std = @import("std");
 
 pub const Ed25519 = std.crypto.sign.Ed25519;
@@ -33,6 +33,7 @@ pub const Signature = struct {
 };
 
 pub const ci_seed_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+pub const ci_public_hex = "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6";
 
 fn hexNibble(c: u8) !u8 {
     return switch (c) {
@@ -72,6 +73,21 @@ pub fn ciKeyPair() !Ed25519.KeyPair {
     return keyPairFromSeedHex(ci_seed_hex);
 }
 
+pub fn resolveKeyPair(environ: *std.process.Environ.Map) !Ed25519.KeyPair {
+    if (environ.get("STRIP_SIGNING_SEED")) |seed| {
+        const trimmed = std.mem.trim(u8, seed, " \t\r\n");
+        return keyPairFromSeedHex(trimmed);
+    }
+    return ciKeyPair();
+}
+
+pub fn expectedPublicKeyHex(environ: *std.process.Environ.Map) []const u8 {
+    if (environ.get("STRIP_SIGNING_PUBLIC_KEY")) |value| {
+        return std.mem.trim(u8, value, " \t\r\n");
+    }
+    return ci_public_hex;
+}
+
 pub fn signDigestHex(key_pair: Ed25519.KeyPair, digest_hex: []const u8) !Signature {
     if (digest_hex.len != 64) return error.InvalidDigestHex;
     const sig = try key_pair.sign(digest_hex, null);
@@ -99,6 +115,12 @@ pub fn verifyDigestHex(signature: Signature, digest_hex: []const u8) !void {
     try sig.verify(digest_hex, public_key);
 }
 
+pub fn verifyAgainstExpectedPublicKey(signature: Signature, digest_hex: []const u8, expected_public_hex: []const u8) !void {
+    try verifyDigestHex(signature, digest_hex);
+    if (!std.mem.eql(u8, &signature.public_key_hex, expected_public_hex))
+        return error.PublicKeyMismatch;
+}
+
 pub fn loadSeedHex(io: std.Io, path: []const u8) ![64]u8 {
     const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, std.heap.page_allocator, .limited(128));
     defer std.heap.page_allocator.free(bytes);
@@ -121,9 +143,17 @@ test "ci public key is stable under committed seed" {
     const key_pair = try ciKeyPair();
     var public_hex: [64]u8 = undefined;
     try encodeHex(&key_pair.public_key.bytes, &public_hex);
-    // Frozen for fixture/docs; regenerate only with intentional key rotation.
-    try std.testing.expectEqualStrings(
-        "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6",
-        &public_hex,
+    try std.testing.expectEqualStrings(ci_public_hex, &public_hex);
+}
+
+test "alternate seed produces different public key and verifies" {
+    const alt = try keyPairFromSeedHex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    const digest = "11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff";
+    const signature = try signDigestHex(alt, digest);
+    try verifyDigestHex(signature, digest);
+    try std.testing.expect(!std.mem.eql(u8, &signature.public_key_hex, ci_public_hex));
+    try std.testing.expectError(
+        error.PublicKeyMismatch,
+        verifyAgainstExpectedPublicKey(signature, digest, ci_public_hex),
     );
 }

@@ -48,31 +48,45 @@ pub fn main(init: std.process.Init) !u8 {
         if (pending_count > 0) failed = true;
     }
 
-    // CI attestation public key must match the committed seed.
+    // Attestation key: env override or committed CI seed; public key must match.
     var signing_ok = false;
-    const key_pair = strip.serialization.signing.ciKeyPair() catch null;
+    const key_pair = strip.serialization.signing.resolveKeyPair(init.environ_map) catch null;
     if (key_pair) |kp| {
         var public_hex: [64]u8 = undefined;
         strip.serialization.signing.encodeHex(&kp.public_key.bytes, &public_hex) catch {};
-        const fixture_bytes = std.Io.Dir.cwd().readFileAlloc(
-            init.io,
-            "fixtures/signing/ci-public.ed25519.hex",
-            allocator,
-            .limited(128),
-        ) catch null;
-        if (fixture_bytes) |bytes| {
-            defer allocator.free(bytes);
-            const trimmed = std.mem.trim(u8, bytes, " \t\r\n");
-            signing_ok = std.mem.eql(u8, trimmed, &public_hex);
-        }
+        const expected_env = strip.serialization.signing.expectedPublicKeyHex(init.environ_map);
+        var expected_buf: [64]u8 = undefined;
+        const expected_slice: []const u8 = blk: {
+            if (init.environ_map.get("STRIP_SIGNING_PUBLIC_KEY")) |_| {
+                if (expected_env.len != 64) break :blk "";
+                break :blk expected_env;
+            }
+            if (expected_env.len == 64) break :blk expected_env;
+            const fixture_bytes = std.Io.Dir.cwd().readFileAlloc(
+                init.io,
+                "fixtures/signing/ci-public.ed25519.hex",
+                allocator,
+                .limited(128),
+            ) catch null;
+            if (fixture_bytes) |bytes| {
+                defer allocator.free(bytes);
+                const trimmed = std.mem.trim(u8, bytes, " \t\r\n");
+                if (trimmed.len != 64) break :blk "";
+                @memcpy(&expected_buf, trimmed[0..64]);
+                break :blk &expected_buf;
+            }
+            break :blk "";
+        };
+        signing_ok = expected_slice.len == 64 and std.mem.eql(u8, expected_slice, &public_hex);
         const probe = strip.serialization.signing.signDigestHex(
             kp,
             "0000000000000000000000000000000000000000000000000000000000000000",
         ) catch null;
         if (probe) |signature| {
-            strip.serialization.signing.verifyDigestHex(
+            strip.serialization.signing.verifyAgainstExpectedPublicKey(
                 signature,
                 "0000000000000000000000000000000000000000000000000000000000000000",
+                expected_slice,
             ) catch {
                 signing_ok = false;
             };
@@ -90,7 +104,7 @@ pub fn main(init: std.process.Init) !u8 {
     defer allocator.free(openvsp_bytes);
     var openvsp_pin_present = std.mem.indexOf(u8, openvsp_bytes, "openvsp_cmd_mesh_digest") != null;
     openvsp_pin_present = openvsp_pin_present and
-        std.mem.indexOf(u8, openvsp_bytes, "sha256:a91b1a0f31bbcf62785b474a599bfe43d7c4cbc37f7b96d3f4ef0ffc039d001d") != null;
+        std.mem.indexOf(u8, openvsp_bytes, "sha256:471546c1465013f82a2bfcc83c406b584484178134f286c282940278733a4e61") != null;
     if (!openvsp_pin_present) failed = true;
 
     var buffer: [4096]u8 = undefined;

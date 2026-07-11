@@ -72,6 +72,7 @@ pub const HilEval = struct {
     passed: bool,
     can_enter_io_loopback: bool,
     can_enter_integrated_hil: bool,
+    io_loopback_completed: bool,
 };
 
 pub fn evaluateHilProgression(fixture: HilProgressionFixture) !HilEval {
@@ -90,21 +91,27 @@ pub fn evaluateHilProgression(fixture: HilProgressionFixture) !HilEval {
     const can_enter_io = try progression.canEnter(.io_loopback);
     const can_enter_integrated = try progression.canEnter(.integrated_hil);
     var passed = true;
+    var io_loopback_completed = false;
     for (records.items) |record| {
         if (!record.passed()) passed = false;
+        if (record.stage == .io_loopback and record.passed()) io_loopback_completed = true;
     }
     return .{
         .passed = passed,
         .can_enter_io_loopback = can_enter_io,
         .can_enter_integrated_hil = can_enter_integrated,
+        .io_loopback_completed = io_loopback_completed,
     };
 }
 
 pub fn evaluateTierLadder(
     software_report: Report,
     hil_eval: HilEval,
+    flight_status: DimensionStatus,
 ) TierLadder {
-    const hil_status: DimensionStatus = if (hil_eval.passed and hil_eval.can_enter_io_loopback)
+    const hil_status: DimensionStatus = if (hil_eval.passed and hil_eval.io_loopback_completed and !hil_eval.can_enter_integrated_hil)
+        .passed
+    else if (hil_eval.passed and hil_eval.can_enter_io_loopback)
         .partial
     else if (hil_eval.passed)
         .pending
@@ -113,8 +120,14 @@ pub fn evaluateTierLadder(
     return .{
         .software_only = if (software_report.passed) .passed else .missing,
         .hardware_in_loop = hil_status,
-        .flight_test = .missing,
+        .flight_test = flight_status,
     };
+}
+
+pub fn evaluateFlightTestStatus(flight_package_present: bool, flight_package_sealed: bool) DimensionStatus {
+    if (!flight_package_present) return .missing;
+    if (!flight_package_sealed) return .pending;
+    return .passed;
 }
 
 pub fn evaluateSoftwareOnly(
@@ -131,6 +144,7 @@ pub fn evaluateSoftwareOnly(
         campaign_fixture.split_policy.blinded_holdout_run_ids.len > 0;
     const holdout_calibration_passed = calibration_report.holdout_passed;
     const base = evidence_manifest_passed and campaign_passed and holdout_calibration_passed;
+    const flight_status = evaluateFlightTestStatus(false, false);
     const tier_ladder = evaluateTierLadder(.{
         .tier = .software_only,
         .tier_ladder = .{ .software_only = .missing, .hardware_in_loop = .missing, .flight_test = .missing },
@@ -140,7 +154,7 @@ pub fn evaluateSoftwareOnly(
         .hil_progression_passed = hil_eval.passed,
         .operational_qualification_claimed = false,
         .passed = base,
-    }, hil_eval);
+    }, hil_eval, flight_status);
     const passed = base and hil_eval.passed and !hil_eval.can_enter_integrated_hil;
     return .{
         .tier = .software_only,
@@ -214,6 +228,12 @@ test "software-only qualification framework passes synthetic fixtures" {
     try std.testing.expect(report.passed);
     try std.testing.expect(!report.operational_qualification_claimed);
     try std.testing.expectEqual(DimensionStatus.passed, report.tier_ladder.software_only);
-    try std.testing.expectEqual(DimensionStatus.partial, report.tier_ladder.hardware_in_loop);
+    try std.testing.expectEqual(DimensionStatus.passed, report.tier_ladder.hardware_in_loop);
     try std.testing.expectEqual(DimensionStatus.missing, report.tier_ladder.flight_test);
+}
+
+test "flight test stays missing without sealed flight package" {
+    try std.testing.expectEqual(DimensionStatus.missing, evaluateFlightTestStatus(false, false));
+    try std.testing.expectEqual(DimensionStatus.pending, evaluateFlightTestStatus(true, false));
+    try std.testing.expectEqual(DimensionStatus.passed, evaluateFlightTestStatus(true, true));
 }

@@ -68,6 +68,7 @@ pub const ExportConformanceManifest = struct {
     area_tolerance_m2: f64,
     openvsp_cmd: ?OpenVspCmdPolicy = null,
     geometry_landmarks: ?GeometryLandmarks = null,
+    openvsp_cmd_mesh_digest: ?[]const u8 = null,
 
     pub fn validate(self: ExportConformanceManifest) !void {
         if (!std.mem.eql(u8, self.schema, "strip.openvsp.export-conformance.v0"))
@@ -88,11 +89,16 @@ pub const ExportConformanceManifest = struct {
                 !(landmarks.max_total_surface_area_m2 >= landmarks.min_total_surface_area_m2))
                 return error.InvalidGeometryLandmarks;
         }
+        if (self.openvsp_cmd_mesh_digest) |digest| {
+            if (!std.mem.startsWith(u8, digest, "sha256:") or digest.len != 71)
+                return error.InvalidDigest;
+        }
     }
 };
 
 pub const GeometryConformance = enum {
     analytic_digest_match,
+    openvsp_cmd_digest_match,
     landmark_match,
     smoke_band_match,
     digest_mismatch,
@@ -111,6 +117,7 @@ pub const ExportReport = struct {
     count_matches: bool,
     area_matches: bool,
     passed: bool,
+    real_passed: bool,
 };
 
 pub fn parseBackendTag(tag: []const u8) ExportBackend {
@@ -258,6 +265,7 @@ pub fn verifyExportConformance(
             .count_matches = false,
             .area_matches = false,
             .passed = false,
+            .real_passed = false,
         },
     };
 }
@@ -289,6 +297,7 @@ fn verifyAnalyticConformance(
         .count_matches = count_matches,
         .area_matches = area_matches,
         .passed = passed,
+        .real_passed = passed,
     };
 }
 
@@ -311,26 +320,35 @@ fn verifyOpenVspCmdConformance(
             .count_matches = false,
             .area_matches = false,
             .passed = false,
+            .real_passed = false,
         };
     };
     const mesh_valid = count > 0 and std.math.isFinite(area) and area > 0.0;
     const count_matches = count >= policy.min_triangle_count and count <= policy.max_triangle_count;
     const area_matches = area >= policy.min_surface_area_m2 and area <= policy.max_surface_area_m2;
-    const digest_matches = std.mem.eql(u8, digest_text, manifest.expected_mesh_digest);
+    const analytic_digest_matches = std.mem.eql(u8, digest_text, manifest.expected_mesh_digest);
+    const openvsp_cmd_digest_matches = if (manifest.openvsp_cmd_mesh_digest) |expected|
+        std.mem.eql(u8, digest_text, expected)
+    else
+        false;
+    const digest_matches = analytic_digest_matches or openvsp_cmd_digest_matches;
     const landmark_matches = if (manifest.geometry_landmarks) |landmarks|
         area >= landmarks.min_total_surface_area_m2 and area <= landmarks.max_total_surface_area_m2 and
             count >= landmarks.min_component_triangles
     else
         false;
-    const geometry_conformance: GeometryConformance = if (digest_matches)
+    const geometry_conformance: GeometryConformance = if (analytic_digest_matches)
         .analytic_digest_match
+    else if (openvsp_cmd_digest_matches)
+        .openvsp_cmd_digest_match
     else if (landmark_matches)
         .landmark_match
     else if (count_matches and area_matches)
         .smoke_band_match
     else
         .failed;
-    const passed = mesh_valid and (digest_matches or landmark_matches or (count_matches and area_matches));
+    const real_passed = mesh_valid and (digest_matches or landmark_matches);
+    const passed = real_passed or (mesh_valid and count_matches and area_matches);
     return .{
         .backend = .openvsp_cmd,
         .triangle_count = count,
@@ -343,6 +361,7 @@ fn verifyOpenVspCmdConformance(
         .count_matches = count_matches,
         .area_matches = area_matches,
         .passed = passed,
+        .real_passed = real_passed,
     };
 }
 

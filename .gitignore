@@ -5,4 +5,5 @@ openvsp-export-test.stl
 openvsp.deb
 tools/__pycache__/
 /program.evidence/
+/campaign.evidence/
 .venv/

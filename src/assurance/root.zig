@@ -1,6 +1,8 @@
 //! Small assurance dependency graph with explicit invalidity diagnostics.
 const std = @import("std");
 
+pub const load = @import("load.zig");
+
 pub const Strength = enum(u8) {
     unsupported,
     claimed,
@@ -183,4 +185,8 @@ test "inspection detects missing stale and cyclic dependencies" {
     };
     try std.testing.expect(missing and stale and cycle);
     try std.testing.expectError(error.StaleDependency, graph.weakestDependency("a"));
+}
+
+test {
+    _ = load;
 }

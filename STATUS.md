@@ -4,7 +4,7 @@ Date: 2026-07-10
 
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
-**CI:** `verify` runs tests, `strip-verification-gates`, `strip-verify`, evidence compiler, and campaign scaffold.
+**CI:** `verify` runs tests, `strip-verification-gates`, `strip-verify`, evidence compiler (`program.evidence/`), and campaign bundle (`campaign.evidence/`, 64-run verify cap of 10k).
 
 ## Executable surface
 
@@ -16,10 +16,10 @@ Date: 2026-07-10
 - multirotor rotor/motor/battery physics, allocation, control, and estimation
 - deterministic multi-rate runtime, scene composition, collision/CCD, and sensor timing
 - perception timing, human-factor primitives, terrain, airports, and landing gear
-- validation envelopes, source manifests (18 primary sources), coverage matrix, comparators
+- validation envelopes, source manifests (19 primary sources, content-hashed), coverage matrix, comparators
 - flight-test telemetry, regression, residuals, maneuvers, HIL contracts, evidence packages
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) and frontier adapter catalog
-- assurance graph, constrained agent permissions, and product/frontier inventory
+- assurance graph JSON ingest, model-package schema, and product/frontier inventory
 
 Proof level: `unit-tested`
 
@@ -30,11 +30,13 @@ zig build verify
 zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip atmosphere 1000 preliminary_design
 ./zig-out/bin/strip-validation
+./zig-out/bin/strip-evidence build programs/reference-uas.toml
+./zig-out/bin/strip-campaign run campaigns/reference-uas-contingency.toml
 ./zig-out/bin/strip-fidelity
 ```
 
-Latest local gate: 217 unit tests plus UAS, assurance, platform, validation, fidelity,
-evidence compiler, campaign scaffold, and verification-gates v3 integration executables.
+Latest local gate: 219 unit tests plus UAS, assurance, platform, validation, fidelity,
+evidence compiler, campaign bundle, and verification-gates v3 integration executables.
 
 ## Verification gates (v3)
 

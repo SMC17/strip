@@ -2,7 +2,7 @@ schema = "strip.campaign.v0"
 id = "reference-uas-contingency"
 question = "Does the reference UAS contingency envelope remain internally consistent under synthetic faults?"
 intended_use = "preliminary_design"
-monte_carlo_runs = 1000
+monte_carlo_runs = 10000
 holdout_required = true
 independent_review_required = false
 

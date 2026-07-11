@@ -1,0 +1,9 @@
+{
+  "schema": "strip.dispatch-decision-evidence.v0",
+  "decision_id": "bad",
+  "carrier_part": "135",
+  "gap_categories": ["weather_windows"],
+  "human_authority": { "role": "dispatcher", "final_go_no_go": false },
+  "weather_source_class": "unapproved_ai",
+  "operational_qualification_claimed": true
+}

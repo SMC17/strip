@@ -2,6 +2,30 @@
 //! World ground normal points up; penetration is positive below the plane.
 
 const std = @import("std");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.contact.landing-gear",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Unilateral spring-damper gear with Coulomb friction",
+    .assumptions = &.{
+        "point contact",
+        "flat ground plane",
+        "no tire dynamics",
+    },
+    .valid_min = 0.0,
+    .valid_max = 2.0,
+    .valid_unit = "m",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .analytical,
+        .comparison = .none,
+        .validation = .none,
+    },
+};
 
 pub const Vec3 = struct {
     x: f64,
@@ -52,6 +76,30 @@ pub const Gear = struct {
         return .{
             .force_world_n = .{ .x = friction.x, .y = friction.y, .z = normal_n },
             .normal_n = normal_n,
+        };
+    }
+
+    pub fn evaluateResult(
+        self: Gear,
+        context: evidence.Context,
+        penetration_m: f64,
+        velocity_world_mps: Vec3,
+    ) error{InvalidInput}!numerical_result.NumericalResult(Force) {
+        const envelope = manifest.effectiveEnvelope("penetration_m");
+        const force = try self.evaluate(penetration_m, velocity_world_mps);
+        return .{
+            .value = force,
+            .model = manifest,
+            .context = context,
+            .validity = if (envelope.contains(penetration_m) or penetration_m <= 0.0) .valid else .outside_envelope,
+            .evaluated_point = .{
+                .variable = "penetration_m",
+                .value = penetration_m,
+                .unit = "m",
+            },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
         };
     }
 };

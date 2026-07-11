@@ -389,9 +389,10 @@ pub fn main(init: std.process.Init) !u8 {
     if (!campaign_report.holdout_passed) failed = true;
 
     // Gate 5: flight-qualification evidence framework with tier ladder.
-    const qualification_report = try strip.flight_test.qualification.evaluateFromFixtures(
+    const qualification_report = try strip.flight_test.qualification.evaluateFromFixturesWithEnv(
         allocator,
         init.io,
+        init.environ_map,
     );
     if (!qualification_report.passed) failed = true;
 
@@ -419,7 +420,7 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.verification-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{s},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.verification-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{s},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"{s}\",\"hil_backend\":\"{s}\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
         .{
             jsbsim_atmos_backend,
             jsbsim_atmos_evidence,
@@ -441,6 +442,8 @@ pub fn main(init: std.process.Init) !u8 {
             campaign_report.holdout_coverage_one_sigma,
             fused.fused_standard_uncertainty,
             qualification_report.passed,
+            @tagName(qualification_report.tier),
+            qualification_report.hil_backend,
             tierStatusTag(qualification_report.tier_ladder.software_only),
             tierStatusTag(qualification_report.tier_ladder.hardware_in_loop),
             tierStatusTag(qualification_report.tier_ladder.flight_test),

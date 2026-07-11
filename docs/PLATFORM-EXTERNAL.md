@@ -18,6 +18,7 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 - Failure-cluster summarization for counterexample reports
 - Test-card prose from flight-test foundry metrics
 - Gap explanations in assurance reports
+- Dispatch briefing drafts / market-gap triage (platform only; human go/no-go)
 
 **Forbidden:**
 
@@ -25,6 +26,7 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 - Approving claims or waivers
 - Modifying evidence graph directly
 - Any call from `zig build verify`, proof/verification gates, or RK4 executive
+- Authoritative weather, ATC, or Part 135/121 release decisions
 
 **Wiring pattern:**
 
@@ -37,6 +39,21 @@ platform/openrouter/
 ```
 
 Environment: `OPENROUTER_API_KEY` — platform jobs only; never in CI sim paths.
+
+## WeatherNext / WeatherLab (platform only)
+
+- **Docs:** [domain/WEATHER-EXTERNAL.md](domain/WEATHER-EXTERNAL.md)
+- **Source id:** `weathernext-2` in `sources/primary-sources.json`
+- **Role:** External ensemble forecast candidate (FGN / Vertex AI)
+- **Forbidden:** Simulation truth; OpsSpec weather without operator approval
+
+## Aviation domain map (bibliography)
+
+- **Index:** [domain/README.md](domain/README.md)
+- **Navigation / AIM / GNSS-PBN:** [domain/NAVIGATION.md](domain/NAVIGATION.md)
+- **Airspace / ZJX:** [domain/AIRSPACE.md](domain/AIRSPACE.md)
+- **Dispatch gaps Part 91/135/121:** [domain/DISPATCH-OPS.md](domain/DISPATCH-OPS.md)
+- **Scaffolds:** `schemas/navigation-capability.schema.json`, `schemas/dispatch-decision-evidence.schema.json`
 
 ## JSBSim
 

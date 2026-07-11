@@ -6,6 +6,7 @@ const sidebars = {
     'architecture',
     'verification',
     'reference-uas',
+    'aviation-domain',
     'reproducible-build',
     'roadmap-map',
   ],

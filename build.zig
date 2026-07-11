@@ -207,6 +207,62 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(promote_replay_cli);
 
+    const hil_bench_cli = b.addExecutable(.{
+        .name = "strip-hil-bench",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/hil_bench.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(hil_bench_cli);
+    const run_hil_bench = b.addRunArtifact(hil_bench_cli);
+
+    const flight_seal_cli = b.addExecutable(.{
+        .name = "strip-flight-seal",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/flight_seal.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(flight_seal_cli);
+    const run_flight_seal = b.addRunArtifact(flight_seal_cli);
+    run_flight_seal.addArg("build");
+    run_flight_seal.addArg("--out");
+    run_flight_seal.addArg("flight.evidence");
+
+    const certification_delta_cli = b.addExecutable(.{
+        .name = "strip-certification-delta",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/certification_delta.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(certification_delta_cli);
+    const run_cert_delta = b.addRunArtifact(certification_delta_cli);
+    run_cert_delta.addArg("diff");
+    run_cert_delta.addArg("programs/reference-uas-models.json");
+    run_cert_delta.addArg("programs/reference-uas-models.json");
+
+    const model_passport_cli = b.addExecutable(.{
+        .name = "strip-model-passport",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/model_passport.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(model_passport_cli);
+    const run_model_passport = b.addRunArtifact(model_passport_cli);
+    run_model_passport.addArg("issue");
+    run_model_passport.addArg("strip.atmosphere.us76-layered");
+
     const gen_fixtures = b.addExecutable(.{
         .name = "strip-gen-proof-fixtures",
         .root_module = b.createModule(.{
@@ -231,4 +287,8 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_verify_cli.step);
     verify_step.dependOn(&run_evidence.step);
     verify_step.dependOn(&run_campaign.step);
+    verify_step.dependOn(&run_hil_bench.step);
+    verify_step.dependOn(&run_flight_seal.step);
+    verify_step.dependOn(&run_cert_delta.step);
+    verify_step.dependOn(&run_model_passport.step);
 }

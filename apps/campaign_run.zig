@@ -163,7 +163,11 @@ pub fn main(init: std.process.Init) !u8 {
         bundle_hex[index * 2 + 1] = alphabet[byte & 0x0f];
     }
 
-    const qualification = try strip.flight_test.qualification.evaluateFromFixtures(allocator, init.io);
+    const qualification = try strip.flight_test.qualification.evaluateFromFixturesWithEnv(
+        allocator,
+        init.io,
+        init.environ_map,
+    );
     const key_pair = try strip.serialization.signing.resolveKeyPair(init.environ_map);
     const signature = try strip.serialization.signing.signDigestHex(key_pair, &bundle_hex);
     var signature_json_buf: [512]u8 = undefined;

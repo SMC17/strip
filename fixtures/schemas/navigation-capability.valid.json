@@ -1,0 +1,10 @@
+{
+  "schema": "strip.navigation-capability.v0",
+  "capability_id": "strip.nav.simulated-gnss-baseline",
+  "gnss_modes": ["simulated_only", "gps"],
+  "rnav_rnp": { "rnav": false, "rnp_self_monitor": false },
+  "surveillance": ["none"],
+  "backup": ["irs", "dead_reckoning"],
+  "primary_sources": ["faa-aim-2024-03-21", "faa-gnss-pbn"],
+  "operational_qualification_claimed": false
+}

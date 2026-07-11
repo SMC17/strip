@@ -9,18 +9,23 @@ pub fn main(init: std.process.Init) !u8 {
     defer it.deinit();
     _ = it.next();
     const sub = it.next() orelse {
-        std.debug.print("usage: strip-flight-seal build [--out DIR]\n", .{});
+        std.debug.print("usage: strip-flight-seal build [--out DIR] [--telemetry PATH] [--require-holdout]\n", .{});
         return 2;
     };
     if (!std.mem.eql(u8, sub, "build")) return 2;
     var out_dir: []const u8 = "flight.evidence";
+    var telemetry_src: []const u8 = "fixtures/validation/flight-test/heldout-telemetry.csv";
+    var require_holdout = false;
     while (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "--out")) {
             out_dir = it.next() orelse return 2;
-        }
+        } else if (std.mem.eql(u8, arg, "--telemetry")) {
+            telemetry_src = it.next() orelse return 2;
+        } else if (std.mem.eql(u8, arg, "--require-holdout")) {
+            require_holdout = true;
+        } else return 2;
     }
 
-    const telemetry_src = "fixtures/validation/flight-test/synthetic-telemetry.csv";
     const telemetry_bytes = try std.Io.Dir.cwd().readFileAlloc(
         init.io,
         telemetry_src,
@@ -28,6 +33,37 @@ pub fn main(init: std.process.Init) !u8 {
         .limited(256 * 1024),
     );
     defer allocator.free(telemetry_bytes);
+
+    var holdout_passed = false;
+    var holdout_coverage: f64 = 0;
+    var residual_sigma: f64 = 0;
+    if (require_holdout) {
+        const campaign_bytes = try std.Io.Dir.cwd().readFileAlloc(
+            init.io,
+            "fixtures/validation/flight-test/synthetic-campaign.json",
+            allocator,
+            .limited(512 * 1024),
+        );
+        defer allocator.free(campaign_bytes);
+        var campaign_parsed = try strip.flight_test.campaign.parseCampaign(allocator, campaign_bytes);
+        defer campaign_parsed.deinit();
+        const rows = try strip.flight_test.telemetry_csv.loadCsv(allocator, telemetry_bytes);
+        defer {
+            for (rows) |row| allocator.free(row.channel);
+            allocator.free(rows);
+        }
+        const report = try strip.uncertainty.campaign_calibration.evaluateSyntheticCampaign(
+            campaign_parsed.value,
+            rows,
+        );
+        holdout_passed = report.holdout_passed;
+        holdout_coverage = report.holdout_coverage_one_sigma;
+        residual_sigma = report.residual_standard_deviation;
+        if (!holdout_passed) {
+            std.debug.print("holdout residual coverage failed: {d}\n", .{holdout_coverage});
+            return 1;
+        }
+    }
 
     var telem_digest: [64]u8 = undefined;
     strip.flight_test.flight_seal.digestHexOf(telemetry_bytes, &telem_digest);
@@ -43,7 +79,7 @@ pub fn main(init: std.process.Init) !u8 {
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"sealed-flight-package-001\",\"created_utc\":\"2026-07-11T04:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":[\"Sealed package built from held-out telemetry bytes; not an operational clearance.\",\"flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE.\"]}}\n",
+        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"heldout-flight-package-001\",\"created_utc\":\"2026-07-11T04:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":[\"Held-out telemetry package for residual+seal+tier wiring; NOT aircraft flight clearance.\",\"Replace with real flight/ulog export before claiming Month-6 flight validation.\",\"flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE.\"]}}\n",
         .{ telemetry_bytes.len, &telem_digest, &package_digest },
     );
     defer allocator.free(manifest_json);
@@ -74,8 +110,8 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.flight-seal.v1\",\"output_dir\":\"{s}\",\"package_sha256\":\"sha256:{s}\",\"sealed\":true,\"operational_qualification_claimed\":false}}\n",
-        .{ out_dir, &package_digest },
+        "{{\"schema\":\"strip.flight-seal.v1\",\"output_dir\":\"{s}\",\"telemetry_src\":\"{s}\",\"package_sha256\":\"sha256:{s}\",\"holdout_required\":{},\"holdout_passed\":{},\"holdout_coverage_1sigma\":{d:.6},\"residual_sigma\":{d:.6},\"sealed\":true,\"operational_qualification_claimed\":false}}\n",
+        .{ out_dir, telemetry_src, &package_digest, require_holdout, holdout_passed, holdout_coverage, residual_sigma },
     );
     return 0;
 }

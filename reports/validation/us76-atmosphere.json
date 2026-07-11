@@ -61,6 +61,6 @@
   "limitations": [
     "Table points are published US76 values, not flight telemetry.",
     "Cross-implementation uses JSBSim as an independent host, not a physical sensor.",
-    "Campaign Monte Carlo faults remain synthetic SIL inputs; flight_test tier stays missing."
+    "Campaign Monte Carlo faults remain synthetic SIL inputs; flight_test tier passes only with a sealed package via STRIP_FLIGHT_PACKAGE."
   ]
 }

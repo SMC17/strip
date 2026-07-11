@@ -39,17 +39,20 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-campaign run campaigns/reference-uas-contingency.toml
 ./zig-out/bin/strip-fidelity
 ./zig-out/bin/strip-hil-bench
-./zig-out/bin/strip-flight-seal build --out /tmp/strip-flight-seal
+./zig-out/bin/strip-flight-seal build --out /tmp/strip-flight-seal --require-holdout
 STRIP_FLIGHT_PACKAGE=/tmp/strip-flight-seal ./zig-out/bin/strip-verification-gates
+./zig-out/bin/strip-mavlink-sitl selftest
 ./zig-out/bin/strip-certification-delta diff <baseline.json> <candidate.json>
 ./zig-out/bin/strip-model-passport issue strip.atmosphere.us76-layered
 ```
 
-Latest local gate: unit tests plus UAS, assurance, platform, validation, fidelity,
-evidence compiler, campaign bundle, verification-gates v3, HIL bench, flight-seal,
-certification-delta, and model-passport. Authoritative `NumericalResult` paths and
-evidence/campaign manifests carry `execution_identity`. Default gates keep
-`flight_test: missing` unless `STRIP_FLIGHT_PACKAGE` points at a verified seal.
+Latest local gate: unit tests plus UAS, assurance, platform, validation (US76 green),
+fidelity, evidence compiler, campaign bundle, verification-gates v3 (with sealed
+held-out flight package → `flight_test: passed`), HIL bench, flight-seal,
+MAVLink SITL loopback, certification-delta, and model-passport. Authoritative
+`NumericalResult` paths and evidence/campaign manifests carry `execution_identity`.
+`zig build verify` seals `flight.evidence` and sets `STRIP_FLIGHT_PACKAGE` for gates;
+campaign-10k without that env still expects `flight_test: missing`.
 
 ## Verification gates (v3)
 
@@ -63,7 +66,7 @@ evidence/campaign manifests carry `execution_identity`. Default gates keep
 | OpenVSP export | `OPENSP_CMD` via `openvsp_box_wing.vspscript` or `analytic_stl_exporter` | Nonzero vsp exit fails; structural mesh bounds; analytic exact digest pin |
 | Replay | pinned per-arch (`pending_count: 0`); fails if any case pending | Five ReleaseSafe/Debug legs; same RK4 fingerprint across current matrix |
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
-| Flight evidence (Gate 5) | `software_only` → `hardware_in_loop` (`physical_bench_protocol`) → optional `flight_test` | Sealed package via env; `operational_qualification_claimed: false` |
+| Flight evidence (Gate 5) | `software_only` → `hardware_in_loop` → `flight_test` (sealed held-out package in verify) | Held-out sensor-model CSV, not aircraft log; `operational_qualification_claimed: false` |
 
 Verification gate runner:
 
@@ -76,7 +79,8 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Held-out flight validation for Month-6 exit (campaign SIL faults remain synthetic by design)
+- Replace held-out sensor-model CSV with a real flight/ulog export before Month-6 flight claim
+- Wire UDP MAVLink to a live `px4-sitl` binary (loopback selftest is offline-only today)
 - WeatherNext live against a real Vertex/WeatherLab endpoint when credentials exist
 - Serial HIL against a physical UART/USB device (API ready; verify uses Unix daemon)
 

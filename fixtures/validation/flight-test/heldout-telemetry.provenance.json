@@ -1,0 +1,22 @@
+{
+  "schema": "strip.flight-telemetry-provenance.v0",
+  "id": "heldout-telemetry-body-ax-001",
+  "artifact": "fixtures/validation/flight-test/heldout-telemetry.csv",
+  "channel": "body_ax",
+  "provenance_class": "heldout_sensor_model",
+  "generation": {
+    "method": "Strip IMU body-axis schedule with fixed seed; linear trend plus bounded noise",
+    "seed": 7,
+    "not_aircraft_flight_log": true
+  },
+  "split": {
+    "calibration_rows": 5,
+    "blinded_holdout_rows": 2
+  },
+  "limitations": [
+    "NOT aircraft flight evidence and NOT an FSTD/operational clearance.",
+    "Exercises residual coverage + seal + flight_test tier wiring for Month-6 path.",
+    "Replace with a real flight/ulog export before claiming flight validation."
+  ],
+  "operational_qualification_claimed": false
+}

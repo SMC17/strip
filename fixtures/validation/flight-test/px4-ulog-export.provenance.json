@@ -1,0 +1,27 @@
+{
+  "schema": "strip.flight-telemetry-provenance.v0",
+  "id": "px4-ulog-export-body-ax-001",
+  "artifact": "fixtures/validation/flight-test/px4-ulog-export.csv",
+  "source_ulog": "fixtures/validation/flight-test/px4-sample-log-small.ulg",
+  "source_ulog_sha256": "68d1020f688109f027dba08d2950247cc0ae34aaefdcf37e4a7d60838f3e1aa3",
+  "source_ulog_origin": "https://raw.githubusercontent.com/PX4/pyulog/main/test/sample_log_small.ulg",
+  "channel": "body_ax",
+  "topic": "sensor_combined.accelerometer_m_s2[0]",
+  "provenance_class": "px4_ulog_export",
+  "generation": {
+    "method": "tools/ulog_to_strip_csv.py — evenly spaced samples from public PX4 ULog (pyulog sample_log_small)",
+    "not_aircraft_flight_log": false,
+    "not_operator_owned_flight": true,
+    "public_px4_sample_log": true
+  },
+  "split": {
+    "calibration_rows": 5,
+    "blinded_holdout_rows": 2
+  },
+  "limitations": [
+    "Public PX4 ULog sample export — real ULog bytes, not a Strip sensor-model CSV.",
+    "NOT an operator-owned aircraft flight and NOT FSTD/operational clearance.",
+    "operational_qualification_claimed remains false until operator flight evidence is sealed."
+  ],
+  "operational_qualification_claimed": false
+}

@@ -235,7 +235,7 @@ pub fn build(b: *std.Build) void {
     run_flight_seal.addArg("--out");
     run_flight_seal.addArg("flight.evidence");
     run_flight_seal.addArg("--telemetry");
-    run_flight_seal.addArg("fixtures/validation/flight-test/heldout-telemetry.csv");
+    run_flight_seal.addArg("fixtures/validation/flight-test/px4-ulog-export.csv");
     run_flight_seal.addArg("--require-holdout");
 
     // Gate flight_test: passed only when verification loads the sealed package.

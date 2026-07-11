@@ -14,9 +14,10 @@
     "blinded_holdout_rows": 2
   },
   "limitations": [
-    "NOT aircraft flight evidence and NOT an FSTD/operational clearance.",
-    "Exercises residual coverage + seal + flight_test tier wiring for Month-6 path.",
-    "Replace with a real flight/ulog export before claiming flight validation."
+    "SUPERSEDED as default verify telemetry by fixtures/validation/flight-test/px4-ulog-export.csv (px4_ulog_export).",
+    "Retained as historical sensor-model fixture for regression comparison only.",
+    "NOT aircraft flight evidence and NOT an FSTD/operational clearance."
   ],
+  "superseded_by": "fixtures/validation/flight-test/px4-ulog-export.csv",
   "operational_qualification_claimed": false
 }

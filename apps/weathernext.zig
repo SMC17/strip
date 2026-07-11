@@ -1,4 +1,5 @@
-//! `strip-weathernext` — platform-plane WeatherNext client (never authoritative).
+//! `strip-weathernext` — platform-plane weather client (never authoritative).
+//! Defaults to WeatherNext Graph until WN2 leaves open beta; interim live via Open-Meteo.
 
 const std = @import("std");
 const strip = @import("strip");
@@ -8,9 +9,9 @@ fn usage() void {
         \\usage:
         \\  strip-weathernext status
         \\  strip-weathernext fixture
-        \\  strip-weathernext fetch --live
+        \\  strip-weathernext fetch --live [--interim open-meteo]
         \\
-        \\Live fetch requires STRIP_WEATHERNEXT_ENDPOINT (optional STRIP_WEATHERNEXT_TOKEN).
+        \\Live: STRIP_WEATHERNEXT_ENDPOINT, or --interim open-meteo until Vertex WN is GA.
         \\
     , .{});
 }
@@ -22,11 +23,11 @@ pub fn main(init: std.process.Init) !u8 {
     _ = it.next();
     const cmd = it.next() orelse "status";
 
-    const endpoint = init.environ_map.get("STRIP_WEATHERNEXT_ENDPOINT");
+    const endpoint_env = init.environ_map.get("STRIP_WEATHERNEXT_ENDPOINT");
     const token = init.environ_map.get("STRIP_WEATHERNEXT_TOKEN");
 
     if (std.mem.eql(u8, cmd, "status")) {
-        const report = strip.platform.weathernext.statusReport(endpoint != null);
+        const report = strip.platform.weathernext.statusReport(endpoint_env != null);
         const json = try strip.platform.weathernext.formatReport(allocator, report);
         defer allocator.free(json);
         try writeOut(init, json);
@@ -41,21 +42,35 @@ pub fn main(init: std.process.Init) !u8 {
         return 0;
     }
     if (std.mem.eql(u8, cmd, "fetch")) {
-        const live = blk: {
-            while (it.next()) |arg| {
-                if (std.mem.eql(u8, arg, "--live")) break :blk true;
-            }
-            break :blk false;
-        };
+        var live = false;
+        var interim: ?[]const u8 = null;
+        while (it.next()) |arg| {
+            if (std.mem.eql(u8, arg, "--live")) {
+                live = true;
+            } else if (std.mem.eql(u8, arg, "--interim")) {
+                interim = it.next() orelse return 2;
+            } else return 2;
+        }
         if (!live) {
             usage();
             return 2;
         }
-        const ep = endpoint orelse {
-            std.debug.print("STRIP_WEATHERNEXT_ENDPOINT is required for --live\n", .{});
-            return 2;
+        var model_family: []const u8 = strip.platform.weathernext.default_model_family;
+        const ep = blk: {
+            if (interim) |name| {
+                if (std.mem.eql(u8, name, "open-meteo")) {
+                    model_family = "Open-Meteo (interim until WeatherNext GA)";
+                    break :blk strip.platform.weathernext.interim_open_meteo_endpoint;
+                }
+                std.debug.print("unknown --interim {s} (supported: open-meteo)\n", .{name});
+                return 2;
+            }
+            break :blk endpoint_env orelse {
+                std.debug.print("STRIP_WEATHERNEXT_ENDPOINT required, or pass --interim open-meteo\n", .{});
+                return 2;
+            };
         };
-        const got = try strip.platform.weathernext.fetchLive(init.io, allocator, ep, token);
+        const got = try strip.platform.weathernext.fetchLive(init.io, allocator, ep, token, model_family);
         defer {
             allocator.free(got.digest_owned);
             allocator.free(got.body_owned);
@@ -63,7 +78,8 @@ pub fn main(init: std.process.Init) !u8 {
         const json = try strip.platform.weathernext.formatReport(allocator, got.report);
         defer allocator.free(json);
         try writeOut(init, json);
-        return 0;
+        const ok = if (got.report.http_status) |s| s >= 200 and s < 300 else false;
+        return if (ok) 0 else 1;
     }
     usage();
     return 2;

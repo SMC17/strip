@@ -46,7 +46,8 @@
     "blinded_holdout_run_ids": ["run-blind-01"]
   },
   "limitations": [
-    "Synthetic fixture only.",
-    "No aircraft, FSTD, operational approval, certification, or FAA qualification claim."
+    "Campaign split policy for residual coverage against ULog-exported body_ax samples.",
+    "Telemetry provenance is px4_ulog_export (public PX4 sample), not operator-owned aircraft.",
+    "No FSTD, operational approval, certification, or FAA qualification claim."
   ]
 }

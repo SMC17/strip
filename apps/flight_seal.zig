@@ -14,7 +14,7 @@ pub fn main(init: std.process.Init) !u8 {
     };
     if (!std.mem.eql(u8, sub, "build")) return 2;
     var out_dir: []const u8 = "flight.evidence";
-    var telemetry_src: []const u8 = "fixtures/validation/flight-test/heldout-telemetry.csv";
+    var telemetry_src: []const u8 = "fixtures/validation/flight-test/px4-ulog-export.csv";
     var require_holdout = false;
     while (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "--out")) {
@@ -79,7 +79,7 @@ pub fn main(init: std.process.Init) !u8 {
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"heldout-flight-package-001\",\"created_utc\":\"2026-07-11T04:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":[\"Held-out telemetry package for residual+seal+tier wiring; NOT aircraft flight clearance.\",\"Replace with real flight/ulog export before claiming Month-6 flight validation.\",\"flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE.\"]}}\n",
+        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"px4-ulog-export-package-001\",\"created_utc\":\"2026-07-11T05:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal; tools/ulog_to_strip_csv.py\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":[\"Telemetry derived from public PX4 ULog sample (px4_ulog_export); NOT operator-owned aircraft clearance.\",\"Replace with operator flight/ulog before claiming Month-6 operational flight validation.\",\"flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE.\"]}}\n",
         .{ telemetry_bytes.len, &telem_digest, &package_digest },
     );
     defer allocator.free(manifest_json);

@@ -234,6 +234,26 @@ pub fn build(b: *std.Build) void {
     run_flight_seal.addArg("build");
     run_flight_seal.addArg("--out");
     run_flight_seal.addArg("flight.evidence");
+    run_flight_seal.addArg("--telemetry");
+    run_flight_seal.addArg("fixtures/validation/flight-test/heldout-telemetry.csv");
+    run_flight_seal.addArg("--require-holdout");
+
+    // Gate flight_test: passed only when verification loads the sealed package.
+    run_verification.setEnvironmentVariable("STRIP_FLIGHT_PACKAGE", "flight.evidence");
+    run_verification.step.dependOn(&run_flight_seal.step);
+
+    const mavlink_sitl_cli = b.addExecutable(.{
+        .name = "strip-mavlink-sitl",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/mavlink_sitl.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(mavlink_sitl_cli);
+    const run_mavlink_sitl = b.addRunArtifact(mavlink_sitl_cli);
+    run_mavlink_sitl.addArg("selftest");
 
     const certification_delta_cli = b.addExecutable(.{
         .name = "strip-certification-delta",
@@ -341,6 +361,7 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_campaign.step);
     verify_step.dependOn(&run_hil_bench.step);
     verify_step.dependOn(&run_flight_seal.step);
+    verify_step.dependOn(&run_mavlink_sitl.step);
     verify_step.dependOn(&run_cert_delta.step);
     verify_step.dependOn(&run_model_passport.step);
     verify_step.dependOn(&run_dispatch.step);

@@ -1,10 +1,20 @@
 //! Load primary-source manifests and join validation reports to cases.
+//!
+//! Default path uses the US76 atmosphere case/report (green coverage).
+//! Pass `--negative` to exercise the intentional comparator-perturbed failure fixture.
 
 const std = @import("std");
 const strip = @import("strip");
 
 pub fn main(init: std.process.Init) !u8 {
     const allocator = init.gpa;
+    var it = try init.minimal.args.iterateAllocator(allocator);
+    defer it.deinit();
+    _ = it.next();
+    var negative = false;
+    while (it.next()) |arg| {
+        if (std.mem.eql(u8, arg, "--negative")) negative = true else return 2;
+    }
 
     const source_bytes = try std.Io.Dir.cwd().readFileAlloc(
         init.io,
@@ -19,9 +29,18 @@ pub fn main(init: std.process.Init) !u8 {
         try record.validateWithFilesystem(init.io);
     }
 
+    const case_path = if (negative)
+        "fixtures/schemas/validation-case.valid.json"
+    else
+        "fixtures/validation/uas/us76-atmosphere-case.json";
+    const report_path = if (negative)
+        "reports/validation/comparator-perturbed.json"
+    else
+        "reports/validation/us76-atmosphere.json";
+
     const case_bytes = try std.Io.Dir.cwd().readFileAlloc(
         init.io,
-        "fixtures/schemas/validation-case.valid.json",
+        case_path,
         allocator,
         .limited(128 * 1024),
     );
@@ -31,7 +50,7 @@ pub fn main(init: std.process.Init) !u8 {
 
     const report_bytes = try std.Io.Dir.cwd().readFileAlloc(
         init.io,
-        "reports/validation/comparator-perturbed.json",
+        report_path,
         allocator,
         .limited(256 * 1024),
     );
@@ -50,8 +69,11 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.validation.cli.v0\",\"primary_sources\":{d},\"report_status\":\"{s}\",\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"coverage_complete\":{},\"cross_implementation\":\"{s}\",\"operational_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.validation.cli.v0\",\"mode\":\"{s}\",\"case\":\"{s}\",\"report\":\"{s}\",\"primary_sources\":{d},\"report_status\":\"{s}\",\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"coverage_complete\":{},\"cross_implementation\":\"{s}\",\"operational_qualification_claimed\":false}}\n",
         .{
+            if (negative) "negative_comparator" else "us76_atmosphere",
+            case_path,
+            report_path,
             sources.value.records.len,
             @tagName(validated.report_status),
             validated.joined,
@@ -61,5 +83,12 @@ pub fn main(init: std.process.Init) !u8 {
             @tagName(validated.coverage.status(.cross_implementation).?),
         },
     );
-    return if (validated.joined and validated.all_expected_dimensions_present) 0 else 2;
+    if (negative) {
+        // Negative mode succeeds as a process if join is complete (failure is in coverage).
+        return if (validated.joined and validated.all_expected_dimensions_present) 0 else 2;
+    }
+    return if (validated.joined and validated.all_expected_dimensions_present and validated.coverage.allPassed())
+        0
+    else
+        2;
 }

@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/artifact-envelope.schema.json",
+  "title": "Sovereign Experience artifact envelope (seed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "kind",
+    "schema_version",
+    "value",
+    "generated_at",
+    "source",
+    "context",
+    "validity",
+    "authority",
+    "operational_qualification_claimed"
+  ],
+  "properties": {
+    "schema": { "const": "sovereign.artifact-envelope.v0" },
+    "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "scalar",
+        "timeseries",
+        "forecast_member",
+        "ensemble",
+        "table",
+        "mesh",
+        "geo_layer",
+        "claim",
+        "trajectory",
+        "report"
+      ]
+    },
+    "schema_version": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "value": {},
+    "units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbol", "system"],
+      "properties": {
+        "symbol": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "system": { "enum": ["si", "aviation", "imperial", "dimensionless", "custom"] }
+      }
+    },
+    "generated_at": { "type": "string", "minLength": 8, "maxLength": 40 },
+    "valid_at": { "type": "string", "minLength": 8, "maxLength": 40 },
+    "valid_until": { "type": "string", "minLength": 8, "maxLength": 40 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "engine_version", "model"],
+      "properties": {
+        "engine": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "engine_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "model_version": { "type": "string", "maxLength": 64 },
+        "commit": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intended_use", "scenario_id", "run_id"],
+      "properties": {
+        "intended_use": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "scenario_id": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "run_id": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "replay_id": { "type": "string", "maxLength": 96 }
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["inside-envelope", "near-boundary", "outside-envelope", "unknown"]
+        },
+        "constraints": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "string", "maxLength": 256 }
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["interval", "distribution", "ensemble", "qualitative"] },
+        "payload": {}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "evidence_ids"],
+      "properties": {
+        "level": {
+          "enum": [
+            "unknown",
+            "proposal",
+            "simulated",
+            "unit-tested",
+            "cross-validated",
+            "benchmarked",
+            "externally-validated",
+            "accepted",
+            "rejected",
+            "refuted"
+          ]
+        },
+        "evidence_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "operational_qualification_claimed": { "const": false }
+  }
+}

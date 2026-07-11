@@ -1,0 +1,24 @@
+{
+  "schema": "sovereign.artifact-envelope.v0",
+  "id": "bad",
+  "kind": "scalar",
+  "schema_version": "0",
+  "value": 1,
+  "generated_at": "2026-07-11T00:00:00Z",
+  "source": {
+    "engine": "x",
+    "engine_version": "0",
+    "model": "y"
+  },
+  "context": {
+    "intended_use": "demo",
+    "scenario_id": "s",
+    "run_id": "r"
+  },
+  "validity": { "status": "unknown" },
+  "authority": {
+    "level": "accepted",
+    "evidence_ids": []
+  },
+  "operational_qualification_claimed": true
+}

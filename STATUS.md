@@ -95,9 +95,10 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Operator-owned (your) flight/ulog — public aircraft Flight Review log is now the verify default
+- Vertex WeatherNext EAP / Maps Weather OAuth — **open substitute:** AIFS+Atlas+FCN3 stack (`docs/domain/WEATHER-OPEN-STACK.md`; live AIFS/IFS via Open-Meteo)
+- Experience seed: `docs/EXPERIENCE.md` + artifact-envelope / authority tokens (split to `sovereign-experience` next)
 - Real embeddings backend for analogy (`EmbeddingLane` stub; MAC/FAC authoritative)
-- Vertex WeatherNext EAP / Maps Weather OAuth (interim: Open-Meteo + NOAA/NWS)
+- Operator-owned (your) flight/ulog — public aircraft Flight Review log is now the verify default
 
 ## CI (`verify` workflow)
 

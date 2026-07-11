@@ -2,6 +2,20 @@
 //! imply that the referenced material was copied, validated, or redistributed.
 const std = @import("std");
 
+pub const ExtractionProvenance = struct {
+    citation_anchor: []const u8,
+    extracted_artifact_path: []const u8,
+    extracted_artifact_digest: []const u8,
+    normalization_script: ?[]const u8 = null,
+
+    pub fn validate(self: ExtractionProvenance) !void {
+        try bounded(self.citation_anchor, 1, 256);
+        try bounded(self.extracted_artifact_path, 1, 256);
+        if (!validDigest(self.extracted_artifact_digest)) return error.InvalidDigest;
+        if (self.normalization_script) |script| try bounded(script, 1, 256);
+    }
+};
+
 pub const SourceRecord = struct {
     id: []const u8,
     title: []const u8,
@@ -14,6 +28,7 @@ pub const SourceRecord = struct {
     digest: []const u8,
     digest_scope: DigestScope,
     extraction: []const u8,
+    extraction_provenance: ?ExtractionProvenance = null,
     limitations: []const []const u8,
 
     pub fn validate(self: SourceRecord) !void {
@@ -28,11 +43,34 @@ pub const SourceRecord = struct {
             return error.InvalidUrl;
         if (!validDate(self.retrieved_at)) return error.InvalidRetrievalDate;
         if (!validDigest(self.digest)) return error.InvalidDigest;
-        if (self.digest_scope == .locator_record and !digestMatches(self.url, self.digest))
-            return error.DigestMismatch;
+        if (self.extraction_provenance) |provenance| try provenance.validate();
+        switch (self.digest_scope) {
+            .locator_record => {
+                if (!digestMatches(self.url, self.digest)) return error.DigestMismatch;
+            },
+            .source_content, .fixture_content => {
+                const provenance = self.extraction_provenance orelse return error.MissingExtractionProvenance;
+                if (!std.mem.eql(u8, provenance.extracted_artifact_digest, self.digest))
+                    return error.DigestMismatch;
+            },
+        }
         if (self.limitations.len == 0 or self.limitations.len > 16)
             return error.InvalidLimitations;
         for (self.limitations) |limitation| try bounded(limitation, 1, 512);
+    }
+
+    pub fn validateWithFilesystem(self: SourceRecord, io: std.Io) !void {
+        try self.validate();
+        if (self.digest_scope == .locator_record) return;
+        const provenance = self.extraction_provenance orelse return error.MissingExtractionProvenance;
+        const bytes = try std.Io.Dir.cwd().readFileAlloc(
+            io,
+            provenance.extracted_artifact_path,
+            std.heap.page_allocator,
+            .limited(1024 * 1024),
+        );
+        defer std.heap.page_allocator.free(bytes);
+        if (!digestMatches(bytes, self.digest)) return error.ExtractedArtifactDigestMismatch;
     }
 };
 
@@ -109,6 +147,30 @@ fn digestMatches(bytes: []const u8, expected: []const u8) bool {
     return std.mem.eql(u8, &actual, expected);
 }
 
+test "extracted US76 artifact digest matches pinned content" {
+    var record: SourceRecord = .{
+        .id = "us-standard-atmosphere-1976",
+        .title = "U.S. Standard Atmosphere, 1976",
+        .publisher = "NOAA, NASA, and U.S. Air Force",
+        .edition = "1976",
+        .version = "NASA-TM-X-74335 / NOAA-S/T-76-1562",
+        .url = "https://ntrs.nasa.gov/citations/19770009539",
+        .license = "U.S. government publication; verify item-specific reuse notices",
+        .retrieved_at = "2026-07-10",
+        .digest = "sha256:d4bf9f3719fa270ce7d2b03507a43ce7b4205f76eb8f4233b9249698965470c4",
+        .digest_scope = .source_content,
+        .extraction = "Published table rows transcribed into sources/extracted/us76-reference-points.json.",
+        .extraction_provenance = .{
+            .citation_anchor = "Table 3 sea level; 11 km geopotential layer boundary",
+            .extracted_artifact_path = "sources/extracted/us76-reference-points.json",
+            .extracted_artifact_digest = "sha256:d4bf9f3719fa270ce7d2b03507a43ce7b4205f76eb8f4233b9249698965470c4",
+            .normalization_script = "manual transcription fixture",
+        },
+        .limitations = &.{ "Two reference points only; not a full atmosphere validation dataset." },
+    };
+    try record.validateWithFilesystem(std.testing.io);
+}
+
 test "primary source manifest is typed, bounded, and complete" {
     const bytes = try std.Io.Dir.cwd().readFileAlloc(
         std.testing.io,
@@ -119,7 +181,7 @@ test "primary source manifest is typed, bounded, and complete" {
     defer std.testing.allocator.free(bytes);
     var parsed = try parse(std.testing.allocator, bytes);
     defer parsed.deinit();
-    try std.testing.expectEqual(@as(usize, 18), parsed.value.records.len);
+    try std.testing.expectEqual(@as(usize, 19), parsed.value.records.len);
 }
 
 test "dataset schema fixtures are accepted and rejected semantically" {

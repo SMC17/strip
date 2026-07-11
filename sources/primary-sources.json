@@ -10,10 +10,16 @@
       "url": "https://ntrs.nasa.gov/citations/19770009539",
       "license": "U.S. government publication; verify item-specific reuse notices",
       "retrieved_at": "2026-07-10",
-      "digest": "sha256:5632dde2438002c64e6f6690355a342e7a4b99bc834f41ac00a741c00ee7d06e",
-      "digest_scope": "locator_record",
-      "extraction": "Catalog metadata and stable citation locator only; no report body copied.",
-      "limitations": ["Digest covers the UTF-8 locator URL, not report content.", "Catalog presence is not model-validation evidence."]
+      "digest": "sha256:d4bf9f3719fa270ce7d2b03507a43ce7b4205f76eb8f4233b9249698965470c4",
+      "digest_scope": "source_content",
+      "extraction": "Published table rows transcribed into sources/extracted/us76-reference-points.json.",
+      "extraction_provenance": {
+        "citation_anchor": "Table 3 sea level; 11 km geopotential layer boundary",
+        "extracted_artifact_path": "sources/extracted/us76-reference-points.json",
+        "extracted_artifact_digest": "sha256:d4bf9f3719fa270ce7d2b03507a43ce7b4205f76eb8f4233b9249698965470c4",
+        "normalization_script": "manual transcription fixture"
+      },
+      "limitations": ["Extracted reference points only; not full report validation.", "Remaining records still use locator_record digests until extraction completes."]
     },
     {
       "id": "nasa-tp-1538",
@@ -252,6 +258,26 @@
       "digest_scope": "locator_record",
       "extraction": "Official documentation locator only; no firmware or documentation copied.",
       "limitations": ["Digest covers the UTF-8 locator URL, not a firmware release.", "No SITL, HIL, or flight evidence is attached."]
+    },
+    {
+      "id": "synthetic-comparator-fixture",
+      "title": "Synthetic comparator perturbation fixture",
+      "publisher": "Strip validation fixtures",
+      "edition": "fixture",
+      "version": "1.0.0",
+      "url": "https://example.invalid/strip/fixtures/validation/comparator-perturbed",
+      "license": "repository fixture; not physical evidence",
+      "retrieved_at": "2026-07-10",
+      "digest": "sha256:00ff94c1e0df81fc56790c0f2288d0c58f98377bf375bb7bdc95616626b0b6dd",
+      "digest_scope": "fixture_content",
+      "extraction": "Fixture bytes pinned under fixtures/validation/comparator-perturbed.json.",
+      "extraction_provenance": {
+        "citation_anchor": "fixtures/validation/comparator-perturbed.json",
+        "extracted_artifact_path": "fixtures/validation/comparator-perturbed.json",
+        "extracted_artifact_digest": "sha256:00ff94c1e0df81fc56790c0f2288d0c58f98377bf375bb7bdc95616626b0b6dd",
+        "normalization_script": "zig build test comparator fixture"
+      },
+      "limitations": ["Synthetic scalar comparator only.", "Demonstrates failure detection, not model validation."]
     }
   ]
 }

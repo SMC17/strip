@@ -113,20 +113,52 @@ pub fn build(b: *std.Build) void {
     const jsbsim_install = b.addInstallArtifact(jsbsim_shim, .{});
     b.getInstallStep().dependOn(&jsbsim_install.step);
 
-    const proof_cli = b.addExecutable(.{
-        .name = "strip-proof-gates",
+    const verification_cli = b.addExecutable(.{
+        .name = "strip-verification-gates",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("apps/proof_gates.zig"),
+            .root_source_file = b.path("apps/verification_gates.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{.{ .name = "strip", .module = strip_mod }},
         }),
     });
-    b.installArtifact(proof_cli);
-    const run_proof = b.addRunArtifact(proof_cli);
-    run_proof.step.dependOn(&jsbsim_install.step);
-    const run_proof_step = b.step("run-proof-gates", "Run JSBSim, OpenVSP, replay, and uncertainty proof gates");
-    run_proof_step.dependOn(&run_proof.step);
+    b.installArtifact(verification_cli);
+    const run_verification = b.addRunArtifact(verification_cli);
+    run_verification.step.dependOn(&jsbsim_install.step);
+    const run_verification_step = b.step("run-verification-gates", "Run JSBSim, OpenVSP, replay, and uncertainty verification gates");
+    run_verification_step.dependOn(&run_verification.step);
+
+    const evidence_cli = b.addExecutable(.{
+        .name = "strip-evidence",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/strip_evidence.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(evidence_cli);
+    const run_evidence = b.addRunArtifact(evidence_cli);
+    run_evidence.addArg("build");
+    run_evidence.addArg("programs/reference-uas.toml");
+    const run_evidence_step = b.step("run-evidence-build", "Compile reference program evidence bundle");
+    run_evidence_step.dependOn(&run_evidence.step);
+
+    const campaign_cli = b.addExecutable(.{
+        .name = "strip-campaign",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/campaign_run.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(campaign_cli);
+    const run_campaign = b.addRunArtifact(campaign_cli);
+    run_campaign.addArg("run");
+    run_campaign.addArg("campaigns/reference-uas-contingency.toml");
+    const run_campaign_step = b.step("run-campaign", "Run reference UAS contingency campaign scaffold");
+    run_campaign_step.dependOn(&run_campaign.step);
 
     const verify_cli = b.addExecutable(.{
         .name = "strip-verify",
@@ -174,7 +206,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     const run_gen_fixtures = b.addRunArtifact(gen_fixtures);
-    const gen_fixtures_step = b.step("gen-proof-fixtures", "Emit pinned proof-gate digests for fixtures");
+    const gen_fixtures_step = b.step("gen-verification-fixtures", "Emit pinned verification-gate digests for fixtures");
     gen_fixtures_step.dependOn(&run_gen_fixtures.step);
 
     const verify_step = b.step("verify", "Run tests and integration fixtures");
@@ -184,6 +216,8 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_platform.step);
     verify_step.dependOn(&run_validation.step);
     verify_step.dependOn(&run_fidelity.step);
-    verify_step.dependOn(&run_proof.step);
+    verify_step.dependOn(&run_verification.step);
     verify_step.dependOn(&run_verify_cli.step);
+    verify_step.dependOn(&run_evidence.step);
+    verify_step.dependOn(&run_campaign.step);
 }

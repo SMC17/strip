@@ -20,7 +20,7 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip atmosphere 1000 preliminary_design
 ./zig-out/bin/strip-validation
 ./zig-out/bin/strip-fidelity
-./zig-out/bin/strip-proof-gates
+./zig-out/bin/strip-verification-gates
 ```
 
 Checks currently cover:

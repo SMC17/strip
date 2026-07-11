@@ -4,7 +4,7 @@ Date: 2026-07-10
 
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
-**CI:** `verify` workflow runs tests, proof gates v3, and `strip-verify` credibility checks.
+**CI:** `verify` runs tests, `strip-verification-gates`, `strip-verify`, evidence compiler, and campaign scaffold.
 
 ## Executable surface
 
@@ -33,10 +33,10 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-fidelity
 ```
 
-Latest local gate: 211 unit tests plus UAS, assurance, platform, validation, fidelity,
-and proof-gates v3 integration executables.
+Latest local gate: 217 unit tests plus UAS, assurance, platform, validation, fidelity,
+evidence compiler, campaign scaffold, and verification-gates v3 integration executables.
 
-## Proof gates (v3)
+## Verification gates (v3)
 
 | Gate | Evidence tier | Honest limit |
 |------|---------------|--------------|
@@ -50,10 +50,10 @@ and proof-gates v3 integration executables.
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
 | Flight evidence (Gate 5) | `software_only` + tier ladder | SIL/PIL partial; `operational_qualification_claimed: false` |
 
-Proof gate runner:
+Verification gate runner:
 
 ```sh
-JSBSIM_CMD=tools/jsbsim_cmd.sh zig build run-proof-gates
+JSBSIM_CMD=tools/jsbsim_cmd.sh zig build run-verification-gates
 ./zig-out/bin/strip-record-replay-baseline
 cat baseline.json | ./zig-out/bin/strip-promote-replay-baseline > fixtures/validation/replay/rk4-cross-target.json
 tools/promote_replay_from_ci.sh baseline.json
@@ -70,7 +70,7 @@ tools/promote_replay_from_ci.sh baseline.json
 | Job | Runner | Purpose |
 |-----|--------|---------|
 | `zig-and-schemas` | `ubuntu-latest` | fmt, 211 tests, schema fixtures, x86_64-linux Debug replay artifact |
-| `replay-baseline-matrix` | `ubuntu-24.04-arm`, `macos-latest` (aarch64 + Rosetta x86_64) | ReleaseSafe proof-gates + per-arch replay baseline |
+| `replay-baseline-matrix` | `ubuntu-24.04-arm`, `macos-latest` (aarch64 + Rosetta x86_64) | ReleaseSafe verification-gates + per-arch replay baseline |
 | `replay-baseline-collect` | `ubuntu-latest` | merge baselines; assert `pending_count == 0` |
 | `openvsp-real-export` | `ubuntu-24.04` | OpenVSP 3.42.0 deb, xvfb, `STRIP_REQUIRE_OPENSP_CMD=1`, Gate 2d real mesh |
 

@@ -1,0 +1,33 @@
+{
+  "schema": "strip.validation-case.v1",
+  "id": "reference-uas-uiuc-propeller-static",
+  "subject": "Reference UAS propeller static coefficients from UIUC Propeller Database",
+  "comparator": "Transcribed UIUC apcff_9x4 static CT/CP points (no interpolation)",
+  "source_ids": ["uiuc-prop-db"],
+  "envelope": {
+    "axes": [
+      { "variable": "rpm", "unit": "1/min", "minimum": 1400, "maximum": 2200 }
+    ]
+  },
+  "expected_dimensions": ["public_benchmark", "unit_test"],
+  "acceptance": {
+    "absolute_tolerance": 1e-6,
+    "relative_tolerance": 0
+  },
+  "metric_acceptance": [
+    {
+      "variable": "ct",
+      "unit": "1",
+      "absolute_tolerance": 1e-6,
+      "relative_tolerance": 0,
+      "rationale": "Verbatim transcription of published UIUC static CT; zero relative band"
+    },
+    {
+      "variable": "cp",
+      "unit": "1",
+      "absolute_tolerance": 1e-6,
+      "relative_tolerance": 0,
+      "rationale": "Verbatim transcription of published UIUC static CP; zero relative band"
+    }
+  ]
+}

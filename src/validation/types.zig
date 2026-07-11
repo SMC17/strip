@@ -85,6 +85,7 @@ pub const ValidationCase = struct {
     envelope: envelope.Envelope,
     expected_dimensions: []const EvidenceDimension,
     acceptance: Acceptance,
+    metric_acceptance: []const MetricAcceptance,
 
     pub fn validate(self: ValidationCase) !void {
         if (!std.mem.eql(u8, self.schema, "strip.validation-case.v1"))
@@ -110,6 +111,11 @@ pub const ValidationCase = struct {
             }
         }
         try self.acceptance.validate();
+        try (MetricAcceptanceSet{ .metrics = self.metric_acceptance }).validate();
+    }
+
+    pub fn metrics(self: ValidationCase) MetricAcceptanceSet {
+        return .{ .metrics = self.metric_acceptance };
     }
 };
 

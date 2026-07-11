@@ -1,0 +1,25 @@
+{
+  "schema": "strip.model-passport.v0",
+  "model_id": "strip.atmosphere.us76-layered",
+  "version": "0.2.0",
+  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "intended_uses": ["preliminary_design", "simulation_training"],
+  "prohibited_uses": [
+    "operational flight clearance",
+    "certification evidence without independent review"
+  ],
+  "validity_envelope": {
+    "variable": "geopotential_altitude_m",
+    "minimum": 0.0,
+    "maximum": 86000.0,
+    "unit": "m"
+  },
+  "credibility": {
+    "pedigree": 2,
+    "verification": 2,
+    "validation": 0,
+    "uncertainty": 2,
+    "review": 2
+  },
+  "operational_qualification_claimed": false
+}

@@ -4,7 +4,17 @@
   "title": "Strip validation case",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "id", "subject", "comparator", "source_ids", "envelope", "expected_dimensions", "acceptance"],
+  "required": [
+    "schema",
+    "id",
+    "subject",
+    "comparator",
+    "source_ids",
+    "envelope",
+    "expected_dimensions",
+    "acceptance",
+    "metric_acceptance"
+  ],
   "properties": {
     "schema": { "const": "strip.validation-case.v1" },
     "id": { "type": "string", "minLength": 1, "maxLength": 96 },
@@ -32,12 +42,31 @@
       "properties": {
         "absolute_tolerance": { "type": "number", "minimum": 0 },
         "relative_tolerance": { "type": "number", "minimum": 0, "maximum": 1 }
-      }
+      },
+      "description": "Fallback only when a sample variable has no metric_acceptance row."
+    },
+    "metric_acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/metricAcceptance" }
     }
   },
   "$defs": {
     "evidenceDimension": {
       "enum": ["analytical", "unit_test", "cross_implementation", "public_benchmark", "experimental", "hardware_in_loop", "flight", "certification"]
+    },
+    "metricAcceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variable", "unit", "absolute_tolerance", "relative_tolerance", "rationale"],
+      "properties": {
+        "variable": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "absolute_tolerance": { "type": "number", "minimum": 0 },
+        "relative_tolerance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rationale": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
     },
     "envelope": {
       "type": "object",

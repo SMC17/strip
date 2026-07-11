@@ -293,6 +293,67 @@ pub fn coefficientMetrics() types.MetricAcceptanceSet {
     } };
 }
 
+pub fn fixedWingIntegrateMetrics() types.MetricAcceptanceSet {
+    return .{ .metrics = &.{
+        .{
+            .variable = "altitude_m",
+            .unit = "m",
+            .absolute_tolerance = 5.0,
+            .relative_tolerance = 0.02,
+            .rationale = "Short JSBSim F-16 integrate; host vehicle, not Strip native aero",
+        },
+        .{
+            .variable = "vt_mps",
+            .unit = "m/s",
+            .absolute_tolerance = 2.0,
+            .relative_tolerance = 0.02,
+            .rationale = "Airspeed integration drift on published fixture",
+        },
+        .{
+            .variable = "alpha_deg",
+            .unit = "deg",
+            .absolute_tolerance = 0.5,
+            .relative_tolerance = 0.02,
+            .rationale = "Angle-of-attack state; fixture-scale acceptance",
+        },
+        .{
+            .variable = "theta_deg",
+            .unit = "deg",
+            .absolute_tolerance = 0.5,
+            .relative_tolerance = 0.02,
+            .rationale = "Pitch attitude state; fixture-scale acceptance",
+        },
+        .{
+            .variable = "q_radps",
+            .unit = "rad/s",
+            .absolute_tolerance = 0.05,
+            .relative_tolerance = 0.05,
+            .rationale = "Pitch rate from host integrate",
+        },
+        .{
+            .variable = "ax_mps2",
+            .unit = "m/s^2",
+            .absolute_tolerance = 1.0,
+            .relative_tolerance = 0.05,
+            .rationale = "Body-x accel from JSBSim host",
+        },
+        .{
+            .variable = "az_mps2",
+            .unit = "m/s^2",
+            .absolute_tolerance = 1.0,
+            .relative_tolerance = 0.05,
+            .rationale = "Body-z accel from JSBSim host",
+        },
+        .{
+            .variable = "qdot_radps2",
+            .unit = "rad/s^2",
+            .absolute_tolerance = 0.1,
+            .relative_tolerance = 0.05,
+            .rationale = "Pitch angular accel from host",
+        },
+    } };
+}
+
 pub fn metricsForBackend(backend: BackendKind) types.MetricAcceptanceSet {
     return switch (evidenceTier(backend)) {
         .cross_implementation => crossImplementationMetrics(),
@@ -478,7 +539,7 @@ pub fn compareFixedWingIntegrate(
         .{ .coordinates = &coord, .variable = "az_mps2", .reference = reference.az_mps2, .observed = observed.az_mps2 },
         .{ .coordinates = &coord, .variable = "qdot_radps2", .reference = reference.qdot_radps2, .observed = observed.qdot_radps2 },
     };
-    return validation.compare(validity, acceptance, &samples);
+    return validation.compareWithMetrics(validity, fixedWingIntegrateMetrics(), acceptance, &samples);
 }
 
 pub fn evaluateFixedWingGate(

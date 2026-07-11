@@ -1,0 +1,59 @@
+{
+  "schema": "strip.validation-report.v1",
+  "id": "report-reference-uas-uiuc-propeller-static",
+  "case_id": "reference-uas-uiuc-propeller-static",
+  "generated_at": "2026-07-11T03:10:00Z",
+  "status": "passed",
+  "comparisons": [
+    {
+      "variable": "ct",
+      "reference": 0.074892,
+      "observed": 0.074892,
+      "absolute_error": 0.0,
+      "tolerance": 1e-6,
+      "status": "passed"
+    },
+    {
+      "variable": "cp",
+      "reference": 0.040710,
+      "observed": 0.040710,
+      "absolute_error": 0.0,
+      "tolerance": 1e-6,
+      "status": "passed"
+    },
+    {
+      "variable": "ct",
+      "reference": 0.078324,
+      "observed": 0.078324,
+      "absolute_error": 0.0,
+      "tolerance": 1e-6,
+      "status": "passed"
+    },
+    {
+      "variable": "cp",
+      "reference": 0.041786,
+      "observed": 0.041786,
+      "absolute_error": 0.0,
+      "tolerance": 1e-6,
+      "status": "passed"
+    }
+  ],
+  "evidence": [
+    {
+      "dimension": "public_benchmark",
+      "status": "passed",
+      "evidence_id": "source:uiuc-prop-db",
+      "note": "Verbatim UIUC apcff_9x4 static CT/CP transcription (no interpolation)."
+    },
+    {
+      "dimension": "unit_test",
+      "status": "passed",
+      "evidence_id": "fixture:uiuc-propeller-static",
+      "note": "Transcribed values round-trip through the validation comparator with zero relative band."
+    }
+  ],
+  "limitations": [
+    "Static points only; not a validated propeller map or motor model.",
+    "Does not constitute flight evidence."
+  ]
+}

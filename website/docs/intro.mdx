@@ -26,10 +26,12 @@ The simulator is one evidence producer. Assurance, HIL, flight test, and externa
 ## Start here
 
 ```sh
-git clone https://github.com/SMC17/strip.git
-cd strip
+cd /home/user/sovereign-physics/strip   # full path — not ~/strip or zoxide `strip`
 # Zig 0.16.0 required — see Reproducible build
 zig build verify
+
+cd website
+npm ci && npm start   # http://localhost:3000/strip/
 ```
 
 Programme docs in the repo:

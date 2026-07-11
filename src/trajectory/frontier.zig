@@ -77,16 +77,17 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io) !Report {
     });
 
     const route = try router.selftest();
-    try workers.selftest();
+    try workers.selftestPersist(io);
     const hit = try analogy.selftest();
     _ = hit;
     const wm = try world_model.selftest();
     const hil = try hil_stream.selftest(allocator);
+    const hil_unix = try hil_stream.selftestUnix(allocator, io);
 
     const v1 = cf.passed and fault_ok and graph.claim_support_edges >= 1 and
         rec.claims_supported >= 1 and sched.readyCount() == 1;
     const v2 = std.mem.eql(u8, route.model_id, "strip-trajectory-local") and
-        wm.passed and hil.passed;
+        wm.passed and hil.passed and hil_unix.passed;
     const passed = v1 and v2;
 
     return .{
@@ -102,7 +103,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io) !Report {
         .analogy_passed = true,
         .world_model_passed = wm.passed,
         .hil_stream_passed = hil.passed,
-        .hil_events = hil.events_emitted,
+        .hil_events = hil.events_emitted + hil_unix.events_emitted,
         .passed = passed,
     };
 }

@@ -13,6 +13,7 @@ pub const jsonl = @import("jsonl.zig");
 pub const memory = @import("memory.zig");
 pub const receipt = @import("receipt.zig");
 pub const router = @import("router.zig");
+pub const router_live = @import("router_live.zig");
 pub const scheduler = @import("scheduler.zig");
 pub const store = @import("store.zig");
 pub const workers = @import("workers.zig");
@@ -32,6 +33,7 @@ test {
     _ = memory;
     _ = receipt;
     _ = router;
+    _ = router_live;
     _ = scheduler;
     _ = store;
     _ = workers;

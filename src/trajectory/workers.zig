@@ -79,6 +79,37 @@ pub const Fabric = struct {
     }
 };
 
+/// Persist assignment ledger as JSONL (durable fabric log, not a cluster).
+pub fn appendAssignmentLog(io: std.Io, path: []const u8, assignment: Assignment) !void {
+    var line_buf: [256]u8 = undefined;
+    const line = try std.fmt.bufPrint(
+        &line_buf,
+        "{{\"worker_id\":\"{s}\",\"task_id\":\"{s}\",\"pool\":\"{s}\"}}\n",
+        .{ assignment.worker_id, assignment.task_id, assignment.pool },
+    );
+    // Append-only: read existing + write combined (Zig 0.16 cwd writeFile replaces).
+    var existing: []u8 = &.{};
+    defer if (existing.len != 0) std.heap.page_allocator.free(existing);
+    if (std.Io.Dir.cwd().readFileAlloc(io, path, std.heap.page_allocator, .limited(64 * 1024))) |bytes| {
+        existing = bytes;
+    } else |_| {}
+    const combined = try std.fmt.allocPrint(std.heap.page_allocator, "{s}{s}", .{ existing, line });
+    defer std.heap.page_allocator.free(combined);
+    try std.Io.Dir.cwd().createDirPath(io, "trajectory.evidence");
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = combined });
+}
+
+pub fn countLogLines(io: std.Io, path: []const u8) !usize {
+    const bytes = std.Io.Dir.cwd().readFileAlloc(io, path, std.heap.page_allocator, .limited(64 * 1024)) catch return 0;
+    defer std.heap.page_allocator.free(bytes);
+    var n: usize = 0;
+    var it = std.mem.splitScalar(u8, bytes, '\n');
+    while (it.next()) |line| {
+        if (std.mem.trim(u8, line, " \t\r").len > 0) n += 1;
+    }
+    return n;
+}
+
 pub fn selftest() !void {
     var buf: [4]Worker = undefined;
     var fabric = Fabric.init(&buf);
@@ -106,6 +137,21 @@ pub fn selftest() !void {
     }
 }
 
+pub fn selftestPersist(io: std.Io) !void {
+    try selftest();
+    const path = "trajectory.evidence/worker-assignments.jsonl";
+    std.Io.Dir.cwd().deleteFile(io, path) catch {};
+    const a: Assignment = .{ .worker_id = "w-shared-1", .task_id = "t1", .pool = "reference-uas" };
+    try appendAssignmentLog(io, path, a);
+    try appendAssignmentLog(io, path, .{ .worker_id = "w-once-1", .task_id = "t2", .pool = "reference-uas" });
+    const n = try countLogLines(io, path);
+    if (n != 2) return error.PersistLogCount;
+}
+
 test "worker fabric shared and single-use" {
     try selftest();
+}
+
+test "worker assignment log persists" {
+    try selftestPersist(std.testing.io);
 }

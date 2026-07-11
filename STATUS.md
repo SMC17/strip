@@ -44,10 +44,17 @@ STRIP_FLIGHT_PACKAGE=/tmp/strip-flight-seal ./zig-out/bin/strip-verification-gat
 ./zig-out/bin/strip-mavlink-sitl selftest
 ./zig-out/bin/strip-trajectory selftest
 ./zig-out/bin/strip-trajectory frontier
-./zig-out/bin/strip-trajectory hil-stream --out trajectory.evidence
+./zig-out/bin/strip-trajectory hil-stream --unix --out trajectory.evidence
+./zig-out/bin/strip-trajectory router status --intent research
 ./zig-out/bin/strip-trajectory receipt --out trajectory.evidence
 ./zig-out/bin/strip-certification-delta diff <baseline.json> <candidate.json>
 ./zig-out/bin/strip-model-passport issue strip.atmosphere.us76-layered
+```
+
+Platform-plane live router (keys required; **never** from verify):
+
+```sh
+./zig-out/bin/strip-trajectory router --live --intent ask "Confirm US76 sea-level T≈288.15K in one sentence."
 ```
 
 Latest local gate: unit tests plus UAS, assurance, platform, validation (US76 green),
@@ -83,11 +90,8 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Optional live router path behind explicit intent (still never from verify)
-- Persist worker assignments across process restarts
 - Embeddings-backed analogy lane (separate from structural MAC/FAC)
-- Couple world-model loop to Strip rigid-body / atmosphere states
-- Serial/UART HIL device → JSONL (API ready; stream today is in-process)
+- Serial/UART HIL device → JSONL (unix daemon stream exists; serial path API-ready)
 - Auto-attach `trajectory.evidence/receipt.json` into `stax-experiment` verdict `--evidence`
 - Replace held-out sensor-model CSV with a real flight/ulog export before Month-6 flight claim
 - Wire UDP MAVLink to a live `px4-sitl` binary

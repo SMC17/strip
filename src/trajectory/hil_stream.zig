@@ -12,11 +12,13 @@ pub const StreamReport = struct {
     passed: bool,
 };
 
-/// Run in-process HIL progression and emit a foldable trajectory narrative.
-pub fn streamToJsonl(allocator: std.mem.Allocator, deadline_ns: u64) !struct {
+pub const StreamResult = struct {
     report: StreamReport,
     jsonl_owned: []u8,
-} {
+};
+
+/// Run in-process HIL progression and emit a foldable trajectory narrative.
+pub fn streamToJsonl(allocator: std.mem.Allocator, deadline_ns: u64) !StreamResult {
     const prog = try hil_bench.runLocalProgression(allocator, deadline_ns);
     defer {
         allocator.free(prog.records);
@@ -96,10 +98,75 @@ pub fn streamToJsonl(allocator: std.mem.Allocator, deadline_ns: u64) !struct {
     };
 }
 
+pub fn streamUnix(allocator: std.mem.Allocator, io: std.Io, deadline_ns: u64) !StreamResult {
+    // Threaded in-process daemon — works from unit tests and strip-trajectory CLI
+    // (child-process selftestUnix requires argv0 == strip-hil-bench).
+    const prog = try hil_bench.selftestUnixThreaded(io, allocator, deadline_ns);
+    defer {
+        allocator.free(prog.records);
+        allocator.free(prog.samples_owned);
+    }
+    var list: std.ArrayList(u8) = .empty;
+    errdefer list.deinit(allocator);
+    const hil_passed = prog.report.passed and prog.report.actuator_sensor_completed;
+    try list.appendSlice(allocator,
+        \\{"sequence":0,"event_id":"hil-unix-e0","kind":"trajectory_created","delivery_id":"hil-unix-d0","detail":"hil-unix-stream"}
+        \\{"sequence":1,"event_id":"hil-unix-e1","kind":"objective_received","delivery_id":"hil-unix-d1","detail":"Unix socket HIL daemon selftest"}
+        \\{"sequence":2,"event_id":"hil-unix-e2","kind":"action_proposed","delivery_id":"hil-unix-d2","action":{"kind":"run_hil_protocol","action_id":"a-hil-unix","objective":"Unix HIL progression","target":"unix_socket_daemon","risk":"simulation","verification":["v-hil-unix"]}}
+        \\{"sequence":3,"event_id":"hil-unix-e3","kind":"policy_evaluated","delivery_id":"hil-unix-d3","policy":"approved"}
+        \\{"sequence":4,"event_id":"hil-unix-e4","kind":"action_executed","delivery_id":"hil-unix-d4","detail":"selftestUnix"}
+        \\{"sequence":5,"event_id":"hil-unix-obs","kind":"observation_recorded","delivery_id":"hil-unix-d-obs","detail":"transport=unix_socket_daemon"}
+        \\
+    );
+    const verif_status: []const u8 = if (hil_passed) "passed" else "failed";
+    const vline = try std.fmt.allocPrint(
+        allocator,
+        "{{\"sequence\":6,\"event_id\":\"v-hil-unix\",\"kind\":\"verification_completed\",\"delivery_id\":\"hil-unix-d-v\",\"verification_status\":\"{s}\",\"detail\":\"unix hil\"}}\n",
+        .{verif_status},
+    );
+    defer allocator.free(vline);
+    try list.appendSlice(allocator, vline);
+    if (hil_passed) {
+        try list.appendSlice(allocator,
+            \\{"sequence":7,"event_id":"hil-unix-claim","kind":"claim_asserted","delivery_id":"hil-unix-d-c","evidence_refs":["v-hil-unix"],"detail":"Unix HIL selftest completed"}
+            \\{"sequence":8,"event_id":"hil-unix-done","kind":"run_completed","delivery_id":"hil-unix-d-done","detail":"closed"}
+            \\
+        );
+    } else {
+        try list.appendSlice(allocator,
+            \\{"sequence":7,"event_id":"hil-unix-done","kind":"run_completed","delivery_id":"hil-unix-d-done","detail":"closed without claim"}
+            \\
+        );
+    }
+    const owned = try list.toOwnedSlice(allocator);
+    var folded = try jsonl.foldJsonl(allocator, owned);
+    defer jsonl.freeFold(allocator, folded);
+    const audit = jsonl.auditReport(&folded.store);
+    const fold_passed = if (hil_passed) audit.passed else true;
+    const passed = hil_passed and fold_passed;
+    return .{
+        .report = .{
+            .events_emitted = folded.store.state.event_count,
+            .hil_passed = hil_passed,
+            .fold_passed = fold_passed,
+            .jsonl_bytes = owned.len,
+            .passed = passed,
+        },
+        .jsonl_owned = owned,
+    };
+}
+
 pub fn selftest(allocator: std.mem.Allocator) !StreamReport {
     const result = try streamToJsonl(allocator, 50_000_000);
     defer allocator.free(result.jsonl_owned);
     if (!result.report.passed) return error.HilStreamFailed;
+    return result.report;
+}
+
+pub fn selftestUnix(allocator: std.mem.Allocator, io: std.Io) !StreamReport {
+    const result = try streamUnix(allocator, io, 50_000_000);
+    defer allocator.free(result.jsonl_owned);
+    if (!result.report.passed) return error.HilUnixStreamFailed;
     return result.report;
 }
 
@@ -108,3 +175,9 @@ test "hil stream folds into supported claim" {
     try std.testing.expect(report.passed);
     try std.testing.expect(report.events_emitted >= 8);
 }
+
+test "hil unix stream folds" {
+    const report = try selftestUnix(std.testing.allocator, std.testing.io);
+    try std.testing.expect(report.passed);
+}
+

@@ -17,6 +17,7 @@ pub const Intent = enum {
 
 pub const Provider = enum {
     strip_local,
+    openrouter,
     grok,
     claude,
     gpt,
@@ -88,7 +89,13 @@ pub fn select(models: []const ModelConfig, intent: Intent, w: Weights) !Selectio
 }
 
 /// Fixture registry used by verify (no network).
-pub fn fixtureRegistry(live_gemini: bool, live_grok: bool) [5]ModelConfig {
+pub fn probeLive(environ: anytype) struct { gemini: bool, openrouter: bool } {
+    const gemini = environ.get("GOOGLE_API_KEY") != null or environ.get("GEMINI_API_KEY") != null;
+    const openrouter = environ.get("OPENROUTER_API_KEY") != null;
+    return .{ .gemini = gemini, .openrouter = openrouter };
+}
+
+pub fn fixtureRegistry(live_gemini: bool, live_openrouter: bool) [5]ModelConfig {
     return .{
         .{
             .id = "strip-trajectory-local",
@@ -108,7 +115,7 @@ pub fn fixtureRegistry(live_gemini: bool, live_grok: bool) [5]ModelConfig {
             .cost = 0.7,
             .latency = 0.5,
             .risk = 0.25,
-            .live_capable = live_grok,
+            .live_capable = live_openrouter,
         },
         .{
             .id = "claude-opus",
@@ -118,6 +125,7 @@ pub fn fixtureRegistry(live_gemini: bool, live_grok: bool) [5]ModelConfig {
             .cost = 0.85,
             .latency = 0.55,
             .risk = 0.2,
+            .live_capable = live_openrouter,
         },
         .{
             .id = "gpt-flagship",
@@ -127,6 +135,7 @@ pub fn fixtureRegistry(live_gemini: bool, live_grok: bool) [5]ModelConfig {
             .cost = 0.8,
             .latency = 0.5,
             .risk = 0.22,
+            .live_capable = live_openrouter,
         },
         .{
             .id = "gemini-3.5-flash",
@@ -139,12 +148,6 @@ pub fn fixtureRegistry(live_gemini: bool, live_grok: bool) [5]ModelConfig {
             .live_capable = live_gemini,
         },
     };
-}
-
-pub fn probeLive(environ: anytype) struct { gemini: bool, grok: bool } {
-    const gemini = environ.get("GOOGLE_API_KEY") != null or environ.get("GEMINI_API_KEY") != null;
-    const grok = environ.get("XAI_API_KEY") != null or environ.get("GROK_API_KEY") != null;
-    return .{ .gemini = gemini, .grok = grok };
 }
 
 pub fn selftest() !Selection {

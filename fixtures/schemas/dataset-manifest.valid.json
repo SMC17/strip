@@ -13,6 +13,11 @@
       "digest": "sha256:00ff94c1e0df81fc56790c0f2288d0c58f98377bf375bb7bdc95616626b0b6dd",
       "digest_scope": "fixture_content",
       "extraction": "Hand-authored synthetic values; no external material copied.",
+      "extraction_provenance": {
+        "citation_anchor": "fixtures/validation/comparator-perturbed.json",
+        "extracted_artifact_path": "fixtures/validation/comparator-perturbed.json",
+        "extracted_artifact_digest": "sha256:00ff94c1e0df81fc56790c0f2288d0c58f98377bf375bb7bdc95616626b0b6dd"
+      },
       "limitations": ["Not a physical or independent validation dataset."]
     }
   ]

@@ -53,6 +53,12 @@ pub const OpenVspCmdPolicy = struct {
     area_tolerance_fraction: f64 = 0.0,
 };
 
+pub const GeometryLandmarks = struct {
+    min_total_surface_area_m2: f64,
+    max_total_surface_area_m2: f64,
+    min_component_triangles: u32 = 1,
+};
+
 pub const ExportConformanceManifest = struct {
     schema: []const u8,
     artifact_name: []const u8,
@@ -61,6 +67,7 @@ pub const ExportConformanceManifest = struct {
     expected_mesh_digest: []const u8,
     area_tolerance_m2: f64,
     openvsp_cmd: ?OpenVspCmdPolicy = null,
+    geometry_landmarks: ?GeometryLandmarks = null,
 
     pub fn validate(self: ExportConformanceManifest) !void {
         if (!std.mem.eql(u8, self.schema, "strip.openvsp.export-conformance.v0"))
@@ -76,11 +83,17 @@ pub const ExportConformanceManifest = struct {
             if (!(policy.min_surface_area_m2 > 0.0) or !(policy.max_surface_area_m2 >= policy.min_surface_area_m2))
                 return error.InvalidOpenVspPolicy;
         }
+        if (self.geometry_landmarks) |landmarks| {
+            if (!(landmarks.min_total_surface_area_m2 > 0.0) or
+                !(landmarks.max_total_surface_area_m2 >= landmarks.min_total_surface_area_m2))
+                return error.InvalidGeometryLandmarks;
+        }
     }
 };
 
 pub const GeometryConformance = enum {
     analytic_digest_match,
+    landmark_match,
     smoke_band_match,
     digest_mismatch,
     failed,
@@ -92,6 +105,7 @@ pub const ExportReport = struct {
     surface_area_m2: f64,
     invocation_succeeded: bool,
     mesh_valid: bool,
+    landmark_matches: bool,
     geometry_conformance: GeometryConformance,
     digest_matches: bool,
     count_matches: bool,
@@ -238,6 +252,7 @@ pub fn verifyExportConformance(
             .surface_area_m2 = area,
             .invocation_succeeded = false,
             .mesh_valid = false,
+            .landmark_matches = false,
             .geometry_conformance = .failed,
             .digest_matches = false,
             .count_matches = false,
@@ -268,6 +283,7 @@ fn verifyAnalyticConformance(
         .surface_area_m2 = area,
         .invocation_succeeded = true,
         .mesh_valid = mesh_valid,
+        .landmark_matches = digest_matches,
         .geometry_conformance = geometry_conformance,
         .digest_matches = digest_matches,
         .count_matches = count_matches,
@@ -289,6 +305,7 @@ fn verifyOpenVspCmdConformance(
             .surface_area_m2 = area,
             .invocation_succeeded = false,
             .mesh_valid = false,
+            .landmark_matches = false,
             .geometry_conformance = .failed,
             .digest_matches = false,
             .count_matches = false,
@@ -300,19 +317,27 @@ fn verifyOpenVspCmdConformance(
     const count_matches = count >= policy.min_triangle_count and count <= policy.max_triangle_count;
     const area_matches = area >= policy.min_surface_area_m2 and area <= policy.max_surface_area_m2;
     const digest_matches = std.mem.eql(u8, digest_text, manifest.expected_mesh_digest);
+    const landmark_matches = if (manifest.geometry_landmarks) |landmarks|
+        area >= landmarks.min_total_surface_area_m2 and area <= landmarks.max_total_surface_area_m2 and
+            count >= landmarks.min_component_triangles
+    else
+        false;
     const geometry_conformance: GeometryConformance = if (digest_matches)
         .analytic_digest_match
+    else if (landmark_matches)
+        .landmark_match
     else if (count_matches and area_matches)
         .smoke_band_match
     else
         .failed;
-    const passed = mesh_valid and count_matches and area_matches;
+    const passed = mesh_valid and (digest_matches or landmark_matches or (count_matches and area_matches));
     return .{
         .backend = .openvsp_cmd,
         .triangle_count = count,
         .surface_area_m2 = area,
         .invocation_succeeded = true,
         .mesh_valid = mesh_valid,
+        .landmark_matches = landmark_matches,
         .geometry_conformance = geometry_conformance,
         .digest_matches = digest_matches,
         .count_matches = count_matches,

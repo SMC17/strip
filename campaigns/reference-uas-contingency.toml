@@ -1,0 +1,17 @@
+schema = "strip.campaign.v0"
+id = "reference-uas-contingency"
+question = "Does the reference UAS contingency envelope remain internally consistent under synthetic faults?"
+intended_use = "preliminary_design"
+monte_carlo_runs = 1000
+holdout_required = true
+independent_review_required = false
+
+[domain]
+wind_speed_mps_min = 0
+wind_speed_mps_max = 18
+battery_soc_min = 0.18
+battery_soc_max = 1.0
+
+[acceptance]
+geofence_violation_probability_max = 1e-5
+reserve_energy_min = 0.12

@@ -5,10 +5,13 @@ pub const types = @import("types.zig");
 pub const coverage = @import("coverage.zig");
 pub const comparator = @import("comparator.zig");
 
+pub const join = @import("join.zig");
+
 test {
     _ = envelope;
     _ = source;
     _ = types;
     _ = coverage;
     _ = comparator;
+    _ = join;
 }

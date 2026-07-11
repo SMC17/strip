@@ -24,7 +24,7 @@ See [docs/CATEGORY.md](docs/CATEGORY.md) for the category thesis and [ROADMAP-1.
 - typed AeroIR, agent, frontier-research, adapter, twin, and public-safe
   resilience contracts
 - CLI surfaces for atmosphere, UAS range, assurance, platform inventory,
-  validation coverage, coupled fidelity demo, and proof gates
+- validation coverage, coupled fidelity demo, verification gates, evidence compiler, and campaigns
 
 ```sh
 zig build verify
@@ -35,13 +35,15 @@ zig build
 ./zig-out/bin/strip-platform
 ./zig-out/bin/strip-validation
 ./zig-out/bin/strip-fidelity
-./zig-out/bin/strip-proof-gates
+./zig-out/bin/strip-verification-gates
+./zig-out/bin/strip-evidence build programs/reference-uas.toml
+./zig-out/bin/strip-campaign run campaigns/reference-uas-contingency.toml
 ./zig-out/bin/strip-verify
 ./zig-out/bin/strip-record-replay-baseline
 ./zig-out/bin/strip-promote-replay-baseline
 ```
 
-CI installs `jsbsim==1.3.1` in a venv, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, and runs proof-gates v3
+CI installs `jsbsim==1.3.1` in a venv, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, and runs verification-gates v3
 (atmosphere + F-16 fixed-wing + shared-model coefficients + OpenVSP export + campaign calibration
 + flight tier ladder). Replay baselines are recorded on `ubuntu-24.04-arm` and `macos-latest`
 (native aarch64 and Rosetta x86_64-macos); `replay-baseline-collect` merges them and asserts
@@ -51,7 +53,7 @@ The `openvsp-real-export` job installs OpenVSP 3.42.0 on `ubuntu-24.04`, runs un
 requires `export_backend: openvsp_cmd` with structural mesh conformance (not analytic digest pin).
 Local/dev without `OPENSP_CMD` still passes Gate 2c via `analytic_stl_exporter`.
 
-### Proof gates v3 — honest limits
+### Verification gates v3 — honest limits
 
 | Row | What passes | What is *not* claimed |
 |-----|-------------|---------------------|

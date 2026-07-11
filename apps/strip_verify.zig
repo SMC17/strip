@@ -1,6 +1,6 @@
 //! Strip Verify — continuous credibility checks for CI and pull requests.
 //!
-//! Complements `zig build verify` (build + tests + proof gates) with
+//! Complements `zig build verify` (build + tests + verification gates) with
 //! programme-discipline checks that keep the trust/evidence OS thesis honest.
 
 const std = @import("std");

@@ -7,4 +7,4 @@ set -euo pipefail
 BASELINE="${1:?usage: promote_replay_from_ci.sh baseline.json}"
 zig build -q
 ./zig-out/bin/strip-promote-replay-baseline < "${BASELINE}" > fixtures/validation/replay/rk4-cross-target.json
-zig build run-proof-gates
+zig build run-verification-gates

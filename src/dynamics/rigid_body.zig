@@ -4,6 +4,22 @@
 const std = @import("std");
 const math = @import("math.zig");
 const mass_properties = @import("../vehicle/mass_properties.zig");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.dynamics.rigid-body-rk4",
+    .version = "0.2.0",
+    .proof_level = .unit_tested,
+    .source = "Newton-Euler rigid-body equations with coupled RK4 integration",
+    .assumptions = &.{
+        "constant mass and inertia over the step",
+        "world-frame specific force plus body-frame moments",
+    },
+    .valid_min = 0.0,
+    .valid_max = 3600.0,
+    .valid_unit = "s",
+};
 
 pub const State = struct {
     position_world_m: math.Vec3,
@@ -187,6 +203,48 @@ pub fn rk4Step(
         .context = &context,
         .evaluate = evaluateConstantLoads,
     }, 0.0, dt_s);
+}
+
+pub fn rk4StepCoupledResult(
+    context: evidence.Context,
+    state: State,
+    properties: mass_properties.MassProperties,
+    callback: LoadCallback,
+    time_s: f64,
+    dt_s: f64,
+) IntegrationError!numerical_result.NumericalResult(State) {
+    const next = try rk4StepCoupled(state, properties, callback, time_s, dt_s);
+    return .{
+        .value = next,
+        .model = manifest,
+        .context = context,
+        .validity = .valid,
+        .evaluated_point = .{
+            .variable = "time_s",
+            .value = time_s + dt_s,
+            .unit = "s",
+        },
+        .envelope = manifest.effectiveEnvelope("time_s"),
+    };
+}
+
+pub fn rk4StepResult(
+    context: evidence.Context,
+    state: State,
+    properties: mass_properties.MassProperties,
+    wrench: Wrench,
+    gravity_world_mps2: math.Vec3,
+    dt_s: f64,
+) IntegrationError!numerical_result.NumericalResult(State) {
+    const next = try rk4Step(state, properties, wrench, gravity_world_mps2, dt_s);
+    return .{
+        .value = next,
+        .model = manifest,
+        .context = context,
+        .validity = .valid,
+        .evaluated_point = .{ .variable = "time_s", .value = dt_s, .unit = "s" },
+        .envelope = manifest.effectiveEnvelope("time_s"),
+    };
 }
 
 pub const StateErrorEstimate = struct {

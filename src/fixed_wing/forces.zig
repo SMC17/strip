@@ -3,6 +3,19 @@
 const std = @import("std");
 const Vec3 = @import("types.zig").Vec3;
 const Six = @import("coefficients.zig").Six;
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.fixed-wing.coefficient-reconstruction",
+    .version = "0.1.0",
+    .proof_level = .analytical,
+    .source = "Dimensional body-axis force and moment reconstruction from coefficients",
+    .assumptions = &.{"positive dynamic pressure", "positive reference geometry"},
+    .valid_min = 0.0,
+    .valid_max = 200000.0,
+    .valid_unit = "Pa",
+};
 
 pub const Geometry = struct {
     area_m2: f64,
@@ -43,6 +56,44 @@ pub fn reconstruct(coefficient: Six, dynamic_pressure_pa: f64, geometry: Geometr
             .y = q_area * geometry.chord_m * coefficient.cm,
             .z = q_area * geometry.span_m * coefficient.cn,
         },
+    };
+}
+
+pub fn reconstructResult(
+    context: evidence.Context,
+    coefficient: Six,
+    dynamic_pressure_pa: f64,
+    geometry: Geometry,
+) error{ InvalidDynamicPressure, InvalidGeometry }!numerical_result.NumericalResult(?BodyWrench) {
+    if (!std.math.isFinite(dynamic_pressure_pa) or dynamic_pressure_pa < 0.0)
+        return error.InvalidDynamicPressure;
+    const envelope = manifest.effectiveEnvelope("dynamic_pressure_pa");
+    if (!envelope.contains(dynamic_pressure_pa)) {
+        return .{
+            .value = null,
+            .model = manifest,
+            .context = context,
+            .validity = .outside_envelope,
+            .evaluated_point = .{
+                .variable = "dynamic_pressure_pa",
+                .value = dynamic_pressure_pa,
+                .unit = "Pa",
+            },
+            .envelope = envelope,
+        };
+    }
+    const wrench = try reconstruct(coefficient, dynamic_pressure_pa, geometry);
+    return .{
+        .value = wrench,
+        .model = manifest,
+        .context = context,
+        .validity = .valid,
+        .evaluated_point = .{
+            .variable = "dynamic_pressure_pa",
+            .value = dynamic_pressure_pa,
+            .unit = "Pa",
+        },
+        .envelope = envelope,
     };
 }
 

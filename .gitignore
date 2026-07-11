@@ -2,4 +2,7 @@
 /zig-out/
 openvsp-export.stl
 openvsp-export-test.stl
+openvsp.deb
 tools/__pycache__/
+/program.evidence/
+.venv/

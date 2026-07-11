@@ -1,4 +1,4 @@
-//! Execute proof gates v3 with explicit evidence posture across all engineering lanes.
+//! Execute verification gates v3 with explicit evidence posture across all engineering lanes.
 
 const std = @import("std");
 const strip = @import("strip");
@@ -329,7 +329,7 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.proof-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_invocation_succeeded\":{},\"export_mesh_valid\":{},\"export_geometry_conformance\":\"{s}\",\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.verification-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_invocation_succeeded\":{},\"export_mesh_valid\":{},\"export_geometry_conformance\":\"{s}\",\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
         .{
             jsbsim_atmos_backend,
             jsbsim_atmos_evidence,

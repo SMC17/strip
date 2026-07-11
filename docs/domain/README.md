@@ -10,6 +10,7 @@ or ATC decisions.
 | Doc | Scope |
 |-----|--------|
 | [NAVIGATION.md](NAVIGATION.md) | GNSS / PBN / RNAV / RNP / ADS-B / IRS / ground NAVAIDs / AIM |
+| [GOOGLE-DEEPMIND.md](GOOGLE-DEEPMIND.md) | Gemini/Gemma/WeatherNext/… catalog + API key howto |
 | [WEATHER-EXTERNAL.md](WEATHER-EXTERNAL.md) | WeatherNext and external forecast APIs (platform plane only) |
 | [AIRSPACE.md](AIRSPACE.md) | ARTCC / oceanic centers, ZJX corridor notes, air-to-air SOPs |
 | [DISPATCH-OPS.md](DISPATCH-OPS.md) | Part 91/135/121 ops gaps, booking→release pipeline, market gaps |

@@ -13,7 +13,7 @@ They live under **`strip.experimental.*`** only — not as top-level `strip.*` e
 | Rare event | `src/rare_event/` | `strip.experimental.rare_event` | Weighted outcome average |
 | Multifidelity | `src/multifidelity/` | `strip.experimental.multifidelity` | Scalar + error bound |
 | Twin | `src/twin/` | `strip.experimental.twin` | Interface stub |
-| Agent | `src/agent/` | `strip.experimental.agent` | Replay log + permission check |
+| Agent | `src/agent/` | `strip.experimental.agent` | Replay log + permission check (superseded for assurance by `strip.trajectory`) |
 | AeroIR | `src/aeroir/` | `strip.experimental.aeroir` | Typed contract |
 | Public defense | `src/public_defense/` | `strip.experimental.public_defense` | Resilience response contract |
 | Runtime assurance | `src/runtime_assurance/` | `strip.experimental.runtime_assurance` | Monitor contract |

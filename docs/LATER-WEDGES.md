@@ -13,6 +13,6 @@ Status: **engines landed** — not operational qualification.
 | Navigation capability | `schemas/navigation-capability.schema.json` | Doctrine map + schema |
 | Dispatch decision evidence | `strip-dispatch decide` | Advisory engine; rails for unapproved weather / duty / pressure |
 | WeatherNext client | `strip-weathernext` | Platform-plane fixture/status/live; **not** invoked from verify |
-| Trajectory kernel | `strip-trajectory` + `docs/TRAJECTORY.md` | v2: router, workers, analogy, world-model, HIL→JSONL (+ prior frontier pack) |
+| Trajectory kernel | `strip-trajectory` + `docs/TRAJECTORY.md` | v2 + live `router --live` (OpenRouter/Gemini platform plane); workers JSONL; FAC adjacency; rigid-body WM residual; unix HIL→JSONL |
 
 `operational_qualification_claimed` is forced `false` on all scaffold artifacts.

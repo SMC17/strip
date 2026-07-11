@@ -45,8 +45,9 @@ pub const monte_carlo = @import("monte_carlo/root.zig");
 pub const uas = @import("uas/root.zig");
 pub const assurance = @import("assurance/root.zig");
 pub const tools = @import("tools/root.zig");
-pub const agent = @import("agent/root.zig");
 
+// Experimental / proposed interfaces — not product capabilities. See EXPERIMENTAL.md.
+pub const agent = @import("agent/root.zig");
 pub const aeroir = @import("aeroir/root.zig");
 pub const state_graph = @import("state_graph/root.zig");
 pub const worldforge = @import("worldforge/root.zig");
@@ -55,8 +56,9 @@ pub const rare_event = @import("rare_event/root.zig");
 pub const multifidelity = @import("multifidelity/root.zig");
 pub const runtime_assurance = @import("runtime_assurance/root.zig");
 pub const twin = @import("twin/root.zig");
-pub const adapters = @import("adapters/root.zig");
 pub const public_defense = @import("public_defense/root.zig");
+
+pub const adapters = @import("adapters/root.zig");
 
 test {
     _ = atmosphere;

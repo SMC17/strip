@@ -2,6 +2,9 @@
 
 Date: 2026-07-10
 
+**Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
+**CI:** `verify` workflow green on `main` (zig-and-schemas, replay matrix/collect, openvsp-real-export).
+
 ## Executable surface
 
 - evidence kernel, canonical JSON subset, strict schemas, and public-use policy

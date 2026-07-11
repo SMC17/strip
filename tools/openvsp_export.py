@@ -113,6 +113,8 @@ def analytic_export(request: dict) -> dict:
 
 def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
     out_path = os.path.abspath(request.get("output_path", "/tmp/strip-openvsp-export.stl"))
+    if os.path.isfile(out_path):
+        os.remove(out_path)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(script_dir, "openvsp_box_wing.vspscript")
     with open(template_path, encoding="ascii") as handle:

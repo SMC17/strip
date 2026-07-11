@@ -263,6 +263,7 @@ pub const FixedWingIntegrateQuery = struct {
 };
 
 pub const FixedWingIntegrateResult = struct {
+    /// Borrowed from the query; caller must keep `query.model` alive for the result lifetime.
     model: []const u8,
     steps: u32,
     altitude_m: f64,
@@ -351,7 +352,7 @@ pub fn queryFixedWingIntegrateSubprocess(
     if (!std.mem.eql(u8, parsed.value.schema, protocol_schema)) return error.InvalidResponseSchema;
     const resolved_backend = parseBackendTag(parsed.value.backend);
     return .{
-        .model = parsed.value.model,
+        .model = query.model,
         .steps = parsed.value.steps,
         .altitude_m = parsed.value.altitude_m,
         .vt_mps = parsed.value.vt_mps,
@@ -467,6 +468,7 @@ pub const CoefficientComparator = struct {
 };
 
 pub const CoefficientResult = struct {
+    /// Borrowed from the caller's `model` argument; must outlive this result.
     model: []const u8,
     alpha_rad: f64,
     beta_rad: f64,
@@ -571,7 +573,7 @@ pub fn queryFixedWingCoefficientsSubprocess(
     if (!std.mem.eql(u8, parsed.value.schema, protocol_schema)) return error.InvalidResponseSchema;
     const resolved_backend = parseBackendTag(parsed.value.backend);
     return .{
-        .model = parsed.value.model,
+        .model = model,
         .alpha_rad = parsed.value.alpha_rad,
         .beta_rad = parsed.value.beta_rad,
         .mach = parsed.value.mach,

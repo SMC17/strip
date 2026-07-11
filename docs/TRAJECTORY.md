@@ -6,44 +6,39 @@ Operational qualification: **false**
 
 ## Strategic call
 
-Do **not** contribute Cursor reverse-engineering. Cursor’s agent-OS pattern maps
-onto Strip’s assurance stack. This module is the clean-room aerospace substrate.
+Clean-room aerospace substrate. Not a Cursor protocol clone.
 
-## Architecture map (frontier pack)
+## Architecture map
 
-| Agent-OS layer | Strip surface | Status |
-|----------------|---------------|--------|
-| ToolCall / agent IR | `trajectory.action` + `trajectory.aerospace` | typed + control-law contract |
-| Append-only trajectory | `trajectory.store` + JSONL | fold + idempotent delivery |
-| Policy before execute | `policy_evaluated` | enforced in fixtures |
-| Claim vs evidence | `claim_asserted` → passed verifications | reject unsupported |
-| Causal provenance | `trajectory.causal` | support/contradict edges |
-| Counterfactual replay | `trajectory.counterfactual` | policy-denial branch |
-| Fault laboratory | `trajectory.fault_lab` | 4 scenarios in verify |
-| Assurance receipt | `trajectory.receipt` (Ed25519) | sealed JSON |
-| Memory classes | `trajectory.memory` | retention policy scaffold |
-| Hierarchical tasks | `trajectory.scheduler` | typed deps + ready set |
-| Evidence binding | `programs/reference-uas.toml` `trajectory=` | digest in evidence bundle |
-| UI disposable | fold/receipt independent of TUI | yes |
+| Layer | Surface | Honest limit |
+|-------|---------|--------------|
+| ToolCall IR | `action` + `aerospace` | contracts, not autopilot |
+| Event fold / claims | `store` + JSONL | fixture + HIL-stream narratives |
+| Counterfactual | `counterfactual` | policy-denial branch |
+| Causal provenance | `causal` | support/contradict edges |
+| Fault lab | `fault_lab` | 4 scenarios |
+| Receipt | `receipt` Ed25519 | sealed JSON |
+| Memory classes | `memory` | retention policy only |
+| Scheduler | `scheduler` | typed deps |
+| **Multi-model router** | `router` | fixture registry + env probes; **no live API calls in verify** |
+| **Worker fabric** | `workers` | in-process pools/labels/single-use |
+| **Analogical memory** | `analogy` | MAC/FAC-style feature overlap, not embeddings |
+| **World-model loop** | `world_model` | 1-D toy plant predict/execute/residual |
+| **HIL → JSONL** | `hil_stream` | in-process `physical_bench_protocol` → foldable events |
+| Evidence binding | `programs/reference-uas.toml` | trajectory digest |
 
 ## Commands
 
 ```sh
-./zig-out/bin/strip-trajectory selftest
-./zig-out/bin/strip-trajectory audit --path fixtures/trajectory/unsupported-claim.jsonl --expect-fail
 ./zig-out/bin/strip-trajectory frontier
+./zig-out/bin/strip-trajectory hil-stream --out trajectory.evidence
 ./zig-out/bin/strip-trajectory receipt --out trajectory.evidence
-./zig-out/bin/strip-evidence build programs/reference-uas.toml
 ```
 
-## What is still not claimed
+## Still not claimed
 
-- Live multi-model router / Bedrock / local provider observatory
-- Worker fabric / Temporal / private cloud workers
-- Analogical MAC/FAC trajectory memory
-- World-model predict-then-execute loop
-- Cursor protocol clone or Runtime Atlas
-- Aircraft / FSTD / operational qualification
-
-Next concrete wedges: counterfactual across campaign seeds; bind receipt into
-`stax-experiment` verdict evidence automatically; HIL event streaming into JSONL.
+- Hosted model inference from verify
+- Distributed/K8s workers or Temporal durability
+- Embedding / neural analogy
+- Full 6-DOF digital twin as world model
+- Serial/UART HIL device streaming

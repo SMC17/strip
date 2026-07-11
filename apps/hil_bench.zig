@@ -27,6 +27,7 @@ fn usage() void {
         \\usage:
         \\  strip-hil-bench local
         \\  strip-hil-bench selftest-unix
+        \\  strip-hil-bench selftest-serial-pty
         \\  strip-hil-bench serve --unix <path> [--once]
         \\  strip-hil-bench run --unix <path>
         \\  strip-hil-bench serve --serial <device> [--once]
@@ -54,6 +55,15 @@ pub fn main(init: std.process.Init) !u8 {
     }
     if (std.mem.eql(u8, cmd, "selftest-unix")) {
         const result = try strip.flight_test.hil_bench.selftestUnix(init.io, allocator, deadline_ns);
+        defer {
+            allocator.free(result.records);
+            allocator.free(result.samples_owned);
+        }
+        try printReport(init, result);
+        return if (result.report.passed) 0 else 1;
+    }
+    if (std.mem.eql(u8, cmd, "selftest-serial-pty")) {
+        const result = try strip.flight_test.hil_bench.selftestSerialPty(init.io, allocator, deadline_ns);
         defer {
             allocator.free(result.records);
             allocator.free(result.samples_owned);

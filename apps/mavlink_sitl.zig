@@ -32,7 +32,7 @@ pub fn main(init: std.process.Init) !u8 {
         const writer = &file_writer.interface;
         defer writer.flush() catch {};
         try writer.print(
-            "{{\"schema\":\"strip.mavlink-sitl.v0\",\"mode\":\"loopback+udp_echo\",\"frames_sent\":{d},\"frames_received\":{d},\"heartbeat_ok\":{},\"udp_echo_ok\":{},\"clock_rms_error_ns\":{d:.3},\"clock_drift_ppm\":{d:.6},\"fault_modes_exercised\":[\"none\",\"drop\",\"corrupt_crc\",\"clock_skew\"],\"px4_binary_present\":{},\"operational_qualification_claimed\":false,\"limitations\":[\"In-process MAVLink v1 HEARTBEAT loopback + localhost UDP echo on 28570/28571.\",\"Live px4-sitl (MAVLink v2): strip-mavlink-sitl udp --host 127.0.0.1 --port 14280\"]}}\n",
+            "{{\"schema\":\"strip.mavlink-sitl.v0\",\"mode\":\"loopback+udp_echo\",\"frames_sent\":{d},\"frames_received\":{d},\"heartbeat_ok\":{},\"udp_echo_ok\":{},\"clock_rms_error_ns\":{d:.3},\"clock_drift_ppm\":{d:.6},\"fault_modes_exercised\":[\"none\",\"drop\",\"corrupt_crc\",\"clock_skew\"],\"px4_binary_present\":{},\"operational_qualification_claimed\":false,\"limitations\":[\"In-process MAVLink v1 HEARTBEAT loopback + localhost UDP echo on 28570/28571.\",\"Live px4-sitl (MAVLink v2): strip-mavlink-sitl udp --host 127.0.0.1 (probes 13030/14280/14580/18570)\"]}}\n",
             .{
                 result.frames_sent,
                 result.frames_received,

@@ -17,7 +17,7 @@ pub fn main(init: std.process.Init) !u8 {
     };
     if (!std.mem.eql(u8, sub, "build")) return 2;
     var out_dir: []const u8 = "flight.evidence";
-    var telemetry_src: []const u8 = "fixtures/validation/flight-test/px4-ulog-export.csv";
+    var telemetry_src: []const u8 = "fixtures/validation/flight-test/px4-public-fixedwing-export.csv";
     var ulog_src: ?[]const u8 = null;
     var require_holdout = false;
     while (it.next()) |arg| {
@@ -101,14 +101,14 @@ pub fn main(init: std.process.Init) !u8 {
     strip.flight_test.flight_seal.digestHexOf(material, &package_digest);
 
     const limitations: []const u8 = if (from_ulog)
-        \\["Telemetry converted from ULog via tools/ulog_to_strip_csv.py; source was ulog.","NOT operator-owned aircraft clearance unless the ulog is from operator flight.","Replace with operator flight/ulog before claiming Month-6 operational flight validation.","flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE."]
+        \\["Telemetry converted from ULog via tools/ulog_to_strip_csv.py; source was ulog.","NOT operator-owned aircraft clearance unless the ulog is from operator flight.","Replace with operator-owned flight/ulog before claiming Month-6 operational flight validation.","flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE."]
     else
-        \\["Telemetry derived from public PX4 ULog sample (px4_ulog_export); NOT operator-owned aircraft clearance.","Replace with operator flight/ulog before claiming Month-6 operational flight validation.","flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE."]
+        \\["Telemetry from public aircraft flight ULog (Flight Review CC-BY PX4; provenance_class=public_aircraft_flight_log).","NOT operator-owned; NOT FSTD/operational clearance.","Replace with operator-owned flight/ulog before claiming Month-6 operational flight validation.","flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE."]
     ;
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"px4-ulog-export-package-001\",\"created_utc\":\"2026-07-11T05:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal; tools/ulog_to_strip_csv.py\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":{s}}}\n",
+        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"px4-public-fixedwing-package-001\",\"created_utc\":\"2026-07-11T22:00:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal; tools/ulog_to_strip_csv.py\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":{s}}}\n",
         .{ telemetry_bytes.len, &telem_digest, &package_digest, limitations },
     );
     defer allocator.free(manifest_json);

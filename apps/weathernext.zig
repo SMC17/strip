@@ -1,5 +1,6 @@
 //! `strip-weathernext` — platform-plane weather client (never authoritative).
-//! Defaults to WeatherNext Graph until WN2 leaves open beta; interim live via Open-Meteo.
+//! Defaults to WeatherNext Graph until WN2 leaves open beta.
+//! Interim live: Open-Meteo or NOAA/NWS (Vertex WeatherNext still EAP).
 
 const std = @import("std");
 const strip = @import("strip");
@@ -9,9 +10,10 @@ fn usage() void {
         \\usage:
         \\  strip-weathernext status
         \\  strip-weathernext fixture
-        \\  strip-weathernext fetch --live [--interim open-meteo]
+        \\  strip-weathernext fetch --live [--interim open-meteo|nws]
         \\
-        \\Live: STRIP_WEATHERNEXT_ENDPOINT, or --interim open-meteo until Vertex WN is GA.
+        \\Live: STRIP_WEATHERNEXT_ENDPOINT, or --interim until Vertex WN is GA.
+        \\Vertex WeatherNext 2 remains EAP (no public REST); Maps Weather API needs OAuth.
         \\
     , .{});
 }
@@ -56,21 +58,34 @@ pub fn main(init: std.process.Init) !u8 {
             return 2;
         }
         var model_family: []const u8 = strip.platform.weathernext.default_model_family;
+        var user_agent: ?[]const u8 = null;
         const ep = blk: {
             if (interim) |name| {
                 if (std.mem.eql(u8, name, "open-meteo")) {
                     model_family = "Open-Meteo (interim until WeatherNext GA)";
                     break :blk strip.platform.weathernext.interim_open_meteo_endpoint;
                 }
-                std.debug.print("unknown --interim {s} (supported: open-meteo)\n", .{name});
+                if (std.mem.eql(u8, name, "nws")) {
+                    model_family = "NOAA/NWS (interim until WeatherNext GA)";
+                    user_agent = strip.platform.weathernext.nws_user_agent;
+                    break :blk strip.platform.weathernext.interim_nws_points_endpoint;
+                }
+                std.debug.print("unknown --interim {s} (supported: open-meteo, nws)\n", .{name});
                 return 2;
             }
             break :blk endpoint_env orelse {
-                std.debug.print("STRIP_WEATHERNEXT_ENDPOINT required, or pass --interim open-meteo\n", .{});
+                std.debug.print("STRIP_WEATHERNEXT_ENDPOINT required, or pass --interim open-meteo|nws\n", .{});
                 return 2;
             };
         };
-        const got = try strip.platform.weathernext.fetchLive(init.io, allocator, ep, token, model_family);
+        const got = try strip.platform.weathernext.fetchLiveWithUserAgent(
+            init.io,
+            allocator,
+            ep,
+            token,
+            model_family,
+            user_agent,
+        );
         defer {
             allocator.free(got.digest_owned);
             allocator.free(got.body_owned);

@@ -361,14 +361,33 @@ pub fn runUnix(
 }
 
 pub fn serveSerial(io: std.Io, path: []const u8, once: bool) !void {
-    _ = once;
     var file = try std.Io.Dir.openFileAbsolute(io, path, .{ .mode = .read_write });
     defer file.close(io);
     var rbuf: [1024]u8 = undefined;
     var wbuf: [1024]u8 = undefined;
     var reader = file.reader(io, &rbuf);
     var writer = file.writer(io, &wbuf);
-    try serveSession(&reader.interface, &writer.interface);
+    // PTY/socat links often never deliver EOF when the peer closes; `--once`
+    // bounds the session to one progression (16 client requests).
+    if (once) {
+        try serveSessionBounded(&reader.interface, &writer.interface, 16);
+    } else {
+        try serveSession(&reader.interface, &writer.interface);
+    }
+}
+
+fn serveSessionBounded(reader: *std.Io.Reader, writer: *std.Io.Writer, max_requests: usize) !void {
+    var frame_buf: [frame_overhead + max_payload]u8 = undefined;
+    var payload_buf: [max_payload]u8 = undefined;
+    var handled: usize = 0;
+    while (handled < max_requests) : (handled += 1) {
+        const request = readFrame(reader, &frame_buf) catch |err| switch (err) {
+            error.EndOfStream => return,
+            else => return err,
+        };
+        const response = try respond(.{ .msg_type = request.msg_type, .payload = request.payload }, &payload_buf);
+        try writeFrame(writer, response.msg_type, payload_buf[0..response.len]);
+    }
 }
 
 pub fn runSerial(
@@ -421,6 +440,68 @@ pub fn selftestUnixThreaded(io: std.Io, allocator: std.mem.Allocator, deadline_n
     std.Io.Dir.deleteFileAbsolute(io, path) catch {};
     var tagged = result;
     tagged.report.transport = "unix_socket_daemon";
+    return tagged;
+}
+
+/// End-to-end serial self-test via socat PTY pair (real Io; requires `socat` on PATH).
+/// Spawns `serve --serial --once` as a child (same shape as `selftestUnix`) so we never
+/// join a thread blocked on a PTY that will not deliver EOF.
+pub fn selftestSerialPty(io: std.Io, allocator: std.mem.Allocator, deadline_ns: u64) !ProgressionResult {
+    const a_path = "/tmp/strip-hil-pty-a";
+    const b_path = "/tmp/strip-hil-pty-b";
+    std.Io.Dir.deleteFileAbsolute(io, a_path) catch {};
+    std.Io.Dir.deleteFileAbsolute(io, b_path) catch {};
+
+    var socat = try std.process.spawn(io, .{
+        .argv = &.{ "socat", "-d", "-d", "pty,raw,echo=0,link=/tmp/strip-hil-pty-a", "pty,raw,echo=0,link=/tmp/strip-hil-pty-b" },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    });
+    // kill() already waits + reaps (Zig 0.16); do not wait() after kill.
+    errdefer socat.kill(io);
+
+    var attempts: u8 = 0;
+    while (attempts < 50) : (attempts += 1) {
+        var fa = std.Io.Dir.openFileAbsolute(io, a_path, .{}) catch {
+            std.Io.sleep(io, .{ .nanoseconds = 20_000_000 }, .awake) catch {};
+            continue;
+        };
+        fa.close(io);
+        var fb = std.Io.Dir.openFileAbsolute(io, b_path, .{}) catch {
+            std.Io.sleep(io, .{ .nanoseconds = 20_000_000 }, .awake) catch {};
+            continue;
+        };
+        fb.close(io);
+        break;
+    } else {
+        return error.SerialPtyCreateFailed;
+    }
+
+    const exe = try std.process.executablePathAlloc(io, allocator);
+    defer allocator.free(exe);
+
+    var child = try std.process.spawn(io, .{
+        .argv = &.{ exe, "serve", "--serial", a_path, "--once" },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    });
+    errdefer child.kill(io);
+
+    std.Io.sleep(io, .{ .nanoseconds = 50_000_000 }, .awake) catch {};
+    const result = try runSerial(io, allocator, b_path, deadline_ns);
+
+    const term = try child.wait(io);
+    switch (term) {
+        .exited => |code| if (code != 0) return error.SerialPtyServeFailed,
+        else => return error.SerialPtyServeFailed,
+    }
+    socat.kill(io);
+    std.Io.Dir.deleteFileAbsolute(io, a_path) catch {};
+    std.Io.Dir.deleteFileAbsolute(io, b_path) catch {};
+    var tagged = result;
+    tagged.report.transport = "serial_pty_pair";
     return tagged;
 }
 

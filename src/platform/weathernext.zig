@@ -12,6 +12,12 @@ pub const default_model_family = "WeatherNext Graph";
 pub const interim_open_meteo_endpoint =
     "https://api.open-meteo.com/v1/forecast?latitude=37.77&longitude=-122.42&current=temperature_2m,wind_speed_10m,wind_direction_10m,surface_pressure&timezone=UTC";
 
+/// NOAA/NWS points metadata (free; requires User-Agent). Not WeatherNext — bridging until Vertex EAP.
+pub const interim_nws_points_endpoint =
+    "https://api.weather.gov/points/37.77,-122.42";
+
+pub const nws_user_agent = "strip-weathernext/0.1 (platform-plane; not OpsSpec weather)";
+
 pub const Mode = enum {
     fixture,
     live,
@@ -73,7 +79,7 @@ pub fn statusReport(endpoint_configured: bool) FetchReport {
         .notes = if (endpoint_configured)
             "endpoint configured; call fetch --live to perform HTTP GET"
         else
-            "set STRIP_WEATHERNEXT_ENDPOINT or use fetch --live --interim open-meteo",
+            "set STRIP_WEATHERNEXT_ENDPOINT or use fetch --live --interim open-meteo|nws",
     };
 }
 
@@ -84,12 +90,24 @@ pub fn fetchLive(
     token: ?[]const u8,
     model_family: []const u8,
 ) !struct { report: FetchReport, digest_owned: []u8, body_owned: []u8 } {
+    return fetchLiveWithUserAgent(io, allocator, endpoint, token, model_family, null);
+}
+
+pub fn fetchLiveWithUserAgent(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    endpoint: []const u8,
+    token: ?[]const u8,
+    model_family: []const u8,
+    user_agent: ?[]const u8,
+) !struct { report: FetchReport, digest_owned: []u8, body_owned: []u8 } {
     var client: std.http.Client = .{ .allocator = allocator, .io = io };
     defer client.deinit();
 
     var body_writer: std.Io.Writer.Allocating = .init(allocator);
     defer body_writer.deinit();
 
+    const ua = user_agent orelse "strip-weathernext/0.1";
     const result = try client.fetch(.{
         .location = .{ .url = endpoint },
         .method = .GET,
@@ -97,7 +115,10 @@ pub fn fetchLive(
         .keep_alive = false,
         .extra_headers = if (token) |t| &.{
             .{ .name = "authorization", .value = t },
-        } else &.{},
+            .{ .name = "user-agent", .value = ua },
+        } else &.{
+            .{ .name = "user-agent", .value = ua },
+        },
     });
 
     const body = try body_writer.toOwnedSlice();
@@ -111,7 +132,7 @@ pub fn fetchLive(
             .body_digest = digest,
             .body_bytes = body.len,
             .model_family = model_family,
-            .notes = "platform-plane live HTTP; not simulation truth; not OpsSpec weather",
+            .notes = "platform-plane live HTTP; not simulation truth; not OpsSpec weather; Vertex WeatherNext still EAP",
         },
         .digest_owned = digest,
         .body_owned = body,

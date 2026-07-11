@@ -276,6 +276,22 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(weathernext_cli);
     // Platform-only: install but do not run live fetch from verify.
 
+    const google_cli = b.addExecutable(.{
+        .name = "strip-google",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/google.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(google_cli);
+    const run_google_catalog = b.addRunArtifact(google_cli);
+    run_google_catalog.addArg("catalog");
+    const run_google_gemini_fixture = b.addRunArtifact(google_cli);
+    run_google_gemini_fixture.addArg("gemini");
+    run_google_gemini_fixture.addArg("fixture");
+
     const dispatch_cli = b.addExecutable(.{
         .name = "strip-dispatch",
         .root_module = b.createModule(.{
@@ -328,4 +344,6 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_cert_delta.step);
     verify_step.dependOn(&run_model_passport.step);
     verify_step.dependOn(&run_dispatch.step);
+    verify_step.dependOn(&run_google_catalog.step);
+    verify_step.dependOn(&run_google_gemini_fixture.step);
 }

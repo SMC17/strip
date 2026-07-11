@@ -40,6 +40,14 @@ platform/openrouter/
 
 Environment: `OPENROUTER_API_KEY` — platform jobs only; never in CI sim paths.
 
+## Google / DeepMind (platform only)
+
+- **Docs:** [domain/GOOGLE-DEEPMIND.md](domain/GOOGLE-DEEPMIND.md)
+- **CLI:** `strip-google catalog|gemini …`
+- **Gemini live:** `GEMINI_API_KEY` or `GOOGLE_API_KEY` from [AI Studio](https://aistudio.google.com/apikey)
+- **WeatherNext:** still `strip-weathernext` (Vertex/endpoint — not the Gemini key)
+- **Verify:** offline `catalog` + `gemini fixture` only; no live network calls
+
 ## WeatherNext / WeatherLab (platform only)
 
 - **CLI:** `strip-weathernext status|fixture|fetch --live`

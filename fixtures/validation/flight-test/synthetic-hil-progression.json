@@ -14,10 +14,16 @@
       "evidence_id": "hil:pil:synthetic-001",
       "functional_checks_passed": true,
       "latency_samples_ns": [100, 110, 120, 130, 140]
+    },
+    {
+      "stage": "io_loopback",
+      "evidence_id": "hil:io:synthetic-001",
+      "functional_checks_passed": true,
+      "latency_samples_ns": [100, 110, 120, 130, 140]
     }
   ],
   "limitations": [
-    "Synthetic HIL progression fixture only; no hardware-in-loop bench was exercised.",
-    "Integrated HIL and flight-test tiers remain blocked by design."
+    "Synthetic HIL progression through io_loopback only; no physical bench hardware was exercised.",
+    "Integrated HIL and flight-test tiers remain blocked until sealed hardware/flight packages exist."
   ]
 }

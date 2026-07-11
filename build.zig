@@ -160,6 +160,17 @@ pub fn build(b: *std.Build) void {
     const run_campaign_step = b.step("run-campaign", "Run reference UAS contingency campaign scaffold");
     run_campaign_step.dependOn(&run_campaign.step);
 
+    const mesh_digest_cli = b.addExecutable(.{
+        .name = "strip-mesh-digest",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/mesh_digest.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(mesh_digest_cli);
+
     const verify_cli = b.addExecutable(.{
         .name = "strip-verify",
         .root_module = b.createModule(.{

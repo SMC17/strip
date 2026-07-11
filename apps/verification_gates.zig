@@ -8,6 +8,12 @@ fn tierStatusTag(status: strip.flight_test.qualification.DimensionStatus) []cons
     return @tagName(status);
 }
 
+fn fileExists(io: std.Io, path: []const u8) bool {
+    var file = std.Io.Dir.cwd().openFile(io, path, .{}) catch return false;
+    file.close(io);
+    return true;
+}
+
 pub fn main(init: std.process.Init) !u8 {
     const allocator = init.gpa;
     var failed = false;
@@ -177,7 +183,58 @@ pub fn main(init: std.process.Init) !u8 {
     const export_runtime_version: []const u8 = init.environ_map.get("OPENSP_RUNTIME_VERSION") orelse "none";
     const openvsp_cmd = init.environ_map.get("OPENSP_CMD");
     const require_openvsp = init.environ_map.get("STRIP_REQUIRE_OPENSP_CMD") != null;
-    if (strip.adapters.openvsp_export.resolveExportCommand(init.io, openvsp_cmd, "tools/openvsp_cmd.sh")) |cmd| {
+    const preexported_stl = init.environ_map.get("STRIP_OPENVSP_STL");
+    if (preexported_stl) |stl_path| {
+        if (openvsp_cmd != null and fileExists(init.io, stl_path)) {
+            const export_mesh = strip.adapters.openvsp_export.parseAsciiStl(
+                allocator,
+                init.io,
+                stl_path,
+            ) catch null;
+            if (export_mesh) |mesh| {
+                defer allocator.free(mesh.triangles);
+                const export_bytes = try std.Io.Dir.cwd().readFileAlloc(
+                    init.io,
+                    "fixtures/validation/openvsp/export-conformance.json",
+                    allocator,
+                    .limited(128 * 1024),
+                );
+                defer allocator.free(export_bytes);
+                var export_manifest = try std.json.parseFromSlice(
+                    strip.adapters.openvsp_export.ExportConformanceManifest,
+                    allocator,
+                    export_bytes,
+                    .{ .ignore_unknown_fields = true, .max_value_len = 4096 },
+                );
+                defer export_manifest.deinit();
+                const export_report = try strip.adapters.openvsp_export.verifyExportConformance(
+                    export_manifest.value,
+                    mesh,
+                    .openvsp_cmd,
+                );
+                export_backend = "openvsp_cmd";
+                export_passed = export_report.passed;
+                export_real_passed = export_report.real_passed;
+                export_invocation_succeeded = true;
+                export_mesh_valid = export_report.mesh_valid;
+                export_geometry_conformance = @tagName(export_report.geometry_conformance);
+                const mesh_id = mesh.digest();
+                @memcpy(export_mesh_digest_buf[0..7], "sha256:");
+                @memcpy(export_mesh_digest_buf[7..], mesh_id.hex[0..64]);
+                export_mesh_digest = &export_mesh_digest_buf;
+                if (!export_passed) failed = true;
+                if (require_openvsp and !export_real_passed) failed = true;
+                if (require_openvsp) {
+                    if (export_manifest.value.openvsp_cmd_mesh_digest) |pinned| {
+                        if (!std.mem.eql(u8, export_mesh_digest, pinned)) failed = true;
+                        if (export_report.geometry_conformance != .openvsp_cmd_digest_match and
+                            export_report.geometry_conformance != .landmark_match)
+                            failed = true;
+                    } else failed = true;
+                }
+            } else if (require_openvsp) failed = true;
+        } else if (require_openvsp) failed = true;
+    } else if (strip.adapters.openvsp_export.resolveExportCommand(init.io, openvsp_cmd, "tools/openvsp_cmd.sh")) |cmd| {
         const output_path = "openvsp-export.stl";
         const export_query = blk: {
             break :blk strip.adapters.openvsp_export.queryExportSubprocess(

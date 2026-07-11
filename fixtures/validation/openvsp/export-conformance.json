@@ -5,7 +5,7 @@
   "expected_surface_area_m2": 27.0,
   "expected_mesh_digest": "sha256:d4eaef2530ec72ced77244ffa0f336a35d7d1292735af603cb09fcb3ce930634",
   "area_tolerance_m2": 1e-6,
-  "openvsp_cmd_mesh_digest": "sha256:a91b1a0f31bbcf62785b474a599bfe43d7c4cbc37f7b96d3f4ef0ffc039d001d",
+  "openvsp_cmd_mesh_digest": "sha256:471546c1465013f82a2bfcc83c406b584484178134f286c282940278733a4e61",
   "geometry_landmarks": {
     "min_total_surface_area_m2": 50.0,
     "max_total_surface_area_m2": 500.0,
@@ -21,7 +21,7 @@
   "limitations": [
     "OPENSP_CMD subprocess export when available; analytic STL exporter otherwise.",
     "Analytic backend requires exact digest pin; openvsp_cmd requires landmark or pinned openvsp_cmd_mesh_digest.",
-    "openvsp_cmd_mesh_digest pinned from OpenVSP 3.42.0 CI export (2368 tris, ~242 m2).",
+    "openvsp_cmd_mesh_digest is the Strip Zig mesh digest (not Python float formatting) from OpenVSP 3.42.0 CI STL (2368 tris, ~242 m2).",
     "Export conformance validates mesh stability, not OpenVSP aerodynamic suitability."
   ]
 }

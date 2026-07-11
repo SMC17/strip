@@ -1,0 +1,66 @@
+:root {
+  --ifm-color-primary: #0b3d5c;
+  --ifm-color-primary-dark: #093550;
+  --ifm-color-primary-darker: #08324b;
+  --ifm-color-primary-darkest: #07293e;
+  --ifm-color-primary-light: #0d4568;
+  --ifm-color-primary-lighter: #0e486d;
+  --ifm-color-primary-lightest: #10527b;
+  --ifm-font-family-base: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --ifm-heading-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(11, 61, 92, 0.08);
+}
+
+html {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(11, 61, 92, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(46, 125, 110, 0.07), transparent 55%),
+    #f7f9fb;
+}
+
+.hero-strip {
+  padding: 2.5rem 0 1rem;
+}
+
+.hero-strip h1 {
+  font-size: 2.6rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4rem;
+}
+
+.hero-strip p {
+  max-width: 42rem;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.card-grid a {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(11, 61, 92, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.card-grid a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(11, 61, 92, 0.08);
+  text-decoration: none;
+}
+
+.card-grid strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ifm-color-primary);
+}

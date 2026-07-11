@@ -4,7 +4,7 @@ const std = @import("std");
 const strip = @import("strip");
 
 pub fn main(init: std.process.Init) !u8 {
-    const ir = strip.aeroir.Model{
+    const ir = strip.experimental.aeroir.Model{
         .entities = &.{
             .{ .id = 1, .kind = .vehicle },
             .{ .id = 2, .kind = .environment },
@@ -22,22 +22,22 @@ pub fn main(init: std.process.Init) !u8 {
     var grants: strip.tools.GrantSet = .{};
     grants.grant(.read_scenario);
     grants.grant(.run_simulation);
-    const simulation_decision = strip.agent.authorize(grants, .{
+    const simulation_decision = strip.experimental.agent.authorize(grants, .{
         .id = .simulator,
         .capability = .run_simulation,
         .risk = .execution,
     });
-    const publication_decision = strip.agent.authorize(grants, .{
+    const publication_decision = strip.experimental.agent.authorize(grants, .{
         .id = .report_exporter,
         .capability = .export_public_report,
         .risk = .publication,
     });
-    const assurance_selection = strip.runtime_assurance.select(.{
+    const assurance_selection = strip.experimental.runtime_assurance.select(.{
         .safety_margin = 0.5,
         .minimum_margin = 1.0,
         .state_fresh = true,
     });
-    const resilience_response = strip.public_defense.boundedResponse(.{
+    const resilience_response = strip.experimental.public_defense.boundedResponse(.{
         .class = .anomalous,
         .confidence = 0.7,
         .source_count = 2,
@@ -48,7 +48,7 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.platform.surface.v0\",\"products\":[\"consumer_lab\",\"civil_assurance\",\"mission_engineering\"],\"aeroir\":\"valid\",\"ai_simulation\":\"{s}\",\"ai_publication\":\"{s}\",\"runtime_controller\":\"{s}\",\"public_resilience_response\":\"{s}\",\"adapter_contracts\":{d},\"authoritative_external_adapters\":0,\"frontier_modules\":[\"state_graph\",\"worldforge\",\"design_evolve\",\"rare_event\",\"multifidelity\",\"runtime_assurance\",\"twin\"]}}\n",
+        "{{\"schema\":\"strip.platform.surface.v0\",\"products\":[\"consumer_lab\",\"civil_assurance\",\"mission_engineering\"],\"experimental_namespace\":\"strip.experimental\",\"aeroir\":\"valid\",\"ai_simulation\":\"{s}\",\"ai_publication\":\"{s}\",\"runtime_controller\":\"{s}\",\"public_resilience_response\":\"{s}\",\"adapter_contracts\":{d},\"authoritative_external_adapters\":0,\"frontier_modules\":[\"state_graph\",\"worldforge\",\"design_evolve\",\"rare_event\",\"multifidelity\",\"runtime_assurance\",\"twin\"]}}\n",
         .{
             @tagName(simulation_decision),
             @tagName(publication_decision),

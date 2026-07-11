@@ -166,6 +166,30 @@ pub const Context = struct {
     }
 };
 
+/// Minimum identity carried on every authoritative numerical / bundle output.
+pub const ExecutionIdentity = struct {
+    model_id: []const u8,
+    model_version: []const u8,
+    /// Optional content digest of canonical inputs / bundle payload (`sha256:…`).
+    content_sha256: ?[]const u8 = null,
+    seed: ?u64 = null,
+
+    pub fn fromModel(model: ModelManifest) ExecutionIdentity {
+        return .{
+            .model_id = model.id,
+            .model_version = model.version,
+        };
+    }
+
+    pub fn fromModelWithDigest(model: ModelManifest, content_sha256: []const u8) ExecutionIdentity {
+        return .{
+            .model_id = model.id,
+            .model_version = model.version,
+            .content_sha256 = content_sha256,
+        };
+    }
+};
+
 test "proof inheritance is component-wise weakest link" {
     const model = ProofDimensions{
         .implementation = .implemented,

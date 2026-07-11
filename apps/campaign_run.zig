@@ -171,7 +171,7 @@ pub fn main(init: std.process.Init) !u8 {
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.campaign.bundle.v1\",\"campaign_id\":\"{s}\",\"question\":\"{s}\",\"output_dir\":\"{s}\",\"monte_carlo_runs\":{d},\"runs_executed\":{d},\"atmosphere_model\":\"{s}\",\"atmosphere_authoritative\":{},\"uas_fixture\":\"strip.uas.contingency-simulation\",\"deterministic_seed\":42,\"bundle_digest\":\"sha256:{s}\",\"artifact_digests\":{{\"runs\":\"sha256:{s}\",\"summary\":\"sha256:{s}\"}},\"signature\":{s},\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"qualification_tier\":\"{s}\",\"operational_qualification_claimed\":false,\"status\":\"bundle_emitted\"}}\n",
+        "{{\"schema\":\"strip.campaign.bundle.v1\",\"campaign_id\":\"{s}\",\"question\":\"{s}\",\"output_dir\":\"{s}\",\"monte_carlo_runs\":{d},\"runs_executed\":{d},\"atmosphere_model\":\"{s}\",\"atmosphere_authoritative\":{},\"uas_fixture\":\"strip.uas.contingency-simulation\",\"deterministic_seed\":42,\"bundle_digest\":\"sha256:{s}\",\"execution_identity\":{{\"content_sha256\":\"sha256:{s}\",\"seed\":42,\"campaign_id\":\"{s}\"}},\"artifact_digests\":{{\"runs\":\"sha256:{s}\",\"summary\":\"sha256:{s}\"}},\"signature\":{s},\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"qualification_tier\":\"{s}\",\"operational_qualification_claimed\":false,\"status\":\"bundle_emitted\"}}\n",
         .{
             campaign.id,
             campaign.question,
@@ -181,6 +181,8 @@ pub fn main(init: std.process.Init) !u8 {
             strip.atmosphere.manifest.id,
             atmosphere.isAuthoritative(),
             &bundle_hex,
+            &bundle_hex,
+            campaign.id,
             &runs_hex,
             &summary_hex,
             signature_json,

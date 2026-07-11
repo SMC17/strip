@@ -11,8 +11,8 @@ jobs:
   zig-and-schemas:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.0.6
         with:
           version: 0.16.0
       - name: Check formatting
@@ -33,7 +33,7 @@ jobs:
       - name: Record replay baseline (x86_64 linux Debug)
         run: ./zig-out/bin/strip-record-replay-baseline > replay-baseline-x86_64-linux-Debug.json
       - name: Upload replay baseline artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: replay-baseline-x86_64-linux-Debug
           path: replay-baseline-x86_64-linux-Debug.json
@@ -41,6 +41,11 @@ jobs:
         run: |
           export PATH="${{ github.workspace }}/.venv/bin:${PATH}"
           pip install --disable-pip-version-check 'jsonschema==4.23.0'
+          python - <<'PY'
+          import importlib.metadata as md
+          assert md.version("jsonschema") == "4.23.0", md.version("jsonschema")
+          print("jsonschema==4.23.0 pinned")
+          PY
           python - <<'PY'
           import json
           from pathlib import Path
@@ -89,8 +94,8 @@ jobs:
             rosetta: true
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.0.6
         with:
           version: 0.16.0
       - name: Install JSBSim Python runner
@@ -118,7 +123,7 @@ jobs:
             ./zig-out/bin/strip-record-replay-baseline > replay-baseline-${{ matrix.arch_label }}-ReleaseSafe.json
           fi
       - name: Upload replay baseline artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: replay-baseline-${{ matrix.arch_label }}-ReleaseSafe
           path: replay-baseline-${{ matrix.arch_label }}-ReleaseSafe.json
@@ -127,12 +132,12 @@ jobs:
     needs: replay-baseline-matrix
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.0.6
         with:
           version: 0.16.0
       - name: Download replay baseline artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: replay-artifacts
           pattern: replay-baseline-*
@@ -156,7 +161,7 @@ jobs:
           print("all replay cases pinned")
           PY
       - name: Upload promoted replay manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rk4-cross-target-promoted
           path: fixtures/validation/replay/rk4-cross-target.json
@@ -164,8 +169,8 @@ jobs:
   openvsp-real-export:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.0.6
         with:
           version: 0.16.0
       - name: Install OpenVSP Ubuntu package
@@ -173,6 +178,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y desktop-file-utils xvfb libgl1 libglx-mesa0
           curl -fsSL -o openvsp.deb "https://openvsp.org/download.php?file=zips/old/linux/OpenVSP-3.42.0-Ubuntu-24.04_amd64.deb"
+          echo "53c02bca9ed3c14b1d2c62f5c1f4a0783a3de71d577a7f9e396fd022bc7bc262  openvsp.deb" | sha256sum -c -
           sudo dpkg -i openvsp.deb || sudo apt-get install -f -y
           VSP_BIN="$(command -v vsp || true)"
           if [[ -z "${VSP_BIN}" && -x /usr/local/bin/vsp ]]; then VSP_BIN=/usr/local/bin/vsp; fi
@@ -231,7 +237,7 @@ jobs:
           print("real OpenVSP Zig digest pin matched with openvsp_cmd_digest_match")
           PY
       - name: Upload OpenVSP export smoke
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvsp-export-smoke
           path: |
@@ -243,8 +249,8 @@ jobs:
   campaign-10k:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.0.6
         with:
           version: 0.16.0
       - name: Run full 10k campaign bundle
@@ -264,6 +270,10 @@ jobs:
           sig = manifest.get("signature") or {}
           if sig.get("algorithm") != "ed25519":
               raise SystemExit(f"expected ed25519 signature, got {sig}")
+          if "execution_identity" not in manifest:
+              raise SystemExit("campaign manifest missing execution_identity")
+          if not str(manifest["execution_identity"].get("content_sha256", "")).startswith("sha256:"):
+              raise SystemExit(f"bad execution_identity: {manifest.get('execution_identity')}")
           ladder = manifest.get("tier_ladder") or {}
           if ladder.get("software_only") != "passed":
               raise SystemExit(f"software_only tier not passed: {ladder}")
@@ -274,7 +284,7 @@ jobs:
           print("campaign 10k bundle + tier ladder ok")
           PY
       - name: Upload campaign evidence bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: campaign-evidence-10k
           path: campaign.evidence/

@@ -1,0 +1,40 @@
+---
+slug: /
+sidebar_position: 1
+title: Strip
+---
+
+<div className="hero-strip">
+
+# Strip
+
+Trust and evidence operating system for computational aerospace engineering.
+
+</div>
+
+The simulator is one evidence producer. Assurance, HIL, flight test, and external tools (JSBSim, FMI, OpenVSP, PX4) are others. The asset is the machine-verifiable link between a decision, the models used, their domains, uncertainties, and supporting evidence.
+
+<div className="card-grid">
+
+<a href="./onboarding"><strong>Onboarding</strong>Clone → verify → first evidence bundle in under 15 minutes.</a>
+<a href="./architecture"><strong>Architecture</strong>Three planes + evidence substrate, with diagrams.</a>
+<a href="./verification"><strong>Verification</strong>Gate ladder, digests, campaign tiers.</a>
+<a href="./reference-uas"><strong>Reference UAS</strong>Month-6 vertical slice: one vehicle, one envelope.</a>
+
+</div>
+
+## Start here
+
+```sh
+git clone https://github.com/SMC17/strip.git
+cd strip
+# Zig 0.16.0 required — see Reproducible build
+zig build verify
+```
+
+Programme docs in the repo:
+
+- [ROADMAP-1.0.md](https://github.com/SMC17/strip/blob/main/ROADMAP-1.0.md)
+- [STATUS.md](https://github.com/SMC17/strip/blob/main/STATUS.md)
+- [docs/CATEGORY.md](https://github.com/SMC17/strip/blob/main/docs/CATEGORY.md)
+- [EXPERIMENTAL.md](https://github.com/SMC17/strip/blob/main/EXPERIMENTAL.md)

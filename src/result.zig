@@ -11,6 +11,7 @@ pub fn NumericalResult(comptime T: type) type {
         validity: evidence.ValidityStatus,
         evaluated_point: EvaluatedPoint,
         envelope: evidence.ValidityEnvelope,
+        execution_identity: evidence.ExecutionIdentity,
         warnings: []const []const u8 = &.{},
 
         pub const EvaluatedPoint = struct {

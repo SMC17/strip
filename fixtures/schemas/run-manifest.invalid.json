@@ -1,0 +1,18 @@
+{
+  "schema": "strip.run-manifest.v1",
+  "run_id": "",
+  "program_id": "x",
+  "started_utc": "not-a-time",
+  "toolchain": {
+    "zig": "0.16.0",
+    "host": "x86_64-linux"
+  },
+  "models": [],
+  "inputs": [],
+  "outputs": [],
+  "execution_identity": {
+    "content_sha256": "not-a-digest"
+  },
+  "intended_use": "preliminary_design",
+  "operational_qualification_claimed": true
+}

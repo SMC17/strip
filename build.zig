@@ -272,6 +272,12 @@ pub fn build(b: *std.Build) void {
     run_trajectory_neg.addArg("--path");
     run_trajectory_neg.addArg("fixtures/trajectory/unsupported-claim.jsonl");
     run_trajectory_neg.addArg("--expect-fail");
+    const run_trajectory_frontier = b.addRunArtifact(trajectory_cli);
+    run_trajectory_frontier.addArg("frontier");
+    const run_trajectory_receipt = b.addRunArtifact(trajectory_cli);
+    run_trajectory_receipt.addArg("receipt");
+    run_trajectory_receipt.addArg("--out");
+    run_trajectory_receipt.addArg("trajectory.evidence");
 
     const certification_delta_cli = b.addExecutable(.{
         .name = "strip-certification-delta",
@@ -382,6 +388,8 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_mavlink_sitl.step);
     verify_step.dependOn(&run_trajectory.step);
     verify_step.dependOn(&run_trajectory_neg.step);
+    verify_step.dependOn(&run_trajectory_frontier.step);
+    verify_step.dependOn(&run_trajectory_receipt.step);
     verify_step.dependOn(&run_cert_delta.step);
     verify_step.dependOn(&run_model_passport.step);
     verify_step.dependOn(&run_dispatch.step);

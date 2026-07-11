@@ -1,4 +1,4 @@
-//! `strip-trajectory selftest|audit` — fold JSONL trajectories and audit claims.
+//! `strip-trajectory` — fold, audit, frontier pack, receipt emit.
 
 const std = @import("std");
 const strip = @import("strip");
@@ -9,23 +9,29 @@ pub fn main(init: std.process.Init) !u8 {
     defer it.deinit();
     _ = it.next();
     const sub = it.next() orelse {
-        std.debug.print("usage: strip-trajectory selftest|audit [--path PATH] [--expect-fail]\n", .{});
+        std.debug.print(
+            \\usage: strip-trajectory selftest|audit|frontier|receipt [--path PATH] [--expect-fail] [--out DIR]
+            \\
+        , .{});
         return 2;
     };
 
     var path: []const u8 = "fixtures/trajectory/reference-uas-atmosphere.jsonl";
     var expect_fail = false;
+    var out_dir: []const u8 = "trajectory.evidence";
     while (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "--path")) {
             path = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--expect-fail")) {
             expect_fail = true;
+        } else if (std.mem.eql(u8, arg, "--out")) {
+            out_dir = it.next() orelse return 2;
         } else return 2;
     }
 
     if (std.mem.eql(u8, sub, "selftest")) {
         const report = try strip.trajectory.jsonl.selftest(allocator, init.io, path);
-        return emit(init.io, "selftest", path, report, expect_fail);
+        return emitAudit(init.io, "selftest", path, report, expect_fail);
     }
     if (std.mem.eql(u8, sub, "audit")) {
         const bytes = try std.Io.Dir.cwd().readFileAlloc(init.io, path, allocator, .limited(256 * 1024));
@@ -46,12 +52,62 @@ pub fn main(init: std.process.Init) !u8 {
         };
         defer strip.trajectory.jsonl.freeFold(allocator, folded);
         const report = strip.trajectory.jsonl.auditReport(&folded.store);
-        return emit(init.io, "audit", path, report, expect_fail);
+        return emitAudit(init.io, "audit", path, report, expect_fail);
+    }
+    if (std.mem.eql(u8, sub, "frontier")) {
+        const report = try strip.trajectory.frontier.run(allocator, init.io);
+        var buffer: [1024]u8 = undefined;
+        var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
+        const writer = &file_writer.interface;
+        defer writer.flush() catch {};
+        try writer.print(
+            "{{\"schema\":\"strip.trajectory.frontier.v0\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Not a Cursor protocol clone\",\"Not live multi-model routing\",\"Not aircraft operational qualification\"]}}\n",
+            .{
+                report.counterfactual_passed,
+                report.fault_lab_passed,
+                report.aerospace_passed,
+                report.causal_support_edges,
+                report.receipt_sealed,
+                report.memory_classes,
+                report.scheduler_ready,
+                report.passed,
+            },
+        );
+        return if (report.passed) 0 else 1;
+    }
+    if (std.mem.eql(u8, sub, "receipt")) {
+        const bytes = try std.Io.Dir.cwd().readFileAlloc(init.io, path, allocator, .limited(256 * 1024));
+        defer allocator.free(bytes);
+        var folded = try strip.trajectory.jsonl.foldJsonl(allocator, bytes);
+        defer strip.trajectory.jsonl.freeFold(allocator, folded);
+        var edge_buf: [64]strip.trajectory.causal.Edge = undefined;
+        const key = try strip.serialization.signing.resolveKeyPair(init.environ_map);
+        const rec = try strip.trajectory.receipt.buildReceipt(allocator, &folded.store, "reference-uas-atmosphere", key, &edge_buf);
+        defer allocator.free(rec.signature_json);
+        const json = try strip.trajectory.receipt.formatReceiptJson(allocator, rec);
+        defer allocator.free(json);
+
+        try std.Io.Dir.cwd().createDirPath(init.io, out_dir);
+        const traj_bytes = try std.Io.Dir.cwd().readFileAlloc(init.io, path, allocator, .limited(256 * 1024));
+        defer allocator.free(traj_bytes);
+        var traj_path_buf: [512]u8 = undefined;
+        const traj_path = try std.fmt.bufPrint(&traj_path_buf, "{s}/trajectory.jsonl", .{out_dir});
+        try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = traj_path, .data = traj_bytes });
+        var rec_path_buf: [512]u8 = undefined;
+        const rec_path = try std.fmt.bufPrint(&rec_path_buf, "{s}/receipt.json", .{out_dir});
+        try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = rec_path, .data = json });
+
+        var buffer: [768]u8 = undefined;
+        var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
+        const writer = &file_writer.interface;
+        defer writer.flush() catch {};
+        try writer.writeAll(json);
+        return 0;
     }
     return 2;
 }
 
-fn emit(
+fn emitAudit(
     io: std.Io,
     mode: []const u8,
     path: []const u8,

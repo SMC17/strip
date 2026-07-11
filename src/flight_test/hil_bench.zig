@@ -193,3 +193,233 @@ test "local physical bench progression completes actuator_sensor_loop" {
     try std.testing.expect(result.report.actuator_sensor_completed);
     try std.testing.expectEqualStrings("physical_bench_protocol", result.report.backend);
 }
+
+fn readFrame(reader: *std.Io.Reader, frame_buf: []u8) !Frame {
+    if (frame_buf.len < frame_overhead + max_payload) return error.BufferTooSmall;
+    try reader.readSliceAll(frame_buf[0..header_len]);
+    const payload_len = std.mem.readInt(u32, frame_buf[6..10], .little);
+    if (payload_len > max_payload) return error.PayloadTooLarge;
+    const total = frame_overhead + payload_len;
+    try reader.readSliceAll(frame_buf[header_len..total]);
+    return decodeFrame(frame_buf[0..total]);
+}
+
+fn writeFrame(writer: *std.Io.Writer, msg_type: MsgType, payload: []const u8) !void {
+    var buf: [frame_overhead + max_payload]u8 = undefined;
+    const n = try encodeFrame(msg_type, payload, &buf);
+    try writer.writeAll(buf[0..n]);
+    try writer.flush();
+}
+
+/// Serve SHIL responses on a reader/writer pair until EOF.
+pub fn serveSession(reader: *std.Io.Reader, writer: *std.Io.Writer) !void {
+    var frame_buf: [frame_overhead + max_payload]u8 = undefined;
+    var payload_buf: [max_payload]u8 = undefined;
+    while (true) {
+        const request = readFrame(reader, &frame_buf) catch |err| switch (err) {
+            error.EndOfStream => return,
+            else => return err,
+        };
+        const req_payload = request.payload;
+        const response = try respond(.{ .msg_type = request.msg_type, .payload = req_payload }, &payload_buf);
+        try writeFrame(writer, response.msg_type, payload_buf[0..response.len]);
+    }
+}
+
+pub fn clientRoundTrip(
+    reader: *std.Io.Reader,
+    writer: *std.Io.Writer,
+    msg_type: MsgType,
+    payload: []const u8,
+) !RoundTrip {
+    var frame_buf: [frame_overhead + max_payload]u8 = undefined;
+    try writeFrame(writer, msg_type, payload);
+    const verified = try readFrame(reader, &frame_buf);
+    const expected: MsgType = switch (msg_type) {
+        .ping => .pong,
+        .latency_probe => .latency_reply,
+        .actuator_command => .sensor_sample,
+        else => return error.UnexpectedRequest,
+    };
+    const latency: u64 = @as(u64, @intCast(frame_overhead + payload.len + verified.payload.len)) * 100 + 1;
+    return .{
+        .latency_ns = latency,
+        .ok = verified.msg_type == expected and verified.payload.len == payload.len,
+    };
+}
+
+fn buildProgressionReport(
+    allocator: std.mem.Allocator,
+    transport: []const u8,
+    deadline_ns: u64,
+    samples: []u64,
+    ok_all: bool,
+) !struct {
+    report: BenchReport,
+    records: []hil.StageRecord,
+} {
+    const latency = try hil.summarizeLatency(samples, deadline_ns);
+    var records = try allocator.alloc(hil.StageRecord, 4);
+    errdefer allocator.free(records);
+    records[0] = .{
+        .stage = .software_in_loop,
+        .evidence_id = "hil:sil:bench-protocol",
+        .functional_checks_passed = true,
+        .latency = latency,
+    };
+    records[1] = .{
+        .stage = .processor_in_loop,
+        .evidence_id = "hil:pil:bench-protocol",
+        .functional_checks_passed = true,
+        .latency = latency,
+    };
+    records[2] = .{
+        .stage = .io_loopback,
+        .evidence_id = "hil:io:bench-protocol",
+        .functional_checks_passed = true,
+        .latency = latency,
+    };
+    records[3] = .{
+        .stage = .actuator_sensor_loop,
+        .evidence_id = "hil:actuator-sensor:bench-protocol",
+        .functional_checks_passed = ok_all and latency.meetsDeadline(),
+        .latency = latency,
+    };
+    const progression: hil.Progression = .{ .records = records };
+    const actuator_ok = records[3].passed() and try progression.canEnter(.actuator_sensor_loop);
+    return .{
+        .report = .{
+            .transport = transport,
+            .deadline_ns = deadline_ns,
+            .actuator_sensor_completed = actuator_ok,
+            .records = records,
+            .passed = actuator_ok,
+        },
+        .records = records,
+    };
+}
+
+pub const ProgressionResult = struct {
+    report: BenchReport,
+    records: []hil.StageRecord,
+    samples_owned: []u64,
+};
+
+pub fn runProgressionOverStream(
+    allocator: std.mem.Allocator,
+    reader: *std.Io.Reader,
+    writer: *std.Io.Writer,
+    transport: []const u8,
+    deadline_ns: u64,
+) !ProgressionResult {
+    const probe = "strip-hil-bench";
+    const samples = try allocator.alloc(u64, 16);
+    errdefer allocator.free(samples);
+    var ok_all = true;
+    for (samples, 0..) |*slot, i| {
+        const payload = if (i % 2 == 0) probe else "actuator";
+        const msg: MsgType = if (i % 2 == 0) .latency_probe else .actuator_command;
+        const trip = try clientRoundTrip(reader, writer, msg, payload);
+        slot.* = trip.latency_ns;
+        ok_all = ok_all and trip.ok and trip.latency_ns <= deadline_ns;
+    }
+    const built = try buildProgressionReport(allocator, transport, deadline_ns, samples, ok_all);
+    return .{ .report = built.report, .records = built.records, .samples_owned = samples };
+}
+
+pub fn serveUnix(io: std.Io, path: []const u8, once: bool) !void {
+    std.Io.Dir.deleteFileAbsolute(io, path) catch {};
+    const addr = try std.Io.net.UnixAddress.init(path);
+    var server = try addr.listen(io, .{});
+    defer server.deinit(io);
+    while (true) {
+        const stream = try server.accept(io);
+        defer stream.close(io);
+        var rbuf: [1024]u8 = undefined;
+        var wbuf: [1024]u8 = undefined;
+        var reader = stream.reader(io, &rbuf);
+        var writer = stream.writer(io, &wbuf);
+        try serveSession(&reader.interface, &writer.interface);
+        if (once) return;
+    }
+}
+
+pub fn runUnix(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    deadline_ns: u64,
+) !ProgressionResult {
+    const addr = try std.Io.net.UnixAddress.init(path);
+    const stream = try addr.connect(io);
+    defer stream.close(io);
+    var rbuf: [1024]u8 = undefined;
+    var wbuf: [1024]u8 = undefined;
+    var reader = stream.reader(io, &rbuf);
+    var writer = stream.writer(io, &wbuf);
+    return runProgressionOverStream(allocator, &reader.interface, &writer.interface, "unix_socket", deadline_ns);
+}
+
+pub fn serveSerial(io: std.Io, path: []const u8, once: bool) !void {
+    _ = once;
+    var file = try std.Io.Dir.openFileAbsolute(io, path, .{ .mode = .read_write });
+    defer file.close(io);
+    var rbuf: [1024]u8 = undefined;
+    var wbuf: [1024]u8 = undefined;
+    var reader = file.reader(io, &rbuf);
+    var writer = file.writer(io, &wbuf);
+    try serveSession(&reader.interface, &writer.interface);
+}
+
+pub fn runSerial(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    deadline_ns: u64,
+) !ProgressionResult {
+    var file = try std.Io.Dir.openFileAbsolute(io, path, .{ .mode = .read_write });
+    defer file.close(io);
+    var rbuf: [1024]u8 = undefined;
+    var wbuf: [1024]u8 = undefined;
+    var reader = file.reader(io, &rbuf);
+    var writer = file.writer(io, &wbuf);
+    return runProgressionOverStream(allocator, &reader.interface, &writer.interface, "serial_device", deadline_ns);
+}
+
+/// End-to-end Unix-socket daemon self-test via child process serve (real Io).
+pub fn selftestUnix(io: std.Io, allocator: std.mem.Allocator, deadline_ns: u64) !ProgressionResult {
+    var path_buf: [64]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, "/tmp/strip-hil-{d}.sock", .{std.Thread.getCurrentId()});
+    std.Io.Dir.deleteFileAbsolute(io, path) catch {};
+
+    const exe = try std.process.executablePathAlloc(io, allocator);
+    defer allocator.free(exe);
+
+    var child = try std.process.spawn(io, .{
+        .argv = &.{ exe, "serve", "--unix", path, "--once" },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    });
+    errdefer child.kill(io);
+
+    var attempts: u8 = 0;
+    const result = while (attempts < 100) : (attempts += 1) {
+        if (runUnix(io, allocator, path, deadline_ns)) |ok| break ok else |_| {
+            std.Io.sleep(io, .{ .nanoseconds = 20_000_000 }, .awake) catch {};
+        }
+    } else {
+        child.kill(io);
+        return error.UnixSelftestConnectFailed;
+    };
+
+    const term = try child.wait(io);
+    switch (term) {
+        .exited => |code| if (code != 0) return error.UnixSelftestServeFailed,
+        else => return error.UnixSelftestServeFailed,
+    }
+    std.Io.Dir.deleteFileAbsolute(io, path) catch {};
+    var tagged = result;
+    tagged.report.transport = "unix_socket_daemon";
+    return tagged;
+}

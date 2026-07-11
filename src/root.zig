@@ -63,6 +63,7 @@ pub const experimental = struct {
 };
 
 pub const adapters = @import("adapters/root.zig");
+pub const platform = @import("platform/root.zig");
 
 test {
     _ = atmosphere;
@@ -107,4 +108,5 @@ test {
     _ = tools;
     _ = experimental;
     _ = adapters;
+    _ = platform;
 }

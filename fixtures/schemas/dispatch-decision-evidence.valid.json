@@ -6,5 +6,6 @@
   "human_authority": { "role": "director_of_ops", "final_go_no_go": true },
   "weather_source_class": "platform_candidate",
   "ai_participation": "draft briefing only; human retains release authority",
+  "recommendation": "escalate_weather_window",
   "operational_qualification_claimed": false
 }

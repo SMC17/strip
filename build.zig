@@ -218,6 +218,7 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(hil_bench_cli);
     const run_hil_bench = b.addRunArtifact(hil_bench_cli);
+    run_hil_bench.addArg("selftest-unix");
 
     const flight_seal_cli = b.addExecutable(.{
         .name = "strip-flight-seal",
@@ -263,6 +264,41 @@ pub fn build(b: *std.Build) void {
     run_model_passport.addArg("issue");
     run_model_passport.addArg("strip.atmosphere.us76-layered");
 
+    const weathernext_cli = b.addExecutable(.{
+        .name = "strip-weathernext",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/weathernext.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(weathernext_cli);
+    // Platform-only: install but do not run live fetch from verify.
+
+    const dispatch_cli = b.addExecutable(.{
+        .name = "strip-dispatch",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/dispatch.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(dispatch_cli);
+    const run_dispatch = b.addRunArtifact(dispatch_cli);
+    run_dispatch.addArg("decide");
+    run_dispatch.addArg("--id");
+    run_dispatch.addArg("verify-dispatch-smoke");
+    run_dispatch.addArg("--part");
+    run_dispatch.addArg("135");
+    run_dispatch.addArg("--role");
+    run_dispatch.addArg("director_of_ops");
+    run_dispatch.addArg("--go");
+    run_dispatch.addArg("--weather");
+    run_dispatch.addArg("platform_candidate");
+    run_dispatch.addArg("--weather-marginal");
+
     const gen_fixtures = b.addExecutable(.{
         .name = "strip-gen-proof-fixtures",
         .root_module = b.createModule(.{
@@ -291,4 +327,5 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_flight_seal.step);
     verify_step.dependOn(&run_cert_delta.step);
     verify_step.dependOn(&run_model_passport.step);
+    verify_step.dependOn(&run_dispatch.step);
 }

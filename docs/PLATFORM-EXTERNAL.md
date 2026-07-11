@@ -42,10 +42,23 @@ Environment: `OPENROUTER_API_KEY` — platform jobs only; never in CI sim paths.
 
 ## WeatherNext / WeatherLab (platform only)
 
+- **CLI:** `strip-weathernext status|fixture|fetch --live`
 - **Docs:** [domain/WEATHER-EXTERNAL.md](domain/WEATHER-EXTERNAL.md)
 - **Source id:** `weathernext-2` in `sources/primary-sources.json`
 - **Role:** External ensemble forecast candidate (FGN / Vertex AI)
-- **Forbidden:** Simulation truth; OpsSpec weather without operator approval
+- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` (+ optional `STRIP_WEATHERNEXT_TOKEN`)
+- **Forbidden:** Simulation truth; OpsSpec weather without operator approval; **not run from `zig build verify`**
+
+## Dispatch decision engine (advisory)
+
+- **CLI:** `strip-dispatch decide ...`
+- **Rails:** unapproved AI weather → forced no-go; duty-near-limit → no-go; owner pressure + risk → escalate/no-go
+- **Always:** `operational_qualification_claimed: false`
+
+## HIL daemon
+
+- **CLI:** `strip-hil-bench local|selftest-unix|serve|run` with `--unix` or `--serial`
+- **Verify:** runs `selftest-unix` (child serve + client progression)
 
 ## Aviation domain map (bibliography)
 

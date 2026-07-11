@@ -46,6 +46,7 @@ pub const monte_carlo = @import("monte_carlo/root.zig");
 pub const uas = @import("uas/root.zig");
 pub const assurance = @import("assurance/root.zig");
 pub const tools = @import("tools/root.zig");
+pub const trajectory = @import("trajectory/root.zig");
 
 /// Experimental / proposed interfaces — not product capabilities.
 /// Access only via `strip.experimental.*`. See EXPERIMENTAL.md.
@@ -106,6 +107,7 @@ test {
     _ = uas;
     _ = assurance;
     _ = tools;
+    _ = trajectory;
     _ = experimental;
     _ = adapters;
     _ = platform;

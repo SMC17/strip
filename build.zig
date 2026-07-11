@@ -255,6 +255,24 @@ pub fn build(b: *std.Build) void {
     const run_mavlink_sitl = b.addRunArtifact(mavlink_sitl_cli);
     run_mavlink_sitl.addArg("selftest");
 
+    const trajectory_cli = b.addExecutable(.{
+        .name = "strip-trajectory",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("apps/trajectory_cli.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "strip", .module = strip_mod }},
+        }),
+    });
+    b.installArtifact(trajectory_cli);
+    const run_trajectory = b.addRunArtifact(trajectory_cli);
+    run_trajectory.addArg("selftest");
+    const run_trajectory_neg = b.addRunArtifact(trajectory_cli);
+    run_trajectory_neg.addArg("audit");
+    run_trajectory_neg.addArg("--path");
+    run_trajectory_neg.addArg("fixtures/trajectory/unsupported-claim.jsonl");
+    run_trajectory_neg.addArg("--expect-fail");
+
     const certification_delta_cli = b.addExecutable(.{
         .name = "strip-certification-delta",
         .root_module = b.createModule(.{
@@ -362,6 +380,8 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_hil_bench.step);
     verify_step.dependOn(&run_flight_seal.step);
     verify_step.dependOn(&run_mavlink_sitl.step);
+    verify_step.dependOn(&run_trajectory.step);
+    verify_step.dependOn(&run_trajectory_neg.step);
     verify_step.dependOn(&run_cert_delta.step);
     verify_step.dependOn(&run_model_passport.step);
     verify_step.dependOn(&run_dispatch.step);

@@ -8,15 +8,24 @@ Plane: **platform only** — never simulation truth, never OpsSpec weather, neve
 1. Open [Google AI Studio API keys](https://aistudio.google.com/apikey)
 2. Sign in with your Google account and accept terms
 3. Click **Create API key** (new keys are auth keys)
-4. Export it for Strip platform CLIs:
+4. Export it for Strip platform CLIs **or** write it to the private workstation file (never commit):
 
 ```sh
-export GEMINI_API_KEY="your-key"   # or GOOGLE_API_KEY
+# option A — env
+export GEMINI_API_KEY="your-key"
+
+# option B — private file (mode 600)
+mkdir -p ~/.local/state/stax
+chmod 700 ~/.local/state/stax
+# printf '%s\n' 'your-key' > ~/.local/state/stax/google-api-key && chmod 600 ~/.local/state/stax/google-api-key
+
 ./zig-out/bin/strip-google gemini status
 ./zig-out/bin/strip-google gemini --live "Summarize RNAV vs RNP in one sentence"
+./zig-out/bin/strip-dispatch brief --live --scenario "TEB-BOS marginal ceilings"
 ```
 
-Free tier exists with rate limits; paid tier is via AI Studio billing / Cloud Billing.
+Default live model: **`gemini-3.5-flash`** (gemini-2.0-flash often returns free-tier quota 0 on new keys).
+
 
 **WeatherNext is different:** it is not the Gemini API key. Live WeatherNext is Vertex AI / Model Garden (often Early Access) or a custom HTTP endpoint you configure as `STRIP_WEATHERNEXT_ENDPOINT` (+ optional `STRIP_WEATHERNEXT_TOKEN`). See [WEATHER-EXTERNAL.md](WEATHER-EXTERNAL.md).
 

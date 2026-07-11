@@ -11,7 +11,7 @@ fn usage() void {
         \\  strip-google gemini fixture [--model <id>]
         \\  strip-google gemini --live [--model <id>] "<prompt>"
         \\
-        \\API key: GEMINI_API_KEY or GOOGLE_API_KEY from https://aistudio.google.com/apikey
+        \\API key: GEMINI_API_KEY / GOOGLE_API_KEY, or ~/.local/state/stax/google-api-key
         \\
     , .{});
 }
@@ -24,17 +24,15 @@ fn writeOut(init: std.process.Init, json: []const u8) !void {
     try writer.writeAll(json);
 }
 
-fn apiKey(init: std.process.Init) ?[]const u8 {
-    if (init.environ_map.get("GOOGLE_API_KEY")) |k| return k;
-    return init.environ_map.get("GEMINI_API_KEY");
-}
-
 pub fn main(init: std.process.Init) !u8 {
     const allocator = init.gpa;
     var it = try init.minimal.args.iterateAllocator(allocator);
     defer it.deinit();
     _ = it.next();
     const cmd = it.next() orelse "catalog";
+
+    const resolved = try strip.platform.api_key.resolve(init.io, allocator, init.environ_map);
+    defer if (resolved.owned) if (resolved.key) |k| allocator.free(k);
 
     if (std.mem.eql(u8, cmd, "catalog")) {
         const json = try strip.platform.google_catalog.formatCatalogJson(allocator);
@@ -65,7 +63,7 @@ pub fn main(init: std.process.Init) !u8 {
         }
 
         if (status or (!fixture and !live and prompt == null)) {
-            const report = strip.platform.gemini.statusReport(apiKey(init) != null, model);
+            const report = strip.platform.gemini.statusReport(resolved.key != null, model);
             const json = try strip.platform.gemini.formatReport(allocator, report);
             defer allocator.free(json);
             try writeOut(init, json);
@@ -80,8 +78,8 @@ pub fn main(init: std.process.Init) !u8 {
             return 0;
         }
         if (live) {
-            const key = apiKey(init) orelse {
-                std.debug.print("set GEMINI_API_KEY or GOOGLE_API_KEY\n", .{});
+            const key = resolved.key orelse {
+                std.debug.print("set GEMINI_API_KEY/GOOGLE_API_KEY or write ~/.local/state/stax/google-api-key\n", .{});
                 return 2;
             };
             const p = prompt orelse {

@@ -7,7 +7,7 @@ const std = @import("std");
 const weathernext = @import("weathernext.zig");
 
 pub const schema = "strip.gemini.generate.v0";
-pub const default_model = "gemini-2.0-flash";
+pub const default_model = "gemini-3.5-flash";
 pub const default_endpoint_prefix = "https://generativelanguage.googleapis.com/v1beta/models/";
 
 pub const Mode = enum { fixture, live, status };
@@ -64,16 +64,33 @@ pub fn generateFixture(allocator: std.mem.Allocator, model: []const u8) !struct 
 }
 
 fn extractTextPreview(allocator: std.mem.Allocator, body: []const u8) ![]u8 {
-    // Best-effort: find first "text":"..." value without full JSON tree walk.
-    const key = "\"text\":\"";
-    if (std.mem.indexOf(u8, body, key)) |start| {
-        const from = start + key.len;
+    // Gemini JSON uses `"text": "..."` (space after colon). Prefer the first
+    // candidates[].content.parts[].text value; skip empty strings.
+    var search_from: usize = 0;
+    while (std.mem.indexOfPos(u8, body, search_from, "\"text\"")) |key_at| {
+        var i = key_at + 6;
+        while (i < body.len and (body[i] == ' ' or body[i] == '\t' or body[i] == '\n' or body[i] == '\r')) : (i += 1) {}
+        if (i >= body.len or body[i] != ':') {
+            search_from = key_at + 6;
+            continue;
+        }
+        i += 1;
+        while (i < body.len and (body[i] == ' ' or body[i] == '\t' or body[i] == '\n' or body[i] == '\r')) : (i += 1) {}
+        if (i >= body.len or body[i] != '"') {
+            search_from = key_at + 6;
+            continue;
+        }
+        const from = i + 1;
         var end = from;
         while (end < body.len and body[end] != '"') : (end += 1) {
             if (body[end] == '\\' and end + 1 < body.len) end += 1;
         }
         const slice = body[from..end];
-        const n = @min(slice.len, 160);
+        if (slice.len == 0) {
+            search_from = end + 1;
+            continue;
+        }
+        const n = @min(slice.len, 240);
         return try allocator.dupe(u8, slice[0..n]);
     }
     return try allocator.dupe(u8, "");

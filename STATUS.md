@@ -4,7 +4,7 @@ Date: 2026-07-10
 
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
-**CI:** `verify` runs tests, `strip-verification-gates`, `strip-verify`, evidence compiler (`program.evidence/`), and campaign bundle (`campaign.evidence/`, 64-run verify cap of 10k).
+**CI:** `verify` runs tests, verification-gates, strip-verify, evidence compiler, and campaign scaffold (64-run cap). Separate `campaign-10k` job runs the full 10k Monte Carlo with Ed25519 attestation and SIL/HIL/flight tier ladder.
 
 ## Executable surface
 

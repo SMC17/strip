@@ -42,10 +42,7 @@ fn parseCampaignToml(bytes: []const u8) !Campaign {
         const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
         const key = trimValue(line[0..eq]);
         const value = trimValue(line[eq + 1 ..]);
-        if (std.mem.eql(u8, key, "schema")) campaign.schema = value
-        else if (std.mem.eql(u8, key, "id")) campaign.id = value
-        else if (std.mem.eql(u8, key, "question")) campaign.question = value
-        else if (std.mem.eql(u8, key, "monte_carlo_runs")) campaign.monte_carlo_runs = try parseU32(value);
+        if (std.mem.eql(u8, key, "schema")) campaign.schema = value else if (std.mem.eql(u8, key, "id")) campaign.id = value else if (std.mem.eql(u8, key, "question")) campaign.question = value else if (std.mem.eql(u8, key, "monte_carlo_runs")) campaign.monte_carlo_runs = try parseU32(value);
     }
     if (!std.mem.eql(u8, campaign.schema, "strip.campaign.v0") or campaign.id.len == 0)
         return error.InvalidCampaign;
@@ -166,9 +163,15 @@ pub fn main(init: std.process.Init) !u8 {
         bundle_hex[index * 2 + 1] = alphabet[byte & 0x0f];
     }
 
+    const qualification = try strip.flight_test.qualification.evaluateFromFixtures(allocator, init.io);
+    const key_pair = try strip.serialization.signing.ciKeyPair();
+    const signature = try strip.serialization.signing.signDigestHex(key_pair, &bundle_hex);
+    var signature_json_buf: [512]u8 = undefined;
+    const signature_json = try signature.formatJson(&signature_json_buf);
+
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.campaign.bundle.v1\",\"campaign_id\":\"{s}\",\"question\":\"{s}\",\"output_dir\":\"{s}\",\"monte_carlo_runs\":{d},\"runs_executed\":{d},\"atmosphere_model\":\"{s}\",\"atmosphere_authoritative\":{},\"uas_fixture\":\"strip.uas.contingency-simulation\",\"deterministic_seed\":42,\"bundle_digest\":\"sha256:{s}\",\"artifact_digests\":{{\"runs\":\"sha256:{s}\",\"summary\":\"sha256:{s}\"}},\"signature\":{{\"algorithm\":\"unsigned\",\"digest\":\"sha256:{s}\"}},\"operational_qualification_claimed\":false,\"status\":\"bundle_emitted\"}}\n",
+        "{{\"schema\":\"strip.campaign.bundle.v1\",\"campaign_id\":\"{s}\",\"question\":\"{s}\",\"output_dir\":\"{s}\",\"monte_carlo_runs\":{d},\"runs_executed\":{d},\"atmosphere_model\":\"{s}\",\"atmosphere_authoritative\":{},\"uas_fixture\":\"strip.uas.contingency-simulation\",\"deterministic_seed\":42,\"bundle_digest\":\"sha256:{s}\",\"artifact_digests\":{{\"runs\":\"sha256:{s}\",\"summary\":\"sha256:{s}\"}},\"signature\":{s},\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"qualification_tier\":\"{s}\",\"operational_qualification_claimed\":false,\"status\":\"bundle_emitted\"}}\n",
         .{
             campaign.id,
             campaign.question,
@@ -180,10 +183,15 @@ pub fn main(init: std.process.Init) !u8 {
             &bundle_hex,
             &runs_hex,
             &summary_hex,
-            &bundle_hex,
+            signature_json,
+            @tagName(qualification.tier_ladder.software_only),
+            @tagName(qualification.tier_ladder.hardware_in_loop),
+            @tagName(qualification.tier_ladder.flight_test),
+            @tagName(qualification.tier),
         },
     );
     defer allocator.free(manifest_json);
+    try strip.serialization.signing.verifyDigestHex(signature, &bundle_hex);
 
     try std.Io.Dir.cwd().createDirPath(init.io, output_dir);
     try writeBundleArtifact(init.io, "campaign.toml", bytes);

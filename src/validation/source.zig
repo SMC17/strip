@@ -166,7 +166,7 @@ test "extracted US76 artifact digest matches pinned content" {
             .extracted_artifact_digest = "sha256:d4bf9f3719fa270ce7d2b03507a43ce7b4205f76eb8f4233b9249698965470c4",
             .normalization_script = "manual transcription fixture",
         },
-        .limitations = &.{ "Two reference points only; not a full atmosphere validation dataset." },
+        .limitations = &.{"Two reference points only; not a full atmosphere validation dataset."},
     };
     try record.validateWithFilesystem(std.testing.io);
 }

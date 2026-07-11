@@ -19,7 +19,10 @@ safe-state responses.
 - AI agents receive explicit capabilities; simulation permission does not imply
   publication or baseline-promotion permission.
 - Learned models cannot promote their own evidence or validity.
-- Result identity binds content; it is not a digital signature.
+- Result identity binds content via SHA-256 digests.
+- Evidence and campaign bundles are Ed25519-attested under the committed CI
+  development key (`fixtures/signing/`). That key is not a production HSM or
+  organizational signing authority.
 - No network dependency belongs in a safety-critical or authoritative loop.
 
 ## Reporting

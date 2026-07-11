@@ -40,7 +40,7 @@ jobs:
       - name: Validate strict schema fixtures
         run: |
           export PATH="${{ github.workspace }}/.venv/bin:${PATH}"
-          pip install --disable-pip-version-check jsonschema
+          pip install --disable-pip-version-check 'jsonschema==4.23.0'
           python - <<'PY'
           import json
           from pathlib import Path

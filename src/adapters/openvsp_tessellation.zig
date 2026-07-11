@@ -39,6 +39,48 @@ pub const Mesh = struct {
         return area;
     }
 
+    fn vertexKey(v: Vec3) u64 {
+        const scale: f64 = 1_000_000.0;
+        const ix = @as(i64, @intFromFloat(@round(v.x * scale)));
+        const iy = @as(i64, @intFromFloat(@round(v.y * scale)));
+        const iz = @as(i64, @intFromFloat(@round(v.z * scale)));
+        var buf: [24]u8 = undefined;
+        @memcpy(buf[0..8], std.mem.asBytes(&ix));
+        @memcpy(buf[8..16], std.mem.asBytes(&iy));
+        @memcpy(buf[16..24], std.mem.asBytes(&iz));
+        return std.hash.Wyhash.hash(0, buf[0..24]);
+    }
+
+    fn edgeKey(a: Vec3, b: Vec3) u64 {
+        const ka = vertexKey(a);
+        const kb = vertexKey(b);
+        var pair = [_]u64{ ka, kb };
+        if (ka > kb) std.mem.swap(u64, &pair[0], &pair[1]);
+        return std.hash.Wyhash.hash(0, std.mem.asBytes(&pair));
+    }
+
+    pub fn isWatertight(self: Mesh) bool {
+        var counts = std.AutoHashMap(u64, u32).init(std.heap.page_allocator);
+        defer counts.deinit();
+        for (self.triangles) |tri| {
+            const edges = [_]u64{
+                edgeKey(tri.a, tri.b),
+                edgeKey(tri.b, tri.c),
+                edgeKey(tri.c, tri.a),
+            };
+            for (edges) |key| {
+                const entry = counts.getOrPut(key) catch return false;
+                if (!entry.found_existing) entry.value_ptr.* = 0;
+                entry.value_ptr.* += 1;
+            }
+        }
+        var it = counts.iterator();
+        while (it.next()) |entry| {
+            if (entry.value_ptr.* != 2) return false;
+        }
+        return self.triangles.len > 0;
+    }
+
     pub fn canonicalBytes(self: Mesh, buffer: []u8) ![]const u8 {
         var index: usize = 0;
         for (self.triangles) |tri| {
@@ -151,13 +193,14 @@ pub fn verifyTessellation(
     const area = mesh.surfaceArea();
     const area_matches = @abs(area - manifest.expected_surface_area_m2) <=
         @max(1e-6, 1e-6 * manifest.expected_surface_area_m2);
+    const watertight_matches = !manifest.watertight_required or mesh.isWatertight();
     return .{
         .triangle_count = count,
         .surface_area_m2 = area,
         .mesh_digest = digest,
         .digest_matches = digest_matches,
         .count_matches = count_matches,
-        .passed = digest_matches and count_matches and area_matches,
+        .passed = digest_matches and count_matches and area_matches and watertight_matches,
     };
 }
 

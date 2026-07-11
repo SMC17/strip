@@ -438,6 +438,98 @@
         "Synthetic scalar comparator only.",
         "Demonstrates failure detection, not model validation."
       ]
+    },
+    {
+      "id": "faa-aim-2024-03-21",
+      "title": "Aeronautical Information Manual (AIM) Basic with Changes 1 and 2",
+      "publisher": "Federal Aviation Administration",
+      "edition": "Basic with Changes 1 and 2, dated 3-21-24",
+      "version": "AIM-Basic-w-Chg1-and-Chg2-dtd-3-21-24",
+      "url": "https://www.faa.gov/air_traffic/publications/media/AIM-Basic-w-Chg1-and-Chg2-dtd-3-21-24.pdf",
+      "license": "U.S. government publication; FAA terms and notices apply",
+      "retrieved_at": "2026-07-11",
+      "digest": "sha256:4cf6a96cb27e3cd1d21d460180aa717e4dd9b027b32ef91e8d38b832dd4cd2a0",
+      "digest_scope": "source_content",
+      "extraction": "Bibliographic metadata transcribed into sources/extracted/faa-aim-2024-03-21.bibliographic.json; full AIM PDF is locator-only (not vendored).",
+      "limitations": [
+        "Digest covers canonical bibliographic JSON only; AIM body not copied into the repository.",
+        "Does not authorize operational procedures or Strip sensor certification."
+      ],
+      "extraction_provenance": {
+        "citation_anchor": "https://www.faa.gov/air_traffic/publications/media/AIM-Basic-w-Chg1-and-Chg2-dtd-3-21-24.pdf",
+        "extracted_artifact_path": "sources/extracted/faa-aim-2024-03-21.bibliographic.json",
+        "extracted_artifact_digest": "sha256:4cf6a96cb27e3cd1d21d460180aa717e4dd9b027b32ef91e8d38b832dd4cd2a0",
+        "normalization_script": "manual bibliographic extraction"
+      }
+    },
+    {
+      "id": "faa-gnss-pbn",
+      "title": "Global Navigation Satellite System, Augmentation (ABAS/SBAS/WAAS/GBAS), and Performance Based Navigation (RNAV/RNP)",
+      "publisher": "Federal Aviation Administration Satellite Navigation Team",
+      "edition": "FAA Satellite Navigation / PBN public materials, retrieval-date",
+      "version": "doctrine-map-2026-07-11",
+      "url": "https://www.faa.gov/about/office_org/headquarters_offices/ato/service_units/techops/navservices/gnss/",
+      "license": "U.S. government publication; FAA terms and notices apply",
+      "retrieved_at": "2026-07-11",
+      "digest": "sha256:3c2e5d903182c82260286ae0895f19929c68c05537b92e5b307b1e36c18c6dc4",
+      "digest_scope": "source_content",
+      "extraction": "Bibliographic metadata transcribed into sources/extracted/faa-gnss-pbn.bibliographic.json; doctrine map in docs/domain/NAVIGATION.md.",
+      "limitations": [
+        "Digest covers canonical bibliographic JSON only.",
+        "Strip GNSS/IMU models remain simulated sensor contracts, not WAAS/RAIM/GBAS qualification."
+      ],
+      "extraction_provenance": {
+        "citation_anchor": "docs/domain/NAVIGATION.md",
+        "extracted_artifact_path": "sources/extracted/faa-gnss-pbn.bibliographic.json",
+        "extracted_artifact_digest": "sha256:3c2e5d903182c82260286ae0895f19929c68c05537b92e5b307b1e36c18c6dc4",
+        "normalization_script": "manual bibliographic extraction"
+      }
+    },
+    {
+      "id": "weathernext-2",
+      "title": "WeatherNext 2 (Functional Generative Network weather forecast family)",
+      "publisher": "Google DeepMind",
+      "edition": "WeatherNext 2 public science page, retrieval-date",
+      "version": "public-spec-table-2026-07-11",
+      "url": "https://deepmind.google/science/weathernext/",
+      "license": "Google DeepMind site terms; model access via Vertex AI / WeatherLab terms",
+      "retrieved_at": "2026-07-11",
+      "digest": "sha256:b90195c309cc7376782269c970ddf052da96c788ce16053004bf497f53532f3f",
+      "digest_scope": "source_content",
+      "extraction": "Bibliographic metadata transcribed into sources/extracted/weathernext-2.bibliographic.json; capability table summarized in docs/domain/WEATHER-EXTERNAL.md.",
+      "limitations": [
+        "Platform-plane forecast candidate only; forbidden as simulation truth.",
+        "Not an OpsSpec-approved weather source for Part 135/121 dispatch."
+      ],
+      "extraction_provenance": {
+        "citation_anchor": "https://deepmind.google/science/weathernext/",
+        "extracted_artifact_path": "sources/extracted/weathernext-2.bibliographic.json",
+        "extracted_artifact_digest": "sha256:b90195c309cc7376782269c970ddf052da96c788ce16053004bf497f53532f3f",
+        "normalization_script": "manual bibliographic extraction"
+      }
+    },
+    {
+      "id": "ai-dispatch-market-gaps",
+      "title": "AI Intervention Market Gaps in Charter Dispatch Operations",
+      "publisher": "Strip domain research intake",
+      "edition": "research PDF asset pinned under docs/domain/assets",
+      "version": "asset-2026-07-11",
+      "url": "https://example.invalid/strip/docs/domain/assets/AI_Dispatch_Market_Gaps.pdf",
+      "license": "research artifact retained for domain mapping; not FAA regulatory text",
+      "retrieved_at": "2026-07-11",
+      "digest": "sha256:c0228226ec1ba89bf9bb2ff3a69ef6dfaec97a16a3684b647d170b51782ff5ae",
+      "digest_scope": "source_content",
+      "extraction": "PDF retained under docs/domain/assets/AI_Dispatch_Market_Gaps.pdf; gap taxonomy mapped in docs/domain/DISPATCH-OPS.md.",
+      "limitations": [
+        "Market-gap research framing only; not a product claim or SMS procedure.",
+        "Does not authorize automated go/no-go or unapproved weather sources."
+      ],
+      "extraction_provenance": {
+        "citation_anchor": "docs/domain/assets/AI_Dispatch_Market_Gaps.pdf",
+        "extracted_artifact_path": "docs/domain/assets/AI_Dispatch_Market_Gaps.pdf",
+        "extracted_artifact_digest": "sha256:c0228226ec1ba89bf9bb2ff3a69ef6dfaec97a16a3684b647d170b51782ff5ae",
+        "normalization_script": "asset pin + domain map"
+      }
     }
   ]
 }

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/dispatch-decision-evidence.schema.json",
+  "title": "Strip dispatch decision evidence package (scaffold)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decision_id",
+    "carrier_part",
+    "gap_categories",
+    "human_authority",
+    "weather_source_class",
+    "operational_qualification_claimed"
+  ],
+  "properties": {
+    "schema": { "const": "strip.dispatch-decision-evidence.v0" },
+    "decision_id": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "carrier_part": { "enum": ["91", "135", "121", "uas"] },
+    "gap_categories": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "enum": [
+          "fragmented_systems",
+          "duty_legality",
+          "weather_windows",
+          "escalation_authority",
+          "static_frat",
+          "external_pressure",
+          "maintenance_patterns",
+          "institutional_memory",
+          "broker_comms",
+          "sms_compliance"
+        ]
+      }
+    },
+    "human_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "final_go_no_go"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "final_go_no_go": { "type": "boolean" }
+      }
+    },
+    "weather_source_class": {
+      "enum": ["opsspec_approved", "platform_candidate", "unapproved_ai"]
+    },
+    "ai_participation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "operational_qualification_claimed": { "const": false }
+  }
+}

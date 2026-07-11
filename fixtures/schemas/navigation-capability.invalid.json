@@ -1,0 +1,10 @@
+{
+  "schema": "strip.navigation-capability.v0",
+  "capability_id": "bad",
+  "gnss_modes": ["gps"],
+  "rnav_rnp": { "rnav": true, "rnp_self_monitor": true },
+  "surveillance": ["ads_b_out"],
+  "backup": ["vor"],
+  "primary_sources": ["faa-aim-2024-03-21"],
+  "operational_qualification_claimed": true
+}

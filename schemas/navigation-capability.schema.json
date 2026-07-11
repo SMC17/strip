@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/navigation-capability.schema.json",
+  "title": "Strip navigation capability declaration (scaffold)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "capability_id",
+    "gnss_modes",
+    "rnav_rnp",
+    "surveillance",
+    "backup",
+    "primary_sources",
+    "operational_qualification_claimed"
+  ],
+  "properties": {
+    "schema": { "const": "strip.navigation-capability.v0" },
+    "capability_id": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "gnss_modes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "enum": ["gps", "gnss", "abas_raim", "sbas_waas", "gbas", "simulated_only"]
+      }
+    },
+    "rnav_rnp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rnav", "rnp_self_monitor"],
+      "properties": {
+        "rnav": { "type": "boolean" },
+        "rnp_self_monitor": { "type": "boolean" }
+      }
+    },
+    "surveillance": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 4,
+      "items": { "enum": ["ads_b_out", "ads_b_in", "tcas", "none"] }
+    },
+    "backup": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": { "enum": ["irs", "vor", "ils", "dead_reckoning", "none"] }
+    },
+    "primary_sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+    },
+    "operational_qualification_claimed": { "const": false }
+  }
+}

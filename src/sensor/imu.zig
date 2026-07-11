@@ -5,6 +5,30 @@
 const std = @import("std");
 const math = @import("../dynamics/math.zig");
 const noise = @import("noise.zig");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.sensor.imu-discrete",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Discrete IMU error model; bias + white noise + quantization + saturation",
+    .assumptions = &.{
+        "no vibration or scale-factor error",
+        "no axis misalignment",
+        "no bias walk or temperature dependence",
+    },
+    .valid_min = 0.0,
+    .valid_max = 200.0,
+    .valid_unit = "m/s^2",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .none,
+        .comparison = .none,
+        .validation = .none,
+    },
+};
 
 pub const Config = struct {
     accelerometer_bias_mps2: math.Vec3 = math.Vec3.zero,
@@ -102,6 +126,35 @@ pub const Imu = struct {
                 self.config.gyroscope_quantization_radps,
                 self.config.gyroscope_range_radps,
             ),
+        };
+    }
+
+    pub fn sampleResult(
+        self: *Imu,
+        context: evidence.Context,
+        true_specific_force_body_mps2: math.Vec3,
+        true_angular_velocity_body_radps: math.Vec3,
+    ) numerical_result.NumericalResult(Sample) {
+        const envelope = manifest.effectiveEnvelope("specific_force_mps2");
+        const magnitude = @sqrt(
+            true_specific_force_body_mps2.x * true_specific_force_body_mps2.x +
+                true_specific_force_body_mps2.y * true_specific_force_body_mps2.y +
+                true_specific_force_body_mps2.z * true_specific_force_body_mps2.z,
+        );
+        const sample_value = self.sample(true_specific_force_body_mps2, true_angular_velocity_body_radps);
+        return .{
+            .value = sample_value,
+            .model = manifest,
+            .context = context,
+            .validity = if (envelope.contains(magnitude)) .valid else .outside_envelope,
+            .evaluated_point = .{
+                .variable = "specific_force_mps2",
+                .value = magnitude,
+                .unit = "m/s^2",
+            },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
         };
     }
 };

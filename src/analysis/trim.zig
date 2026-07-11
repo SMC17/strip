@@ -1,6 +1,29 @@
 //! Bounded Newton trim residual solver with finite-difference Jacobian.
 
 const std = @import("std");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.analysis.trim-newton",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Damped projected Newton trim residual solver",
+    .assumptions = &.{
+        "smooth residual in the declared bounds",
+        "finite-difference Jacobian",
+    },
+    .valid_min = 1e-12,
+    .valid_max = 1.0,
+    .valid_unit = "1",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .analytical,
+        .comparison = .none,
+        .validation = .none,
+    },
+};
 
 pub const Variables = struct {
     alpha_rad: f64,
@@ -82,6 +105,48 @@ pub fn solve(
         for (0..3) |i| x[i] += damping * delta[i];
     }
     return error.NoConvergence;
+}
+
+pub fn solveResult(
+    context_use: evidence.Context,
+    residual_context: *const anyopaque,
+    residual_fn: ResidualFn,
+    initial: Variables,
+    bounds: Bounds,
+    options: Options,
+) !numerical_result.NumericalResult(?Result) {
+    const envelope = manifest.effectiveEnvelope("tolerance");
+    if (!envelope.contains(options.tolerance)) {
+        return .{
+            .value = null,
+            .model = manifest,
+            .context = context_use,
+            .validity = .outside_envelope,
+            .evaluated_point = .{
+                .variable = "tolerance",
+                .value = options.tolerance,
+                .unit = "1",
+            },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
+        };
+    }
+    const solved = try solve(residual_context, residual_fn, initial, bounds, options);
+    return .{
+        .value = solved,
+        .model = manifest,
+        .context = context_use,
+        .validity = .valid,
+        .evaluated_point = .{
+            .variable = "tolerance",
+            .value = options.tolerance,
+            .unit = "1",
+        },
+        .envelope = envelope,
+        .execution_identity = .fromModel(manifest),
+        .credibility = .fromProof(manifest.effectiveProof()),
+    };
 }
 
 fn maxAbs(values: [3]f64) f64 {

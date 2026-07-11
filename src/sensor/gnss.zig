@@ -5,6 +5,30 @@
 const std = @import("std");
 const math = @import("../dynamics/math.zig");
 const noise = @import("noise.zig");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.sensor.gnss-local-cartesian",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Local-Cartesian GNSS observation model with fixed cadence",
+    .assumptions = &.{
+        "no satellite geometry",
+        "no atmosphere or multipath",
+        "no clock states or outages",
+    },
+    .valid_min = 0.0,
+    .valid_max = 86400.0,
+    .valid_unit = "s",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .none,
+        .comparison = .none,
+        .validation = .none,
+    },
+};
 
 pub const Config = struct {
     update_period_s: f64,
@@ -93,6 +117,31 @@ pub const Gnss = struct {
                 self.config.velocity_noise_std_mps,
                 self.config.velocity_quantization_mps,
             ),
+        };
+    }
+
+    pub fn sampleResult(
+        self: *Gnss,
+        context: evidence.Context,
+        time_s: f64,
+        true_position_local_m: math.Vec3,
+        true_velocity_local_mps: math.Vec3,
+    ) error{InvalidInput}!numerical_result.NumericalResult(?Fix) {
+        const envelope = manifest.effectiveEnvelope("time_s");
+        const fix = try self.sample(time_s, true_position_local_m, true_velocity_local_mps);
+        return .{
+            .value = fix,
+            .model = manifest,
+            .context = context,
+            .validity = if (envelope.contains(time_s)) .valid else .outside_envelope,
+            .evaluated_point = .{
+                .variable = "time_s",
+                .value = time_s,
+                .unit = "s",
+            },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
         };
     }
 };

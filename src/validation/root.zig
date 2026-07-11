@@ -6,6 +6,8 @@ pub const coverage = @import("coverage.zig");
 pub const comparator = @import("comparator.zig");
 
 pub const join = @import("join.zig");
+pub const certification_delta = @import("certification_delta.zig");
+pub const model_passport = @import("model_passport.zig");
 
 test {
     _ = envelope;
@@ -14,4 +16,6 @@ test {
     _ = coverage;
     _ = comparator;
     _ = join;
+    _ = certification_delta;
+    _ = model_passport;
 }

@@ -5,7 +5,8 @@ Date: 2026-07-11
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
 **Docs site:** `/home/stax/sovereign-physics/strip/website` — `cd` there, then `npm ci && npm start` (not `~/website`; `d` may be a docker alias).  
-**Reference UAS:** [docs/REFERENCE-UAS.md](docs/REFERENCE-UAS.md) — US76 + UIUC real validation inputs; SIL faults synthetic; `flight_test` missing.  
+**Reference UAS:** [docs/REFERENCE-UAS.md](docs/REFERENCE-UAS.md) — US76 + UIUC real validation inputs; SIL faults synthetic.  
+**Domain map:** [docs/domain/README.md](docs/domain/README.md) — AIM/GNSS/PBN, WeatherNext, ZJX, Part 91/135/121 dispatch gaps (non-authoritative).  
 **CI:** `verify` runs tests, verification-gates, strip-verify, evidence compiler, and campaign scaffold (64-run cap). Separate `campaign-10k` job runs the full 10k Monte Carlo with Ed25519 attestation and SIL/HIL/flight tier ladder. Actions pinned by commit SHA; OpenVSP deb SHA-256 checked in CI.
 
 ## Executable surface
@@ -18,13 +19,14 @@ Date: 2026-07-11
 - multirotor rotor/motor/battery physics, allocation, control, and estimation
 - deterministic multi-rate runtime, scene composition, collision/CCD, and sensor timing
 - perception timing, human-factor primitives, terrain, airports, and landing gear
-- validation envelopes, source manifests (19 primary sources, content-hashed), coverage matrix, comparators
-- flight-test telemetry, regression, residuals, maneuvers, HIL contracts, evidence packages
+- validation envelopes, source manifests (23 primary sources, content-hashed), coverage matrix, comparators
+- flight-test telemetry, regression, residuals, maneuvers, physical HIL protocol, sealed flight packages
+- certification-delta + model-passport engines; navigation/dispatch schema scaffolds
 - typed interop contracts (FMI 3.0, MAVLink, HLA/DIS) and frontier adapter catalog
 - assurance graph JSON ingest, model-package + run-manifest schemas, and product inventory
 - experimental frontier modules only via `strip.experimental.*` (see [EXPERIMENTAL.md](EXPERIMENTAL.md))
 
-Proof level: `unit-tested`
+Proof level: `integration-tested` (gates + engines); operational qualification: **false**
 
 Verification:
 
@@ -36,11 +38,18 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-evidence build programs/reference-uas.toml
 ./zig-out/bin/strip-campaign run campaigns/reference-uas-contingency.toml
 ./zig-out/bin/strip-fidelity
+./zig-out/bin/strip-hil-bench
+./zig-out/bin/strip-flight-seal build --out /tmp/strip-flight-seal
+STRIP_FLIGHT_PACKAGE=/tmp/strip-flight-seal ./zig-out/bin/strip-verification-gates
+./zig-out/bin/strip-certification-delta diff <baseline.json> <candidate.json>
+./zig-out/bin/strip-model-passport issue strip.atmosphere.us76-layered
 ```
 
 Latest local gate: unit tests plus UAS, assurance, platform, validation, fidelity,
-evidence compiler, campaign bundle, and verification-gates v3 integration executables.
-Authoritative `NumericalResult` paths and evidence/campaign manifests carry `execution_identity`.
+evidence compiler, campaign bundle, verification-gates v3, HIL bench, flight-seal,
+certification-delta, and model-passport. Authoritative `NumericalResult` paths and
+evidence/campaign manifests carry `execution_identity`. Default gates keep
+`flight_test: missing` unless `STRIP_FLIGHT_PACKAGE` points at a verified seal.
 
 ## Verification gates (v3)
 
@@ -54,7 +63,7 @@ Authoritative `NumericalResult` paths and evidence/campaign manifests carry `exe
 | OpenVSP export | `OPENSP_CMD` via `openvsp_box_wing.vspscript` or `analytic_stl_exporter` | Nonzero vsp exit fails; structural mesh bounds; analytic exact digest pin |
 | Replay | pinned per-arch (`pending_count: 0`); fails if any case pending | Five ReleaseSafe/Debug legs; same RK4 fingerprint across current matrix |
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
-| Flight evidence (Gate 5) | `software_only` + tier ladder | SIL/PIL partial; `operational_qualification_claimed: false` |
+| Flight evidence (Gate 5) | `software_only` → `hardware_in_loop` (`physical_bench_protocol`) → optional `flight_test` | Sealed package via env; `operational_qualification_claimed: false` |
 
 Verification gate runner:
 
@@ -67,11 +76,10 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Expand `NumericalResult` / credibility vector to remaining authoritative models (sensors, trim, contact, …)
-- Physical HIL bench (replace synthetic io_loopback)
-- Sealed flight evidence package (`flight_test` stays `missing` until then)
-- Certification-delta engine + model passport issuance beyond schema scaffolds (see [docs/LATER-WEDGES.md](docs/LATER-WEDGES.md))
+- Serial/Unix-socket HIL daemon beyond in-process `SHIL` protocol
 - Held-out flight validation for Month-6 exit (campaign SIL faults remain synthetic by design)
+- WeatherNext live client only on platform plane (never in verify)
+- Dispatch decision evidence engine beyond schema scaffold (human authority retained)
 
 ## CI (`verify` workflow)
 
@@ -90,6 +98,7 @@ tools/promote_replay_from_ci.sh baseline.json
 - WorldForge generation, DesignEvolve search, rare-event sampling,
   multi-fidelity scheduling, live digital twins, and learned models
 - browser product interfaces
+- WeatherNext / dispatch AI / navigation capability declarations (domain docs + schemas)
 
 These contracts compile and have boundary tests; no linked external system or
-validated frontier model is claimed.
+validated frontier model is claimed as operationally qualified.

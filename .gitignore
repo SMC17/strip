@@ -6,4 +6,5 @@ openvsp.deb
 tools/__pycache__/
 /program.evidence/
 /campaign.evidence/
+/flight.evidence/
 .venv/

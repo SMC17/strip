@@ -1,0 +1,10 @@
+{
+  "schema": "strip.dispatch-decision-evidence.v0",
+  "decision_id": "strip.dispatch.example-135-weather-hold",
+  "carrier_part": "135",
+  "gap_categories": ["weather_windows", "escalation_authority"],
+  "human_authority": { "role": "director_of_ops", "final_go_no_go": true },
+  "weather_source_class": "platform_candidate",
+  "ai_participation": "draft briefing only; human retains release authority",
+  "operational_qualification_claimed": false
+}

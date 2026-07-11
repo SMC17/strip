@@ -1,6 +1,29 @@
 //! Fixed-step PID with derivative-on-measurement and conditional anti-windup.
 
 const std = @import("std");
+const evidence = @import("../evidence.zig");
+const numerical_result = @import("../result.zig");
+
+pub const manifest = evidence.ModelManifest{
+    .id = "strip.control.pid",
+    .version = "0.1.0",
+    .proof_level = .unit_tested,
+    .source = "Fixed-step PID with derivative-on-measurement",
+    .assumptions = &.{
+        "fixed sample period",
+        "conditional anti-windup",
+    },
+    .valid_min = 1e-6,
+    .valid_max = 10.0,
+    .valid_unit = "s",
+    .proof = .{
+        .implementation = .implemented,
+        .testing = .unit_tested,
+        .analysis = .none,
+        .comparison = .none,
+        .validation = .none,
+    },
+};
 
 pub const Config = struct {
     kp: f64,
@@ -72,6 +95,39 @@ pub const Pid = struct {
             self.config.ki * self.integral -
             self.config.kd * derivative_measurement;
         return std.math.clamp(output, self.config.output_min, self.config.output_max);
+    }
+
+    pub fn stepResult(
+        self: *Pid,
+        context: evidence.Context,
+        setpoint: f64,
+        measurement: f64,
+        dt_s: f64,
+    ) error{InvalidStep}!numerical_result.NumericalResult(?f64) {
+        const envelope = manifest.effectiveEnvelope("dt_s");
+        if (!envelope.contains(dt_s)) {
+            return .{
+                .value = null,
+                .model = manifest,
+                .context = context,
+                .validity = .outside_envelope,
+                .evaluated_point = .{ .variable = "dt_s", .value = dt_s, .unit = "s" },
+                .envelope = envelope,
+                .execution_identity = .fromModel(manifest),
+                .credibility = .fromProof(manifest.effectiveProof()),
+            };
+        }
+        const output = try self.step(setpoint, measurement, dt_s);
+        return .{
+            .value = output,
+            .model = manifest,
+            .context = context,
+            .validity = .valid,
+            .evaluated_point = .{ .variable = "dt_s", .value = dt_s, .unit = "s" },
+            .envelope = envelope,
+            .execution_identity = .fromModel(manifest),
+            .credibility = .fromProof(manifest.effectiveProof()),
+        };
     }
 };
 

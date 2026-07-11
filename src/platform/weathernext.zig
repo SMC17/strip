@@ -6,6 +6,11 @@
 const std = @import("std");
 
 pub const schema = "strip.weathernext.fetch.v0";
+pub const default_model_family = "WeatherNext Graph";
+
+/// Interim non-EAP platform forecast endpoint (Open-Meteo) until Vertex WeatherNext is GA.
+pub const interim_open_meteo_endpoint =
+    "https://api.open-meteo.com/v1/forecast?latitude=37.77&longitude=-122.42&current=temperature_2m,wind_speed_10m,wind_direction_10m,surface_pressure&timezone=UTC";
 
 pub const Mode = enum {
     fixture,
@@ -23,12 +28,12 @@ pub const FetchReport = struct {
     http_status: ?u16 = null,
     body_digest: ?[]const u8 = null,
     body_bytes: usize = 0,
-    model_family: []const u8 = "WeatherNext 2",
+    model_family: []const u8 = default_model_family,
     notes: []const u8,
 };
 
 pub const fixture_body =
-    \\{"model":"weathernext-2","forecast_type":"ensemble_mean","lead_hours":24,"variables":["2m_temperature","10m_u_component_of_wind","10m_v_component_of_wind","mean_sea_level_pressure"],"authoritative":false}
+    \\{"model":"weathernext-graph","forecast_type":"deterministic","lead_hours":24,"variables":["2m_temperature","10m_u_component_of_wind","10m_v_component_of_wind","mean_sea_level_pressure"],"authoritative":false,"note":"WeatherNext Graph (WN1-class) default until WeatherNext 2 leaves open beta/EAP"}
 ;
 
 pub fn digestHex(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
@@ -53,7 +58,8 @@ pub fn fetchFixture(allocator: std.mem.Allocator) !struct { report: FetchReport,
             .http_status = 200,
             .body_digest = digest,
             .body_bytes = fixture_body.len,
-            .notes = "offline fixture; not Vertex/WeatherLab live data",
+            .model_family = default_model_family,
+            .notes = "offline WeatherNext Graph fixture; not Vertex/WeatherLab live data; WN2 deferred until out of open beta",
         },
         .digest_owned = digest,
     };
@@ -63,10 +69,11 @@ pub fn statusReport(endpoint_configured: bool) FetchReport {
     return .{
         .mode = .status,
         .endpoint_configured = endpoint_configured,
+        .model_family = default_model_family,
         .notes = if (endpoint_configured)
             "endpoint configured; call fetch --live to perform HTTP GET"
         else
-            "set STRIP_WEATHERNEXT_ENDPOINT for live platform fetch",
+            "set STRIP_WEATHERNEXT_ENDPOINT or use fetch --live --interim open-meteo",
     };
 }
 
@@ -75,6 +82,7 @@ pub fn fetchLive(
     allocator: std.mem.Allocator,
     endpoint: []const u8,
     token: ?[]const u8,
+    model_family: []const u8,
 ) !struct { report: FetchReport, digest_owned: []u8, body_owned: []u8 } {
     var client: std.http.Client = .{ .allocator = allocator, .io = io };
     defer client.deinit();
@@ -102,6 +110,7 @@ pub fn fetchLive(
             .http_status = @intFromEnum(result.status),
             .body_digest = digest,
             .body_bytes = body.len,
+            .model_family = model_family,
             .notes = "platform-plane live HTTP; not simulation truth; not OpsSpec weather",
         },
         .digest_owned = digest,

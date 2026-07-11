@@ -42,19 +42,24 @@ zig build test -Doptimize=ReleaseSafe
 ./zig-out/bin/strip-flight-seal build --out /tmp/strip-flight-seal --require-holdout
 STRIP_FLIGHT_PACKAGE=/tmp/strip-flight-seal ./zig-out/bin/strip-verification-gates
 ./zig-out/bin/strip-mavlink-sitl selftest
+./zig-out/bin/strip-mavlink-sitl selftest
 ./zig-out/bin/strip-trajectory selftest
 ./zig-out/bin/strip-trajectory frontier
 ./zig-out/bin/strip-trajectory hil-stream --unix --out trajectory.evidence
 ./zig-out/bin/strip-trajectory router status --intent research
 ./zig-out/bin/strip-trajectory receipt --out trajectory.evidence
+./zig-out/bin/strip-trajectory verdict-attach --id exp-… --result confirmed
+./zig-out/bin/strip-weathernext fixture
 ./zig-out/bin/strip-certification-delta diff <baseline.json> <candidate.json>
 ./zig-out/bin/strip-model-passport issue strip.atmosphere.us76-layered
 ```
 
-Platform-plane live router (keys required; **never** from verify):
+Platform-plane live (keys/endpoints required; **never** from verify):
 
 ```sh
 ./zig-out/bin/strip-trajectory router --live --intent ask "Confirm US76 sea-level T≈288.15K in one sentence."
+./zig-out/bin/strip-weathernext fetch --live --interim open-meteo
+./zig-out/bin/strip-mavlink-sitl udp --host 127.0.0.1 --port 14540
 ```
 
 Latest local gate: unit tests plus UAS, assurance, platform, validation (US76 green),
@@ -90,12 +95,11 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
+- Operator-owned flight/ulog (replace public PX4 sample before Month-6 ops claim)
+- Live `px4-sitl` binary session (UDP path exists; binary still optional/skip)
 - Embeddings-backed analogy lane (separate from structural MAC/FAC)
-- Serial/UART HIL device → JSONL (unix daemon stream exists; serial path API-ready)
-- Auto-attach `trajectory.evidence/receipt.json` into `stax-experiment` verdict `--evidence`
-- Replace held-out sensor-model CSV with a real flight/ulog export before Month-6 flight claim
-- Wire UDP MAVLink to a live `px4-sitl` binary
-- WeatherNext live against a real Vertex/WeatherLab endpoint when credentials exist
+- Serial/UART HIL device → JSONL
+- Vertex WeatherNext Graph/Gen live when EAP ends (interim: Open-Meteo)
 
 ## CI (`verify` workflow)
 

@@ -27,11 +27,11 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 
 ## WeatherNext / WeatherLab (platform only)
 
-- **CLI:** `strip-weathernext status|fixture|fetch --live`
+- **CLI:** `strip-weathernext status|fixture|fetch --live [--interim open-meteo]`
 - **Docs:** [domain/WEATHER-EXTERNAL.md](domain/WEATHER-EXTERNAL.md)
-- **Source id:** `weathernext-2` in `sources/primary-sources.json`
-- **Role:** External ensemble forecast candidate (FGN / Vertex AI)
-- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` (+ optional `STRIP_WEATHERNEXT_TOKEN`)
+- **Default model family:** WeatherNext Graph (WN1-class) until WN2 leaves open beta/EAP
+- **Source id:** `weathernext-2` remains bibliographic; fixture model id is `weathernext-graph`
+- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` or interim Open-Meteo via `--interim open-meteo`
 - **Forbidden:** Simulation truth; OpsSpec weather without operator approval; **not run from `zig build verify`**
 
 ## Dispatch decision engine (advisory)
@@ -72,7 +72,13 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 
 ## PX4 / ArduPilot SITL
 
-- **Next:** Month 9 — co-simulation clock, fault injection, replay evidence ingest
+- **Today:** `strip-mavlink-sitl selftest` (loopback + localhost UDP echo); `udp --host/--port` for live peer
+- **Next:** Persistent live `px4-sitl` session + MAVLink v2 when binary present
+
+## Flight evidence
+
+- **Today:** `strip-flight-seal` defaults to `px4-ulog-export.csv` from public PX4 ULog (`tools/ulog_to_strip_csv.py`)
+- **Next:** Operator-owned flight/ulog before Month-6 operational claim
 
 ## OpenMDAO
 

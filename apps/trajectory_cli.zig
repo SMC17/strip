@@ -10,8 +10,7 @@ pub fn main(init: std.process.Init) !u8 {
     _ = it.next();
     const sub = it.next() orelse {
         std.debug.print(
-            \\usage:
-            \\  strip-trajectory selftest|audit|frontier|receipt|hil-stream [--unix] [--path PATH] [--expect-fail] [--out DIR]
+            \\  strip-trajectory selftest|audit|frontier|receipt|hil-stream|verdict-attach [--unix] [--path PATH] [--expect-fail] [--out DIR] [--id EXP] [--result R]
             \\  strip-trajectory router status [--intent ask|plan|agent|research|validation|hil|long_horizon]
             \\  strip-trajectory router --live [--intent ...] "<prompt>"
             \\
@@ -26,6 +25,9 @@ pub fn main(init: std.process.Init) !u8 {
     var intent_text: []const u8 = "research";
     var live = false;
     var prompt: ?[]const u8 = null;
+    var exp_id: ?[]const u8 = null;
+    var verdict_result: []const u8 = "confirmed";
+    var receipt_path: []const u8 = "trajectory.evidence/receipt.json";
     while (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "--path")) {
             path = it.next() orelse return 2;
@@ -39,6 +41,12 @@ pub fn main(init: std.process.Init) !u8 {
             intent_text = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--live")) {
             live = true;
+        } else if (std.mem.eql(u8, arg, "--id")) {
+            exp_id = it.next() orelse return 2;
+        } else if (std.mem.eql(u8, arg, "--result")) {
+            verdict_result = it.next() orelse return 2;
+        } else if (std.mem.eql(u8, arg, "--receipt")) {
+            receipt_path = it.next() orelse return 2;
         } else if (arg.len > 0 and arg[0] != '-') {
             prompt = arg;
         } else return 2;
@@ -199,7 +207,53 @@ pub fn main(init: std.process.Init) !u8 {
         try writer.writeAll(json);
         return 0;
     }
+    if (std.mem.eql(u8, sub, "verdict-attach")) {
+        const id = exp_id orelse {
+            std.debug.print("verdict-attach requires --id exp-…\n", .{});
+            return 2;
+        };
+        const bytes = try std.Io.Dir.cwd().readFileAlloc(init.io, receipt_path, allocator, .limited(256 * 1024));
+        defer allocator.free(bytes);
+        const digest = extractJsonString(bytes, "content_sha256") orelse return error.ReceiptMissingDigest;
+        const schema = extractJsonString(bytes, "schema") orelse "strip.trajectory.receipt.v0";
+        const abs = try std.Io.Dir.cwd().realPathFileAlloc(init.io, receipt_path, allocator);
+        defer allocator.free(abs);
+        const evidence = try std.fmt.allocPrint(
+            allocator,
+            "receipt_path={s} content_sha256={s} schema={s}",
+            .{ abs, digest, schema },
+        );
+        defer allocator.free(evidence);
+
+        var child = try std.process.spawn(init.io, .{
+            .argv = &.{ "stax-experiment", "verdict", "--id", id, "--result", verdict_result, "--evidence", evidence },
+            .stdin = .ignore,
+        });
+        const term = try child.wait(init.io);
+        const code: u8 = switch (term) {
+            .exited => |c| @intCast(c),
+            else => 1,
+        };
+        var buffer: [1024]u8 = undefined;
+        var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
+        const writer = &file_writer.interface;
+        defer writer.flush() catch {};
+        try writer.print(
+            "{{\"schema\":\"strip.trajectory.verdict-attach.v0\",\"exp_id\":\"{s}\",\"result\":\"{s}\",\"receipt\":\"{s}\",\"evidence\":{f},\"exit\":{d},\"operational_qualification_claimed\":false}}\n",
+            .{ id, verdict_result, abs, std.json.fmt(evidence, .{}), code },
+        );
+        return code;
+    }
     return 2;
+}
+
+fn extractJsonString(bytes: []const u8, key: []const u8) ?[]const u8 {
+    var key_buf: [64]u8 = undefined;
+    const needle = std.fmt.bufPrint(&key_buf, "\"{s}\":\"", .{key}) catch return null;
+    const start = std.mem.indexOf(u8, bytes, needle) orelse return null;
+    const from = start + needle.len;
+    const end = std.mem.indexOfScalarPos(u8, bytes, from, '"') orelse return null;
+    return bytes[from..end];
 }
 
 fn emitAudit(

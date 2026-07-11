@@ -10,7 +10,7 @@ pub fn main(init: std.process.Init) !u8 {
     _ = it.next();
     const sub = it.next() orelse {
         std.debug.print(
-            \\  strip-trajectory selftest|audit|frontier|receipt|hil-stream|verdict-attach [--unix] [--path PATH] [--expect-fail] [--out DIR] [--id EXP] [--result R]
+            \\  strip-trajectory selftest|audit|frontier|receipt|hil-stream|verdict-attach [--unix] [--serial DEVICE] [--path PATH] [--expect-fail] [--out DIR] [--id EXP] [--result R]
             \\  strip-trajectory router status [--intent ask|plan|agent|research|validation|hil|long_horizon]
             \\  strip-trajectory router --live [--intent ...] "<prompt>"
             \\
@@ -22,6 +22,7 @@ pub fn main(init: std.process.Init) !u8 {
     var expect_fail = false;
     var out_dir: []const u8 = "trajectory.evidence";
     var unix = false;
+    var serial_device: ?[]const u8 = null;
     var intent_text: []const u8 = "research";
     var live = false;
     var prompt: ?[]const u8 = null;
@@ -37,6 +38,8 @@ pub fn main(init: std.process.Init) !u8 {
             out_dir = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--unix")) {
             unix = true;
+        } else if (std.mem.eql(u8, arg, "--serial")) {
+            serial_device = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--intent")) {
             intent_text = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--live")) {
@@ -93,7 +96,7 @@ pub fn main(init: std.process.Init) !u8 {
         const writer = &file_writer.interface;
         defer writer.flush() catch {};
         try writer.print(
-            "{{\"schema\":\"strip.trajectory.frontier.v1\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"router_passed\":{},\"workers_passed\":{},\"analogy_passed\":{},\"world_model_passed\":{},\"hil_stream_passed\":{},\"hil_events\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Live OpenRouter/Gemini only via router --live; never from verify\",\"Worker fabric in-process with JSONL assignment persist\",\"Analogy is MAC/FAC feature overlap not embeddings\",\"World-model 1-D ID loop plus rigid-body free-fall residual\",\"HIL JSONL from in-process and threaded unix daemon\"]}}\n",
+            "{{\"schema\":\"strip.trajectory.frontier.v1\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"router_passed\":{},\"workers_passed\":{},\"analogy_passed\":{},\"world_model_passed\":{},\"hil_stream_passed\":{},\"hil_events\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Live OpenRouter/Gemini only via router --live; never from verify\",\"Worker fabric in-process with JSONL assignment persist\",\"Analogy is MAC/FAC feature overlap; EmbeddingLane stub not wired\",\"World-model 1-D ID loop plus rigid-body free-fall residual\",\"HIL JSONL from in-process, threaded unix daemon, and --serial DEVICE (hardware optional)\"]}}\n",
             .{
                 report.counterfactual_passed,
                 report.fault_lab_passed,
@@ -143,28 +146,37 @@ pub fn main(init: std.process.Init) !u8 {
         return 0;
     }
     if (std.mem.eql(u8, sub, "hil-stream")) {
-        const result = if (unix)
+        if (unix and serial_device != null) {
+            std.debug.print("hil-stream: use --unix or --serial DEVICE, not both\n", .{});
+            return 2;
+        }
+        const result = if (serial_device) |device|
+            try strip.trajectory.hil_stream.streamSerial(allocator, init.io, device, 50_000_000)
+        else if (unix)
             try strip.trajectory.hil_stream.streamUnix(allocator, init.io, 50_000_000)
         else
             try strip.trajectory.hil_stream.streamToJsonl(allocator, 50_000_000);
         defer allocator.free(result.jsonl_owned);
         try std.Io.Dir.cwd().createDirPath(init.io, out_dir);
+        const out_name: []const u8 = if (serial_device != null)
+            "hil-serial-stream.jsonl"
+        else if (unix)
+            "hil-unix-stream.jsonl"
+        else
+            "hil-stream.jsonl";
         var path_buf: [512]u8 = undefined;
-        const out_path = try std.fmt.bufPrint(
-            &path_buf,
-            "{s}/{s}",
-            .{ out_dir, if (unix) "hil-unix-stream.jsonl" else "hil-stream.jsonl" },
-        );
+        const out_path = try std.fmt.bufPrint(&path_buf, "{s}/{s}", .{ out_dir, out_name });
         try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = out_path, .data = result.jsonl_owned });
         var buffer: [768]u8 = undefined;
         var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
         const writer = &file_writer.interface;
         defer writer.flush() catch {};
         try writer.print(
-            "{{\"schema\":\"strip.trajectory.hil-stream.v0\",\"out\":\"{s}\",\"unix\":{},\"events_emitted\":{d},\"hil_passed\":{},\"fold_passed\":{},\"jsonl_bytes\":{d},\"passed\":{},\"operational_qualification_claimed\":false}}\n",
+            "{{\"schema\":\"strip.trajectory.hil-stream.v0\",\"out\":\"{s}\",\"unix\":{},\"serial\":{f},\"events_emitted\":{d},\"hil_passed\":{},\"fold_passed\":{},\"jsonl_bytes\":{d},\"passed\":{},\"operational_qualification_claimed\":false}}\n",
             .{
                 out_path,
                 unix,
+                std.json.fmt(serial_device, .{}),
                 result.report.events_emitted,
                 result.report.hil_passed,
                 result.report.fold_passed,

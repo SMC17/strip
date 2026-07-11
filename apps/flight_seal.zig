@@ -9,21 +9,44 @@ pub fn main(init: std.process.Init) !u8 {
     defer it.deinit();
     _ = it.next();
     const sub = it.next() orelse {
-        std.debug.print("usage: strip-flight-seal build [--out DIR] [--telemetry PATH] [--require-holdout]\n", .{});
+        std.debug.print(
+            "usage: strip-flight-seal build [--out DIR] [--telemetry PATH] [--ulog PATH] [--require-holdout]\n",
+            .{},
+        );
         return 2;
     };
     if (!std.mem.eql(u8, sub, "build")) return 2;
     var out_dir: []const u8 = "flight.evidence";
     var telemetry_src: []const u8 = "fixtures/validation/flight-test/px4-ulog-export.csv";
+    var ulog_src: ?[]const u8 = null;
     var require_holdout = false;
     while (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "--out")) {
             out_dir = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--telemetry")) {
             telemetry_src = it.next() orelse return 2;
+        } else if (std.mem.eql(u8, arg, "--ulog")) {
+            ulog_src = it.next() orelse return 2;
         } else if (std.mem.eql(u8, arg, "--require-holdout")) {
             require_holdout = true;
         } else return 2;
+    }
+
+    var from_ulog = false;
+    var ulog_csv_owned: ?[]u8 = null;
+    defer if (ulog_csv_owned) |p| allocator.free(p);
+    if (ulog_src) |ulog_path| {
+        from_ulog = true;
+        try std.Io.Dir.cwd().createDirPath(init.io, out_dir);
+        var telem_dir_buf: [512]u8 = undefined;
+        const telem_dir = try std.fmt.bufPrint(&telem_dir_buf, "{s}/telemetry", .{out_dir});
+        try std.Io.Dir.cwd().createDirPath(init.io, telem_dir);
+        const csv_path = try std.fmt.allocPrint(allocator, "{s}/telemetry/from-ulog.csv", .{out_dir});
+        ulog_csv_owned = csv_path;
+
+        const convert_rc = convertUlog(init.io, ulog_path, csv_path);
+        if (convert_rc != 0) return convert_rc;
+        telemetry_src = csv_path;
     }
 
     const telemetry_bytes = try std.Io.Dir.cwd().readFileAlloc(
@@ -77,10 +100,16 @@ pub fn main(init: std.process.Init) !u8 {
     var package_digest: [64]u8 = undefined;
     strip.flight_test.flight_seal.digestHexOf(material, &package_digest);
 
+    const limitations: []const u8 = if (from_ulog)
+        \\["Telemetry converted from ULog via tools/ulog_to_strip_csv.py; source was ulog.","NOT operator-owned aircraft clearance unless the ulog is from operator flight.","Replace with operator flight/ulog before claiming Month-6 operational flight validation.","flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE."]
+    else
+        \\["Telemetry derived from public PX4 ULog sample (px4_ulog_export); NOT operator-owned aircraft clearance.","Replace with operator flight/ulog before claiming Month-6 operational flight validation.","flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE."]
+    ;
+
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"px4-ulog-export-package-001\",\"created_utc\":\"2026-07-11T05:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal; tools/ulog_to_strip_csv.py\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":[\"Telemetry derived from public PX4 ULog sample (px4_ulog_export); NOT operator-owned aircraft clearance.\",\"Replace with operator flight/ulog before claiming Month-6 operational flight validation.\",\"flight_test tier may pass only when this package is loaded via STRIP_FLIGHT_PACKAGE.\"]}}\n",
-        .{ telemetry_bytes.len, &telem_digest, &package_digest },
+        "{{\"schema\":\"strip.flight-test-evidence.v1\",\"package_id\":\"px4-ulog-export-package-001\",\"created_utc\":\"2026-07-11T05:30:00Z\",\"test_card_id\":\"fw-pitch-doublet-001\",\"configuration_id\":\"clean-light-cg-mid\",\"split_policy_id\":\"synthetic-split-001\",\"toolchain\":\"Zig 0.16; strip-flight-seal; tools/ulog_to_strip_csv.py\",\"artifacts\":[{{\"relative_path\":\"telemetry/run.csv\",\"media_type\":\"text/csv\",\"bytes\":{d},\"sha256\":\"{s}\"}}],\"package_sha256\":\"{s}\",\"sealed\":true,\"operational_qualification_claimed\":false,\"limitations\":{s}}}\n",
+        .{ telemetry_bytes.len, &telem_digest, &package_digest, limitations },
     );
     defer allocator.free(manifest_json);
 
@@ -110,8 +139,40 @@ pub fn main(init: std.process.Init) !u8 {
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.flight-seal.v1\",\"output_dir\":\"{s}\",\"telemetry_src\":\"{s}\",\"package_sha256\":\"sha256:{s}\",\"holdout_required\":{},\"holdout_passed\":{},\"holdout_coverage_1sigma\":{d:.6},\"residual_sigma\":{d:.6},\"sealed\":true,\"operational_qualification_claimed\":false}}\n",
-        .{ out_dir, telemetry_src, &package_digest, require_holdout, holdout_passed, holdout_coverage, residual_sigma },
+        "{{\"schema\":\"strip.flight-seal.v1\",\"output_dir\":\"{s}\",\"telemetry_src\":\"{s}\",\"from_ulog\":{},\"package_sha256\":\"sha256:{s}\",\"holdout_required\":{},\"holdout_passed\":{},\"holdout_coverage_1sigma\":{d:.6},\"residual_sigma\":{d:.6},\"sealed\":true,\"operational_qualification_claimed\":false}}\n",
+        .{ out_dir, telemetry_src, from_ulog, &package_digest, require_holdout, holdout_passed, holdout_coverage, residual_sigma },
     );
+    return 0;
+}
+
+/// Run `tools/ulog_to_strip_csv.py` via python3. Exit 2 if python/pyulog missing.
+fn convertUlog(io: std.Io, ulog_path: []const u8, csv_path: []const u8) u8 {
+    var child = std.process.spawn(io, .{
+        .argv = &.{ "python3", "tools/ulog_to_strip_csv.py", ulog_path, "-o", csv_path },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        // stderr inherits so pyulog/python errors stay visible to the operator
+    }) catch |err| {
+        std.debug.print(
+            "ulog convert failed: python3 unavailable ({s}); install python3 and `pip install pyulog`\n",
+            .{@errorName(err)},
+        );
+        return 2;
+    };
+    const term = child.wait(io) catch {
+        std.debug.print("ulog convert failed: could not wait for python3 child\n", .{});
+        return 2;
+    };
+    const code: u8 = switch (term) {
+        .exited => |c| @intCast(c),
+        else => 1,
+    };
+    if (code != 0) {
+        std.debug.print(
+            "ulog convert failed: exit {d} (need python3 + pyulog: `pip install pyulog`)\n",
+            .{code},
+        );
+        return 2;
+    }
     return 0;
 }

@@ -2,8 +2,33 @@
 //!
 //! Not embeddings. Episodes carry discrete structural features; retrieval ranks
 //! by feature overlap (MAC) then optional deeper structure score (FAC stub).
+//!
+//! `EmbeddingLane` is an explicit not-wired stub — do not fake vectors.
+//! Structural MAC/FAC remains authoritative.
 
 const std = @import("std");
+
+/// Embedding retrieval lane — **not wired**.
+/// Structural MAC/FAC (`Store.retrieve`) remains authoritative until a real
+/// embedding backend is integrated. Do not fake embeddings.
+pub const EmbeddingLane = struct {
+    pub const status_note =
+        "not wired; structural MAC/FAC remains authoritative";
+
+    pub const Status = enum { not_wired };
+
+    status: Status = .not_wired,
+
+    pub fn isWired(self: EmbeddingLane) bool {
+        _ = self;
+        return false;
+    }
+
+    /// Always fails — embeddings are not faked.
+    pub fn retrieve(_: *const EmbeddingLane, _: []const u8, _: []Hit) error{EmbeddingLaneNotWired}!usize {
+        return error.EmbeddingLaneNotWired;
+    }
+};
 
 pub const Feature = enum {
     parser_edit,
@@ -133,6 +158,16 @@ pub fn seedCorpus(buf: []Episode) !Store {
 }
 
 pub fn selftest() !Hit {
+    // Embedding lane must stay unwired; structural MAC/FAC wins.
+    var lane = EmbeddingLane{};
+    if (lane.isWired()) return error.EmbeddingLaneUnexpectedlyWired;
+    var emb_hits: [1]Hit = undefined;
+    if (lane.retrieve("atmosphere claim overreach", &emb_hits)) |_| {
+        return error.EmbeddingLaneMustNotReturnHits;
+    } else |err| {
+        if (err != error.EmbeddingLaneNotWired) return error.UnexpectedEmbeddingError;
+    }
+
     var buf: [8]Episode = undefined;
     const store = try seedCorpus(&buf);
     var hits: [4]Hit = undefined;
@@ -145,4 +180,17 @@ pub fn selftest() !Hit {
 test "analogical retrieval ranks US76 episode" {
     const hit = try selftest();
     try std.testing.expectEqualStrings("ep-us76-coverage", hit.episode_id);
+}
+
+test "EmbeddingLane stub yields to structural MAC/FAC" {
+    var lane = EmbeddingLane{};
+    try std.testing.expect(!lane.isWired());
+    try std.testing.expectEqualStrings(
+        EmbeddingLane.status_note,
+        "not wired; structural MAC/FAC remains authoritative",
+    );
+    var emb_hits: [1]Hit = undefined;
+    try std.testing.expectError(error.EmbeddingLaneNotWired, lane.retrieve("probe", &emb_hits));
+    const structural = try selftest();
+    try std.testing.expectEqualStrings("ep-us76-coverage", structural.episode_id);
 }

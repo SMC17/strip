@@ -14,6 +14,7 @@ const Program = struct {
     assurance_fixture: []const u8,
     assurance_graph: []const u8,
     model_package: []const u8,
+    trajectory: []const u8 = "",
 };
 
 const AssuranceFixture = struct {
@@ -52,6 +53,7 @@ fn parseProgramToml(bytes: []const u8) !Program {
         .assurance_fixture = "",
         .assurance_graph = "",
         .model_package = "",
+        .trajectory = "",
     };
     var lines = std.mem.splitScalar(u8, bytes, '\n');
     while (lines.next()) |raw| {
@@ -61,7 +63,7 @@ fn parseProgramToml(bytes: []const u8) !Program {
         const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
         const key = trimValue(line[0..eq]);
         const value = trimValue(line[eq + 1 ..]);
-        if (std.mem.eql(u8, key, "schema")) program.schema = value else if (std.mem.eql(u8, key, "id")) program.id = value else if (std.mem.eql(u8, key, "sources")) program.sources = value else if (std.mem.eql(u8, key, "validation_case")) program.validation_case = value else if (std.mem.eql(u8, key, "validation_report")) program.validation_report = value else if (std.mem.eql(u8, key, "campaign")) program.campaign = value else if (std.mem.eql(u8, key, "assurance_fixture")) program.assurance_fixture = value else if (std.mem.eql(u8, key, "assurance_graph")) program.assurance_graph = value else if (std.mem.eql(u8, key, "model_package")) program.model_package = value;
+        if (std.mem.eql(u8, key, "schema")) program.schema = value else if (std.mem.eql(u8, key, "id")) program.id = value else if (std.mem.eql(u8, key, "sources")) program.sources = value else if (std.mem.eql(u8, key, "validation_case")) program.validation_case = value else if (std.mem.eql(u8, key, "validation_report")) program.validation_report = value else if (std.mem.eql(u8, key, "campaign")) program.campaign = value else if (std.mem.eql(u8, key, "assurance_fixture")) program.assurance_fixture = value else if (std.mem.eql(u8, key, "assurance_graph")) program.assurance_graph = value else if (std.mem.eql(u8, key, "model_package")) program.model_package = value else if (std.mem.eql(u8, key, "trajectory")) program.trajectory = value;
     }
     if (!std.mem.eql(u8, program.schema, "strip.program.v0") or program.id.len == 0)
         return error.InvalidProgram;
@@ -186,6 +188,22 @@ pub fn main(init: std.process.Init) !u8 {
     const assurance_digest = digestHex(assurance_bytes);
     const graph_digest = digestHex(graph_bytes);
     const model_digest = digestHex(model_bytes);
+
+    var trajectory_bytes: ?[]u8 = null;
+    defer if (trajectory_bytes) |b| allocator.free(b);
+    var trajectory_digest: [64]u8 = [_]u8{'0'} ** 64;
+    var trajectory_folded_ok = false;
+    if (program.trajectory.len > 0) {
+        const tb = try std.Io.Dir.cwd().readFileAlloc(init.io, program.trajectory, allocator, .limited(256 * 1024));
+        trajectory_bytes = tb;
+        trajectory_digest = digestHex(tb);
+        var folded = try strip.trajectory.jsonl.foldJsonl(allocator, tb);
+        defer strip.trajectory.jsonl.freeFold(allocator, folded);
+        const audit = strip.trajectory.jsonl.auditReport(&folded.store);
+        trajectory_folded_ok = audit.passed;
+        if (!trajectory_folded_ok) return error.TrajectoryAuditFailed;
+    }
+
     const artifact_digests = [_][64]u8{
         source_digest,
         case_digest,
@@ -194,6 +212,7 @@ pub fn main(init: std.process.Init) !u8 {
         assurance_digest,
         graph_digest,
         model_digest,
+        trajectory_digest,
     };
     const bundle_digest_hex = bundleDigest(&artifact_digests);
     const key_pair = try strip.serialization.signing.resolveKeyPair(init.environ_map);
@@ -209,10 +228,13 @@ pub fn main(init: std.process.Init) !u8 {
     try writeBundleArtifact(init.io, "assurance-fixture.json", assurance_bytes);
     try writeBundleArtifact(init.io, "assurance-graph.json", graph_bytes);
     try writeBundleArtifact(init.io, "model-package.json", model_bytes);
+    if (trajectory_bytes) |tb| {
+        try writeBundleArtifact(init.io, "trajectory.jsonl", tb);
+    }
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.evidence.bundle.v1\",\"program_id\":\"{s}\",\"output_dir\":\"{s}\",\"bundle_digest\":\"sha256:{s}\",\"execution_identity\":{{\"content_sha256\":\"sha256:{s}\",\"program_id\":\"{s}\"}},\"signature\":{s},\"artifact_digests\":{{\"sources\":\"sha256:{s}\",\"validation_case\":\"sha256:{s}\",\"validation_report\":\"sha256:{s}\",\"campaign\":\"sha256:{s}\",\"assurance_fixture\":\"sha256:{s}\",\"assurance_graph\":\"sha256:{s}\",\"model_package\":\"sha256:{s}\"}},\"source_count\":{d},\"model_count\":{d},\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"report_status\":\"{s}\",\"assurance_claim\":\"{s}\",\"assurance_internally_consistent\":{},\"assurance_limiting_strength\":\"{s}\",\"assurance_diagnostic_count\":{d},\"operational_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.evidence.bundle.v1\",\"program_id\":\"{s}\",\"output_dir\":\"{s}\",\"bundle_digest\":\"sha256:{s}\",\"execution_identity\":{{\"content_sha256\":\"sha256:{s}\",\"program_id\":\"{s}\"}},\"signature\":{s},\"artifact_digests\":{{\"sources\":\"sha256:{s}\",\"validation_case\":\"sha256:{s}\",\"validation_report\":\"sha256:{s}\",\"campaign\":\"sha256:{s}\",\"assurance_fixture\":\"sha256:{s}\",\"assurance_graph\":\"sha256:{s}\",\"model_package\":\"sha256:{s}\",\"trajectory\":\"sha256:{s}\"}},\"trajectory_audit_passed\":{},\"source_count\":{d},\"model_count\":{d},\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"report_status\":\"{s}\",\"assurance_claim\":\"{s}\",\"assurance_internally_consistent\":{},\"assurance_limiting_strength\":\"{s}\",\"assurance_diagnostic_count\":{d},\"operational_qualification_claimed\":false}}\n",
         .{
             program.id,
             output_dir,
@@ -227,6 +249,8 @@ pub fn main(init: std.process.Init) !u8 {
             &assurance_digest,
             &graph_digest,
             &model_digest,
+            &trajectory_digest,
+            trajectory_folded_ok,
             sources.value.records.len,
             model_package.value.models.len,
             validated.joined,
@@ -251,5 +275,6 @@ pub fn main(init: std.process.Init) !u8 {
 
     const validation_ok = validated.joined and validated.all_source_ids_resolved;
     const assurance_ok = assurance_consistent;
-    return if (validation_ok and assurance_ok) 0 else 2;
+    const trajectory_ok = program.trajectory.len == 0 or trajectory_folded_ok;
+    return if (validation_ok and assurance_ok and trajectory_ok) 0 else 2;
 }

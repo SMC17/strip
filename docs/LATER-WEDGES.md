@@ -13,6 +13,6 @@ Status: **engines landed** — not operational qualification.
 | Navigation capability | `schemas/navigation-capability.schema.json` | Doctrine map + schema |
 | Dispatch decision evidence | `strip-dispatch decide` | Advisory engine; rails for unapproved weather / duty / pressure |
 | WeatherNext client | `strip-weathernext` | Platform-plane fixture/status/live; **not** invoked from verify |
-| Trajectory kernel | `strip-trajectory` + `docs/TRAJECTORY.md` | Typed actions, JSONL fold, claim-vs-evidence audit, duplicate-delivery idempotency |
+| Trajectory kernel | `strip-trajectory` + `docs/TRAJECTORY.md` | Frontier pack: counterfactual, causal, fault lab, aerospace contracts, receipts, evidence-bound |
 
 `operational_qualification_claimed` is forced `false` on all scaffold artifacts.

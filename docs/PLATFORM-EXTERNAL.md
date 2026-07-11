@@ -72,8 +72,9 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 
 ## PX4 / ArduPilot SITL
 
-- **Today:** `strip-mavlink-sitl selftest` (loopback + localhost UDP echo); `udp --host/--port` for live peer
-- **Next:** Persistent live `px4-sitl` session + MAVLink v2 when binary present
+- **Today:** `strip-mavlink-sitl selftest` (loopback + UDP echo on 28570/28571); live `udp` probes MAVLink v2 peers (default docker host-network ports)
+- **Smoke:** `tools/px4_sitl_smoke.sh` (jonasvautherin/px4-gazebo-headless:1.14.0, `--network host`)
+- **Never** from `zig build verify`
 
 ## Flight evidence
 

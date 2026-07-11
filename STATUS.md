@@ -95,11 +95,10 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Operator-owned flight/ulog (replace public PX4 sample before Month-6 ops claim)
-- Live `px4-sitl` binary session (UDP path exists; binary still optional/skip)
-- Embeddings-backed analogy lane (separate from structural MAC/FAC)
-- Serial/UART HIL device → JSONL
-- Vertex WeatherNext Graph/Gen live when EAP ends (interim: Open-Meteo)
+- Operator-owned flight/ulog before Month-6 ops claim (`--ulog PATH` + public sample already wired)
+- Real embeddings backend for analogy (`EmbeddingLane` stub; MAC/FAC authoritative)
+- Live serial/UART HIL hardware (`hil-stream --serial` wired; verify stays unix/in-process)
+- Vertex WeatherNext Graph/Gen when EAP ends (interim: Open-Meteo)
 
 ## CI (`verify` workflow)
 

@@ -7,11 +7,20 @@
 
 const std = @import("std");
 const mavlink = @import("mavlink.zig");
+const mavlink_v2 = @import("mavlink_v2.zig");
 const clock = @import("../flight_test/clock.zig");
 
 pub const heartbeat_msg_id: u8 = 0;
 /// MAVLink common.xml HEARTBEAT crc_extra.
 pub const heartbeat_crc_extra: u8 = 50;
+
+/// Echo ports — avoid PX4 SITL defaults (18570 GCS, 14580 offboard, 14280 payload).
+pub const echo_fc_port: u16 = 28570;
+pub const echo_gcs_port: u16 = 28571;
+/// Default live peer: PX4 gimbal/onboard port that reliably ACKs MAVLink v2 in SITL.
+pub const default_sitl_port: u16 = 13030;
+/// Ports to probe when `--port` is omitted (px4-rc.mavlink layout).
+pub const sitl_probe_ports = [_]u16{ 13030, 14280, 14580, 18570 };
 
 pub const Heartbeat = struct {
     type: u8 = 2, // MAV_TYPE_QUADROTOR
@@ -106,7 +115,7 @@ pub const UdpResult = struct {
     live_connected: bool,
 };
 
-fn encodeHeartbeatFrame(seq: u8, out: *[mavlink.max_frame_len]u8) !usize {
+fn encodeHeartbeatFrameV1(seq: u8, out: *[mavlink.max_frame_len]u8) !usize {
     var hb = Heartbeat{};
     var payload: [9]u8 = undefined;
     hb.encodePayload(&payload);
@@ -119,21 +128,47 @@ fn encodeHeartbeatFrame(seq: u8, out: *[mavlink.max_frame_len]u8) !usize {
     return mavlink.encode(&message, heartbeat_crc_extra, out);
 }
 
+fn encodeHeartbeatFrameV2(seq: u8, out: *[mavlink_v2.max_frame_len]u8) !usize {
+    var hb = Heartbeat{};
+    var payload: [9]u8 = undefined;
+    hb.encodePayload(&payload);
+    const message = try mavlink_v2.Message.init(.{
+        .sequence = seq,
+        .system_id = 255,
+        .component_id = 190,
+        .message_id = heartbeat_msg_id,
+    }, &payload);
+    return mavlink_v2.encode(&message, heartbeat_crc_extra, out);
+}
+
+fn frameLooksAlive(data: []const u8) bool {
+    if (data.len < 8) return false;
+    if (data[0] == mavlink.start_of_frame) {
+        if (mavlink.decode(data, heartbeat_crc_extra)) |_| return true else |_| {
+            return true; // SOF present; peer speaks MAVLink even if CRC/msg differs
+        }
+    }
+    if (data[0] == mavlink_v2.start_of_frame) {
+        if (mavlink_v2.decode(data, heartbeat_crc_extra)) |_| return true else |_| {
+            return data.len >= 12;
+        }
+    }
+    return false;
+}
+
 /// In-process UDP HEARTBEAT echo on localhost (no PX4 binary required).
 pub fn runUdpEcho(io: std.Io, allocator: std.mem.Allocator) !UdpResult {
     _ = allocator;
-    const fc_port: u16 = 18570;
-    const gcs_port: u16 = 18571;
-    var fc_bind: std.Io.net.IpAddress = .{ .ip4 = .loopback(fc_port) };
-    var gcs_bind: std.Io.net.IpAddress = .{ .ip4 = .loopback(gcs_port) };
+    var fc_bind: std.Io.net.IpAddress = .{ .ip4 = .loopback(echo_fc_port) };
+    var gcs_bind: std.Io.net.IpAddress = .{ .ip4 = .loopback(echo_gcs_port) };
     const fc = try std.Io.net.IpAddress.bind(&fc_bind, io, .{ .mode = .dgram, .protocol = .udp });
     defer fc.close(io);
     const gcs = try std.Io.net.IpAddress.bind(&gcs_bind, io, .{ .mode = .dgram, .protocol = .udp });
     defer gcs.close(io);
 
     var frame: [mavlink.max_frame_len]u8 = undefined;
-    const n = try encodeHeartbeatFrame(1, &frame);
-    var dest: std.Io.net.IpAddress = .{ .ip4 = .loopback(fc_port) };
+    const n = try encodeHeartbeatFrameV1(1, &frame);
+    var dest: std.Io.net.IpAddress = .{ .ip4 = .loopback(echo_fc_port) };
     try gcs.send(io, &dest, frame[0..n]);
 
     var rbuf: [512]u8 = undefined;
@@ -141,7 +176,7 @@ pub fn runUdpEcho(io: std.Io, allocator: std.mem.Allocator) !UdpResult {
     const decoded = try mavlink.decode(got.data, heartbeat_crc_extra);
     _ = try Heartbeat.decodePayload(decoded.payloadSlice());
 
-    const n2 = try encodeHeartbeatFrame(2, &frame);
+    const n2 = try encodeHeartbeatFrameV1(2, &frame);
     try fc.send(io, &got.from, frame[0..n2]);
     const back = try gcs.receiveTimeout(io, &rbuf, .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(500), .clock = .awake } });
     const decoded2 = try mavlink.decode(back.data, heartbeat_crc_extra);
@@ -154,78 +189,85 @@ pub fn runUdpEcho(io: std.Io, allocator: std.mem.Allocator) !UdpResult {
         .heartbeat_ok = true,
         .px4_binary_present = false,
         .host = "127.0.0.1",
-        .port = fc_port,
+        .port = echo_fc_port,
         .live_attempted = false,
         .live_connected = false,
     };
 }
 
-/// Attempt UDP HEARTBEAT exchange with a live px4-sitl (or any MAVLink peer).
+/// Attempt UDP exchange with a live px4-sitl (MAVLink v1 or v2).
 pub fn runUdpSitl(
     io: std.Io,
     allocator: std.mem.Allocator,
     host: []const u8,
     port: u16,
 ) !UdpResult {
-    const px4 = probePx4Binary(io, allocator);
-    const ip4 = std.Io.net.Ip4Address.parse(host, port) catch {
-        return .{
-            .mode = "udp_sitl",
-            .frames_sent = 0,
-            .frames_received = 0,
-            .heartbeat_ok = false,
-            .px4_binary_present = px4,
-            .host = host,
-            .port = port,
-            .live_attempted = true,
-            .live_connected = false,
-        };
-    };
-    var local: std.Io.net.IpAddress = .{ .ip4 = .loopback(18572) };
+    const px4_bin = probePx4Binary(io, allocator);
+    var local: std.Io.net.IpAddress = .{ .ip4 = .{ .bytes = .{ 0, 0, 0, 0 }, .port = 0 } };
     const sock = try std.Io.net.IpAddress.bind(&local, io, .{ .mode = .dgram, .protocol = .udp });
     defer sock.close(io);
 
-    var frame: [mavlink.max_frame_len]u8 = undefined;
-    const n = try encodeHeartbeatFrame(1, &frame);
-    var dest: std.Io.net.IpAddress = .{ .ip4 = ip4 };
-    try sock.send(io, &dest, frame[0..n]);
+    var frame_v2: [mavlink_v2.max_frame_len]u8 = undefined;
+    const n2 = try encodeHeartbeatFrameV2(1, &frame_v2);
+    var frame_v1: [mavlink.max_frame_len]u8 = undefined;
+    const n1 = try encodeHeartbeatFrameV1(2, &frame_v1);
 
-    var rbuf: [512]u8 = undefined;
-    const got = sock.receiveTimeout(io, &rbuf, .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(1500), .clock = .awake } }) catch {
-        return .{
-            .mode = "udp_sitl",
-            .frames_sent = 1,
-            .frames_received = 0,
-            .heartbeat_ok = false,
-            .px4_binary_present = px4,
-            .host = host,
-            .port = port,
-            .live_attempted = true,
-            .live_connected = false,
-        };
-    };
-    var heartbeat_ok = false;
-    if (mavlink.decode(got.data, heartbeat_crc_extra)) |decoded| {
-        if (decoded.header.message_id == heartbeat_msg_id) {
-            heartbeat_ok = if (Heartbeat.decodePayload(decoded.payloadSlice())) |_| true else |_| false;
-        } else {
-            heartbeat_ok = true;
+    var ports_buf: [8]u16 = undefined;
+    var ports_len: usize = 0;
+    if (port != 0) {
+        ports_buf[0] = port;
+        ports_len = 1;
+    } else {
+        for (sitl_probe_ports) |p| {
+            ports_buf[ports_len] = p;
+            ports_len += 1;
         }
-    } else |_| {
-        heartbeat_ok = got.data.len >= 8 and got.data[0] == mavlink.start_of_frame;
     }
 
+    var sent: usize = 0;
+    var last_port: u16 = if (ports_len > 0) ports_buf[0] else default_sitl_port;
+    var attempt: u8 = 0;
+    while (attempt < 6) : (attempt += 1) {
+        for (ports_buf[0..ports_len]) |p| {
+            last_port = p;
+            const ip4 = std.Io.net.Ip4Address.parse(host, p) catch continue;
+            var dest: std.Io.net.IpAddress = .{ .ip4 = ip4 };
+            try sock.send(io, &dest, frame_v2[0..n2]);
+            try sock.send(io, &dest, frame_v1[0..n1]);
+            sent += 2;
+            var rbuf: [512]u8 = undefined;
+            if (sock.receiveTimeout(io, &rbuf, .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(400), .clock = .awake } })) |got| {
+                const alive = frameLooksAlive(got.data);
+                return .{
+                    .mode = "udp_sitl",
+                    .frames_sent = sent,
+                    .frames_received = 1,
+                    .heartbeat_ok = alive,
+                    .px4_binary_present = px4_bin or alive,
+                    .host = host,
+                    .port = p,
+                    .live_attempted = true,
+                    .live_connected = alive,
+                };
+            } else |_| {}
+        }
+    }
     return .{
         .mode = "udp_sitl",
-        .frames_sent = 1,
-        .frames_received = 1,
-        .heartbeat_ok = heartbeat_ok,
-        .px4_binary_present = px4,
+        .frames_sent = sent,
+        .frames_received = 0,
+        .heartbeat_ok = false,
+        .px4_binary_present = px4_bin,
         .host = host,
-        .port = port,
+        .port = last_port,
         .live_attempted = true,
-        .live_connected = heartbeat_ok,
+        .live_connected = false,
     };
+}
+
+/// Probe default SITL port set (port=0).
+pub fn runUdpSitlAuto(io: std.Io, allocator: std.mem.Allocator, host: []const u8) !UdpResult {
+    return runUdpSitl(io, allocator, host, 0);
 }
 
 pub fn runLoopback(

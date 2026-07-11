@@ -156,6 +156,73 @@ pub fn streamUnix(allocator: std.mem.Allocator, io: std.Io, deadline_ns: u64) !S
     };
 }
 
+pub fn streamSerial(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    device_path: []const u8,
+    deadline_ns: u64,
+) !StreamResult {
+    const prog = try hil_bench.runSerial(io, allocator, device_path, deadline_ns);
+    defer {
+        allocator.free(prog.records);
+        allocator.free(prog.samples_owned);
+    }
+    var list: std.ArrayList(u8) = .empty;
+    errdefer list.deinit(allocator);
+    const hil_passed = prog.report.passed and prog.report.actuator_sensor_completed;
+    try list.appendSlice(allocator,
+        \\{"sequence":0,"event_id":"hil-serial-e0","kind":"trajectory_created","delivery_id":"hil-serial-d0","detail":"hil-serial-stream"}
+        \\{"sequence":1,"event_id":"hil-serial-e1","kind":"objective_received","delivery_id":"hil-serial-d1","detail":"Serial HIL device progression"}
+        \\{"sequence":2,"event_id":"hil-serial-e2","kind":"action_proposed","delivery_id":"hil-serial-d2","action":{"kind":"run_hil_protocol","action_id":"a-hil-serial","objective":"Serial HIL progression","target":"serial_device","risk":"simulation","verification":["v-hil-serial"]}}
+        \\{"sequence":3,"event_id":"hil-serial-e3","kind":"policy_evaluated","delivery_id":"hil-serial-d3","policy":"approved"}
+        \\{"sequence":4,"event_id":"hil-serial-e4","kind":"action_executed","delivery_id":"hil-serial-d4","detail":"runSerial"}
+        \\
+    );
+    const obs = try std.fmt.allocPrint(
+        allocator,
+        "{{\"sequence\":5,\"event_id\":\"hil-serial-obs\",\"kind\":\"observation_recorded\",\"delivery_id\":\"hil-serial-d-obs\",\"detail\":\"transport=serial_device;device={s}\"}}\n",
+        .{device_path},
+    );
+    defer allocator.free(obs);
+    try list.appendSlice(allocator, obs);
+    const verif_status: []const u8 = if (hil_passed) "passed" else "failed";
+    const vline = try std.fmt.allocPrint(
+        allocator,
+        "{{\"sequence\":6,\"event_id\":\"v-hil-serial\",\"kind\":\"verification_completed\",\"delivery_id\":\"hil-serial-d-v\",\"verification_status\":\"{s}\",\"detail\":\"serial hil\"}}\n",
+        .{verif_status},
+    );
+    defer allocator.free(vline);
+    try list.appendSlice(allocator, vline);
+    if (hil_passed) {
+        try list.appendSlice(allocator,
+            \\{"sequence":7,"event_id":"hil-serial-claim","kind":"claim_asserted","delivery_id":"hil-serial-d-c","evidence_refs":["v-hil-serial"],"detail":"Serial HIL progression completed"}
+            \\{"sequence":8,"event_id":"hil-serial-done","kind":"run_completed","delivery_id":"hil-serial-d-done","detail":"closed"}
+            \\
+        );
+    } else {
+        try list.appendSlice(allocator,
+            \\{"sequence":7,"event_id":"hil-serial-done","kind":"run_completed","delivery_id":"hil-serial-d-done","detail":"closed without claim"}
+            \\
+        );
+    }
+    const owned = try list.toOwnedSlice(allocator);
+    var folded = try jsonl.foldJsonl(allocator, owned);
+    defer jsonl.freeFold(allocator, folded);
+    const audit = jsonl.auditReport(&folded.store);
+    const fold_passed = if (hil_passed) audit.passed else true;
+    const passed = hil_passed and fold_passed;
+    return .{
+        .report = .{
+            .events_emitted = folded.store.state.event_count,
+            .hil_passed = hil_passed,
+            .fold_passed = fold_passed,
+            .jsonl_bytes = owned.len,
+            .passed = passed,
+        },
+        .jsonl_owned = owned,
+    };
+}
+
 pub fn selftest(allocator: std.mem.Allocator) !StreamReport {
     const result = try streamToJsonl(allocator, 50_000_000);
     defer allocator.free(result.jsonl_owned);

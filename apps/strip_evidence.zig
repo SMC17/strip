@@ -61,15 +61,7 @@ fn parseProgramToml(bytes: []const u8) !Program {
         const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
         const key = trimValue(line[0..eq]);
         const value = trimValue(line[eq + 1 ..]);
-        if (std.mem.eql(u8, key, "schema")) program.schema = value
-        else if (std.mem.eql(u8, key, "id")) program.id = value
-        else if (std.mem.eql(u8, key, "sources")) program.sources = value
-        else if (std.mem.eql(u8, key, "validation_case")) program.validation_case = value
-        else if (std.mem.eql(u8, key, "validation_report")) program.validation_report = value
-        else if (std.mem.eql(u8, key, "campaign")) program.campaign = value
-        else if (std.mem.eql(u8, key, "assurance_fixture")) program.assurance_fixture = value
-        else if (std.mem.eql(u8, key, "assurance_graph")) program.assurance_graph = value
-        else if (std.mem.eql(u8, key, "model_package")) program.model_package = value;
+        if (std.mem.eql(u8, key, "schema")) program.schema = value else if (std.mem.eql(u8, key, "id")) program.id = value else if (std.mem.eql(u8, key, "sources")) program.sources = value else if (std.mem.eql(u8, key, "validation_case")) program.validation_case = value else if (std.mem.eql(u8, key, "validation_report")) program.validation_report = value else if (std.mem.eql(u8, key, "campaign")) program.campaign = value else if (std.mem.eql(u8, key, "assurance_fixture")) program.assurance_fixture = value else if (std.mem.eql(u8, key, "assurance_graph")) program.assurance_graph = value else if (std.mem.eql(u8, key, "model_package")) program.model_package = value;
     }
     if (!std.mem.eql(u8, program.schema, "strip.program.v0") or program.id.len == 0)
         return error.InvalidProgram;
@@ -204,6 +196,10 @@ pub fn main(init: std.process.Init) !u8 {
         model_digest,
     };
     const bundle_digest_hex = bundleDigest(&artifact_digests);
+    const key_pair = try strip.serialization.signing.ciKeyPair();
+    const signature = try strip.serialization.signing.signDigestHex(key_pair, &bundle_digest_hex);
+    var signature_json_buf: [512]u8 = undefined;
+    const signature_json = try signature.formatJson(&signature_json_buf);
 
     try std.Io.Dir.cwd().createDirPath(init.io, output_dir);
     try writeBundleArtifact(init.io, "sources.json", source_bytes);
@@ -216,12 +212,12 @@ pub fn main(init: std.process.Init) !u8 {
 
     const manifest_json = try std.fmt.allocPrint(
         allocator,
-        "{{\"schema\":\"strip.evidence.bundle.v1\",\"program_id\":\"{s}\",\"output_dir\":\"{s}\",\"bundle_digest\":\"sha256:{s}\",\"signature\":{{\"algorithm\":\"unsigned\",\"digest\":\"sha256:{s}\"}},\"artifact_digests\":{{\"sources\":\"sha256:{s}\",\"validation_case\":\"sha256:{s}\",\"validation_report\":\"sha256:{s}\",\"campaign\":\"sha256:{s}\",\"assurance_fixture\":\"sha256:{s}\",\"assurance_graph\":\"sha256:{s}\",\"model_package\":\"sha256:{s}\"}},\"source_count\":{d},\"model_count\":{d},\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"report_status\":\"{s}\",\"assurance_claim\":\"{s}\",\"assurance_internally_consistent\":{},\"assurance_limiting_strength\":\"{s}\",\"assurance_diagnostic_count\":{d},\"operational_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.evidence.bundle.v1\",\"program_id\":\"{s}\",\"output_dir\":\"{s}\",\"bundle_digest\":\"sha256:{s}\",\"signature\":{s},\"artifact_digests\":{{\"sources\":\"sha256:{s}\",\"validation_case\":\"sha256:{s}\",\"validation_report\":\"sha256:{s}\",\"campaign\":\"sha256:{s}\",\"assurance_fixture\":\"sha256:{s}\",\"assurance_graph\":\"sha256:{s}\",\"model_package\":\"sha256:{s}\"}},\"source_count\":{d},\"model_count\":{d},\"case_joined\":{},\"expected_dimensions_complete\":{},\"source_ids_resolved\":{},\"report_status\":\"{s}\",\"assurance_claim\":\"{s}\",\"assurance_internally_consistent\":{},\"assurance_limiting_strength\":\"{s}\",\"assurance_diagnostic_count\":{d},\"operational_qualification_claimed\":false}}\n",
         .{
             program.id,
             output_dir,
             &bundle_digest_hex,
-            &bundle_digest_hex,
+            signature_json,
             &source_digest,
             &case_digest,
             &report_digest,
@@ -243,6 +239,7 @@ pub fn main(init: std.process.Init) !u8 {
     );
     defer allocator.free(manifest_json);
     try writeBundleArtifact(init.io, "manifest.json", manifest_json);
+    try strip.serialization.signing.verifyDigestHex(signature, &bundle_digest_hex);
 
     var buffer: [12288]u8 = undefined;
     var file_writer = std.Io.File.stdout().writer(init.io, &buffer);

@@ -109,7 +109,7 @@ test "joined report requires every case dimension and resolved source id" {
                 .extracted_artifact_path = "fixtures/validation/comparator-perturbed.json",
                 .extracted_artifact_digest = "sha256:00ff94c1e0df81fc56790c0f2288d0c58f98377bf375bb7bdc95616626b0b6dd",
             },
-            .limitations = &.{ "Not physical evidence." },
+            .limitations = &.{"Not physical evidence."},
         }},
     };
 

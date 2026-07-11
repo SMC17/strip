@@ -63,7 +63,7 @@ takeoff → climb → waypoint → descent → landing
 | ID | Issue | Status |
 |----|-------|--------|
 | P0.1 | Subprocess JSON string lifetime (JSBSim integrate/coeff, OpenVSP export) | **Fixed** 2026-07-10 |
-| P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Partial** — `export_real_passed` requires landmark or digest; smoke alone no longer qualifies |
+| P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Partial** — `export_real_passed` requires landmark or digest; `openvsp_cmd_mesh_digest` pinned from OpenVSP 3.42.0 CI |
 | P0.3 | Stale STL / nonzero vsp exit accepted | **Partial** — delete-before-export; exit policy still relaxed |
 | P0.4 | `watertight_required` ignored | **Fixed** 2026-07-10 |
 | P0.5 | Canonical buffer heuristics | **Fixed** 2026-07-10 — streaming encoder hashes coordinates in place |
@@ -140,7 +140,7 @@ See [docs/PLATFORM-EXTERNAL.md](docs/PLATFORM-EXTERNAL.md).
 ## Product wedges (ranked)
 
 1. **Strip Verify** — CI credibility compiler for UAS teams (now)
-2. **Evidence compiler** — `strip evidence build` → signed package (now)
+2. **Evidence compiler** — `strip evidence build` → Ed25519-attested package (CI key)
 3. **Certification-delta engine** — what must be redone on change (now)
 4. **Model credibility passports** — machine-readable applicability (now)
 5. **Validation campaign compiler** — declarative DOE/Monte Carlo/holdout (early)

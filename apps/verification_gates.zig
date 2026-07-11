@@ -172,6 +172,8 @@ pub fn main(init: std.process.Init) !u8 {
     var export_mesh_valid = false;
     var export_geometry_conformance: []const u8 = "failed";
     var export_backend: []const u8 = "unavailable";
+    var export_mesh_digest: []const u8 = "none";
+    var export_mesh_digest_buf: [71]u8 = undefined;
     const export_runtime_version: []const u8 = init.environ_map.get("OPENSP_RUNTIME_VERSION") orelse "none";
     const openvsp_cmd = init.environ_map.get("OPENSP_CMD");
     const require_openvsp = init.environ_map.get("STRIP_REQUIRE_OPENSP_CMD") != null;
@@ -229,8 +231,20 @@ pub fn main(init: std.process.Init) !u8 {
                 export_invocation_succeeded = export_report.invocation_succeeded;
                 export_mesh_valid = export_report.mesh_valid;
                 export_geometry_conformance = @tagName(export_report.geometry_conformance);
+                const mesh_id = mesh.digest();
+                @memcpy(export_mesh_digest_buf[0..7], "sha256:");
+                @memcpy(export_mesh_digest_buf[7..], mesh_id.hex[0..64]);
+                export_mesh_digest = &export_mesh_digest_buf;
                 if (!export_passed) failed = true;
                 if (require_openvsp and !export_real_passed) failed = true;
+                if (require_openvsp and export_query_val.backend == .openvsp_cmd) {
+                    if (export_manifest.value.openvsp_cmd_mesh_digest) |pinned| {
+                        if (!std.mem.eql(u8, export_mesh_digest, pinned) and
+                            export_report.geometry_conformance != .landmark_match and
+                            export_report.geometry_conformance != .openvsp_cmd_digest_match)
+                            failed = true;
+                    } else failed = true;
+                }
             }
         }
     } else {
@@ -324,12 +338,31 @@ pub fn main(init: std.process.Init) !u8 {
     );
     if (!qualification_report.passed) failed = true;
 
+    const openvsp_json = try std.fmt.allocPrint(
+        allocator,
+        "{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_invocation_succeeded\":{},\"export_mesh_valid\":{},\"export_geometry_conformance\":\"{s}\",\"export_mesh_digest\":\"{s}\",\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}}",
+        .{
+            openvsp_report.passed,
+            tess_report.passed,
+            export_passed,
+            export_real_passed,
+            export_invocation_succeeded,
+            export_mesh_valid,
+            export_geometry_conformance,
+            export_mesh_digest,
+            export_backend,
+            export_runtime_version,
+            strip.adapters.openvsp.pinned_version,
+        },
+    );
+    defer allocator.free(openvsp_json);
+
     var buffer: [20480]u8 = undefined;
     var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
     const writer = &file_writer.interface;
     defer writer.flush() catch {};
     try writer.print(
-        "{{\"schema\":\"strip.verification-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{{\"digest_passed\":{},\"tessellation_passed\":{},\"export_passed\":{},\"export_real_passed\":{},\"export_invocation_succeeded\":{},\"export_mesh_valid\":{},\"export_geometry_conformance\":\"{s}\",\"export_backend\":\"{s}\",\"export_runtime_version\":\"{s}\",\"pinned_version\":\"{s}\"}},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
+        "{{\"schema\":\"strip.verification-gates.v3\",\"jsbsim\":{{\"atmosphere\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"fixed_wing\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}},\"coefficients\":{{\"backend\":\"{s}\",\"evidence_tier\":\"{s}\",\"passed\":{}}}}},\"openvsp\":{s},\"replay\":{{\"case\":\"{s}\",\"baseline_status\":\"{s}\",\"pending_count\":{d},\"fingerprint_hex\":\"{s}\",\"fingerprint_matches\":{}}},\"uncertainty\":{{\"mc_calibrated\":{},\"campaign_holdout_passed\":{},\"campaign_coverage_1sigma\":{d:.6},\"fusion_sigma\":{d:.6}}},\"flight_evidence\":{{\"framework_passed\":{},\"tier\":\"software_only\",\"tier_ladder\":{{\"software_only\":\"{s}\",\"hardware_in_loop\":\"{s}\",\"flight_test\":\"{s}\"}},\"operational_qualification_claimed\":false}},\"flight_qualification_claimed\":false}}\n",
         .{
             jsbsim_atmos_backend,
             jsbsim_atmos_evidence,
@@ -340,16 +373,7 @@ pub fn main(init: std.process.Init) !u8 {
             jsbsim_coeff_backend,
             jsbsim_coeff_evidence,
             jsbsim_coeff_passed,
-            openvsp_report.passed,
-            tess_report.passed,
-            export_passed,
-            export_real_passed,
-            export_invocation_succeeded,
-            export_mesh_valid,
-            export_geometry_conformance,
-            export_backend,
-            export_runtime_version,
-            strip.adapters.openvsp.pinned_version,
+            openvsp_json,
             replay_measurement.case_id orelse "missing",
             @tagName(replay_measurement.baseline_status),
             replay_pending_count,

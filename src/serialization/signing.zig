@@ -1,0 +1,129 @@
+//! Ed25519 attestation for evidence and campaign bundles.
+//!
+//! The committed CI keypair is a *development attestation key* only. It proves
+//! bundle integrity under a known public key; it is not a production HSM or
+//! organizational signing authority.
+const std = @import("std");
+
+pub const Ed25519 = std.crypto.sign.Ed25519;
+
+pub const Algorithm = enum {
+    ed25519,
+    unsigned,
+};
+
+pub const Signature = struct {
+    algorithm: Algorithm,
+    public_key_hex: [64]u8,
+    signature_hex: [128]u8,
+    message_digest_hex: [64]u8,
+
+    pub fn formatJson(self: Signature, buffer: []u8) ![]const u8 {
+        return std.fmt.bufPrint(
+            buffer,
+            "{{\"algorithm\":\"{s}\",\"public_key\":\"ed25519:{s}\",\"signature\":\"ed25519:{s}\",\"message_digest\":\"sha256:{s}\"}}",
+            .{
+                @tagName(self.algorithm),
+                &self.public_key_hex,
+                &self.signature_hex,
+                &self.message_digest_hex,
+            },
+        );
+    }
+};
+
+pub const ci_seed_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+fn hexNibble(c: u8) !u8 {
+    return switch (c) {
+        '0'...'9' => c - '0',
+        'a'...'f' => c - 'a' + 10,
+        'A'...'F' => c - 'A' + 10,
+        else => error.InvalidHex,
+    };
+}
+
+pub fn decodeHex(comptime n: usize, hex: []const u8) ![n]u8 {
+    if (hex.len != n * 2) return error.InvalidHexLength;
+    var out: [n]u8 = undefined;
+    for (0..n) |i| {
+        const hi = try hexNibble(hex[i * 2]);
+        const lo = try hexNibble(hex[i * 2 + 1]);
+        out[i] = (hi << 4) | lo;
+    }
+    return out;
+}
+
+pub fn encodeHex(bytes: []const u8, out: []u8) !void {
+    if (out.len < bytes.len * 2) return error.BufferTooSmall;
+    const alphabet = "0123456789abcdef";
+    for (bytes, 0..) |byte, i| {
+        out[i * 2] = alphabet[byte >> 4];
+        out[i * 2 + 1] = alphabet[byte & 0x0f];
+    }
+}
+
+pub fn keyPairFromSeedHex(seed_hex: []const u8) !Ed25519.KeyPair {
+    const seed = try decodeHex(32, seed_hex);
+    return try Ed25519.KeyPair.generateDeterministic(seed);
+}
+
+pub fn ciKeyPair() !Ed25519.KeyPair {
+    return keyPairFromSeedHex(ci_seed_hex);
+}
+
+pub fn signDigestHex(key_pair: Ed25519.KeyPair, digest_hex: []const u8) !Signature {
+    if (digest_hex.len != 64) return error.InvalidDigestHex;
+    const sig = try key_pair.sign(digest_hex, null);
+    var public_hex: [64]u8 = undefined;
+    var sig_hex: [128]u8 = undefined;
+    var digest_out: [64]u8 = undefined;
+    try encodeHex(&key_pair.public_key.bytes, &public_hex);
+    try encodeHex(&sig.toBytes(), &sig_hex);
+    @memcpy(&digest_out, digest_hex[0..64]);
+    return .{
+        .algorithm = .ed25519,
+        .public_key_hex = public_hex,
+        .signature_hex = sig_hex,
+        .message_digest_hex = digest_out,
+    };
+}
+
+pub fn verifyDigestHex(signature: Signature, digest_hex: []const u8) !void {
+    if (signature.algorithm != .ed25519) return error.UnsupportedAlgorithm;
+    if (!std.mem.eql(u8, &signature.message_digest_hex, digest_hex)) return error.DigestMismatch;
+    const public_bytes = try decodeHex(32, &signature.public_key_hex);
+    const sig_bytes = try decodeHex(64, &signature.signature_hex);
+    const public_key = try Ed25519.PublicKey.fromBytes(public_bytes);
+    const sig = Ed25519.Signature.fromBytes(sig_bytes);
+    try sig.verify(digest_hex, public_key);
+}
+
+pub fn loadSeedHex(io: std.Io, path: []const u8) ![64]u8 {
+    const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, std.heap.page_allocator, .limited(128));
+    defer std.heap.page_allocator.free(bytes);
+    const trimmed = std.mem.trim(u8, bytes, " \t\r\n");
+    if (trimmed.len != 64) return error.InvalidSeedFile;
+    var out: [64]u8 = undefined;
+    @memcpy(&out, trimmed[0..64]);
+    return out;
+}
+
+test "ci keypair signs and verifies digest hex" {
+    const key_pair = try ciKeyPair();
+    const digest = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
+    const signature = try signDigestHex(key_pair, digest);
+    try verifyDigestHex(signature, digest);
+    try std.testing.expectError(error.DigestMismatch, verifyDigestHex(signature, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+}
+
+test "ci public key is stable under committed seed" {
+    const key_pair = try ciKeyPair();
+    var public_hex: [64]u8 = undefined;
+    try encodeHex(&key_pair.public_key.bytes, &public_hex);
+    // Frozen for fixture/docs; regenerate only with intentional key rotation.
+    try std.testing.expectEqualStrings(
+        "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6",
+        &public_hex,
+    );
+}

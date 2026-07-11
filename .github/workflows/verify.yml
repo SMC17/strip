@@ -191,6 +191,14 @@ jobs:
           ./zig-out/bin/strip-verification-gates | tee verification-gates.json
           python3 - <<'PY'
           import json, sys
+          from pathlib import Path
+          smoke = json.loads(Path("export-smoke.json").read_text())
+          pin = json.loads(Path("fixtures/validation/openvsp/export-conformance.json").read_text())
+          expected = pin.get("openvsp_cmd_mesh_digest")
+          if not expected:
+              raise SystemExit("openvsp_cmd_mesh_digest pin missing from export-conformance.json")
+          if smoke.get("mesh_digest") != expected:
+              raise SystemExit(f"export mesh_digest {smoke.get('mesh_digest')} != pin {expected}")
           report = json.loads(open("verification-gates.json").read())
           ov = report.get("openvsp", {})
           if ov.get("export_backend") != "openvsp_cmd":
@@ -200,5 +208,55 @@ jobs:
           conf = ov.get("export_geometry_conformance")
           if conf not in ("landmark_match", "openvsp_cmd_digest_match", "analytic_digest_match"):
               raise SystemExit(f"export_real_passed requires landmark/digest conformance, got {conf}")
-          print("real OpenVSP export gate passed")
+          if ov.get("export_mesh_digest") != expected and conf != "landmark_match":
+              raise SystemExit(
+                  f"gate mesh digest {ov.get('export_mesh_digest')} != pin {expected} (conf={conf})"
+              )
+          print("real OpenVSP export digest pin matched")
           PY
+      - name: Upload OpenVSP export smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvsp-export-smoke
+          path: |
+            export-smoke.json
+            openvsp-smoke.stl
+
+  campaign-10k:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Run full 10k campaign bundle
+        env:
+          STRIP_CAMPAIGN_RUN_ALL: "1"
+        run: |
+          zig build
+          ./zig-out/bin/strip-campaign run campaigns/reference-uas-contingency.toml | tee campaign-bundle.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("campaign.evidence/manifest.json").read_text())
+          if manifest.get("monte_carlo_runs") != 10000:
+              raise SystemExit(f"expected 10000 declared runs, got {manifest.get('monte_carlo_runs')}")
+          if manifest.get("runs_executed") != 10000:
+              raise SystemExit(f"expected 10000 executed runs, got {manifest.get('runs_executed')}")
+          sig = manifest.get("signature") or {}
+          if sig.get("algorithm") != "ed25519":
+              raise SystemExit(f"expected ed25519 signature, got {sig}")
+          ladder = manifest.get("tier_ladder") or {}
+          if ladder.get("software_only") != "passed":
+              raise SystemExit(f"software_only tier not passed: {ladder}")
+          if ladder.get("flight_test") != "missing":
+              raise SystemExit(f"flight_test must remain missing without flight evidence: {ladder}")
+          if "hardware_in_loop" not in ladder:
+              raise SystemExit("tier_ladder missing hardware_in_loop")
+          print("campaign 10k bundle + tier ladder ok")
+          PY
+      - name: Upload campaign evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-evidence-10k
+          path: campaign.evidence/

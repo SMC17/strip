@@ -8,6 +8,7 @@ pub const comparator = @import("comparator.zig");
 pub const join = @import("join.zig");
 pub const certification_delta = @import("certification_delta.zig");
 pub const model_passport = @import("model_passport.zig");
+pub const dispatch_decision = @import("dispatch_decision.zig");
 
 test {
     _ = envelope;
@@ -18,4 +19,5 @@ test {
     _ = join;
     _ = certification_delta;
     _ = model_passport;
+    _ = dispatch_decision;
 }

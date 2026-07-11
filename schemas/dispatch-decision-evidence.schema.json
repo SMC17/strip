@@ -53,6 +53,11 @@
       "minLength": 1,
       "maxLength": 240
     },
+    "recommendation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
     "operational_qualification_claimed": { "const": false }
   }
 }

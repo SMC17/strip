@@ -76,10 +76,9 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Serial/Unix-socket HIL daemon beyond in-process `SHIL` protocol
 - Held-out flight validation for Month-6 exit (campaign SIL faults remain synthetic by design)
-- WeatherNext live client only on platform plane (never in verify)
-- Dispatch decision evidence engine beyond schema scaffold (human authority retained)
+- WeatherNext live against a real Vertex/WeatherLab endpoint when credentials exist
+- Serial HIL against a physical UART/USB device (API ready; verify uses Unix daemon)
 
 ## CI (`verify` workflow)
 

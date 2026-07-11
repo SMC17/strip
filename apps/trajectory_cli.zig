@@ -1,4 +1,4 @@
-//! `strip-trajectory` — fold, audit, frontier pack, receipt emit.
+//! `strip-trajectory` — fold, audit, frontier pack, receipt, HIL stream.
 
 const std = @import("std");
 const strip = @import("strip");
@@ -10,7 +10,7 @@ pub fn main(init: std.process.Init) !u8 {
     _ = it.next();
     const sub = it.next() orelse {
         std.debug.print(
-            \\usage: strip-trajectory selftest|audit|frontier|receipt [--path PATH] [--expect-fail] [--out DIR]
+            \\usage: strip-trajectory selftest|audit|frontier|receipt|hil-stream [--path PATH] [--expect-fail] [--out DIR]
             \\
         , .{});
         return 2;
@@ -56,12 +56,12 @@ pub fn main(init: std.process.Init) !u8 {
     }
     if (std.mem.eql(u8, sub, "frontier")) {
         const report = try strip.trajectory.frontier.run(allocator, init.io);
-        var buffer: [1024]u8 = undefined;
+        var buffer: [1536]u8 = undefined;
         var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
         const writer = &file_writer.interface;
         defer writer.flush() catch {};
         try writer.print(
-            "{{\"schema\":\"strip.trajectory.frontier.v0\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Not a Cursor protocol clone\",\"Not live multi-model routing\",\"Not aircraft operational qualification\"]}}\n",
+            "{{\"schema\":\"strip.trajectory.frontier.v1\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"router_passed\":{},\"workers_passed\":{},\"analogy_passed\":{},\"world_model_passed\":{},\"hil_stream_passed\":{},\"hil_events\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Router does not call external model APIs in verify\",\"Worker fabric is in-process only\",\"Analogy is structural feature overlap not embeddings\",\"World-model is a 1-D toy plant\",\"HIL stream uses in-process bench protocol\"]}}\n",
             .{
                 report.counterfactual_passed,
                 report.fault_lab_passed,
@@ -70,6 +70,12 @@ pub fn main(init: std.process.Init) !u8 {
                 report.receipt_sealed,
                 report.memory_classes,
                 report.scheduler_ready,
+                report.router_passed,
+                report.workers_passed,
+                report.analogy_passed,
+                report.world_model_passed,
+                report.hil_stream_passed,
+                report.hil_events,
                 report.passed,
             },
         );
@@ -103,6 +109,30 @@ pub fn main(init: std.process.Init) !u8 {
         defer writer.flush() catch {};
         try writer.writeAll(json);
         return 0;
+    }
+    if (std.mem.eql(u8, sub, "hil-stream")) {
+        const result = try strip.trajectory.hil_stream.streamToJsonl(allocator, 50_000_000);
+        defer allocator.free(result.jsonl_owned);
+        try std.Io.Dir.cwd().createDirPath(init.io, out_dir);
+        var path_buf: [512]u8 = undefined;
+        const out_path = try std.fmt.bufPrint(&path_buf, "{s}/hil-stream.jsonl", .{out_dir});
+        try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = out_path, .data = result.jsonl_owned });
+        var buffer: [768]u8 = undefined;
+        var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
+        const writer = &file_writer.interface;
+        defer writer.flush() catch {};
+        try writer.print(
+            "{{\"schema\":\"strip.trajectory.hil-stream.v0\",\"out\":\"{s}\",\"events_emitted\":{d},\"hil_passed\":{},\"fold_passed\":{},\"jsonl_bytes\":{d},\"passed\":{},\"operational_qualification_claimed\":false}}\n",
+            .{
+                out_path,
+                result.report.events_emitted,
+                result.report.hil_passed,
+                result.report.fold_passed,
+                result.report.jsonl_bytes,
+                result.report.passed,
+            },
+        );
+        return if (result.report.passed) 0 else 1;
     }
     return 2;
 }

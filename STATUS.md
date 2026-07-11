@@ -44,6 +44,7 @@ STRIP_FLIGHT_PACKAGE=/tmp/strip-flight-seal ./zig-out/bin/strip-verification-gat
 ./zig-out/bin/strip-mavlink-sitl selftest
 ./zig-out/bin/strip-trajectory selftest
 ./zig-out/bin/strip-trajectory frontier
+./zig-out/bin/strip-trajectory hil-stream --out trajectory.evidence
 ./zig-out/bin/strip-trajectory receipt --out trajectory.evidence
 ./zig-out/bin/strip-certification-delta diff <baseline.json> <candidate.json>
 ./zig-out/bin/strip-model-passport issue strip.atmosphere.us76-layered
@@ -82,13 +83,15 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Stream HIL/campaign events live into trajectory JSONL (today: fixture narratives)
-- Counterfactual across campaign seeds / model policies with cost metrics
+- Optional live router path behind explicit intent (still never from verify)
+- Persist worker assignments across process restarts
+- Embeddings-backed analogy lane (separate from structural MAC/FAC)
+- Couple world-model loop to Strip rigid-body / atmosphere states
+- Serial/UART HIL device → JSONL (API ready; stream today is in-process)
 - Auto-attach `trajectory.evidence/receipt.json` into `stax-experiment` verdict `--evidence`
 - Replace held-out sensor-model CSV with a real flight/ulog export before Month-6 flight claim
-- Wire UDP MAVLink to a live `px4-sitl` binary (loopback selftest is offline-only today)
+- Wire UDP MAVLink to a live `px4-sitl` binary
 - WeatherNext live against a real Vertex/WeatherLab endpoint when credentials exist
-- Serial HIL against a physical UART/USB device (API ready; verify uses Unix daemon)
 
 ## CI (`verify` workflow)
 

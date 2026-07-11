@@ -1,15 +1,20 @@
-//! Frontier pack: run counterfactual + causal + fault lab + aerospace + receipt.
+//! Frontier pack v1 + v2 (router, workers, analogy, world-model, HIL stream).
 
 const std = @import("std");
 const aerospace = @import("aerospace.zig");
+const analogy = @import("analogy.zig");
 const causal = @import("causal.zig");
 const counterfactual = @import("counterfactual.zig");
 const fault_lab = @import("fault_lab.zig");
+const hil_stream = @import("hil_stream.zig");
 const jsonl = @import("jsonl.zig");
 const memory = @import("memory.zig");
 const receipt = @import("receipt.zig");
+const router = @import("router.zig");
 const scheduler = @import("scheduler.zig");
 const signing = @import("../serialization/signing.zig");
+const workers = @import("workers.zig");
+const world_model = @import("world_model.zig");
 
 pub const Report = struct {
     counterfactual_passed: bool,
@@ -19,6 +24,12 @@ pub const Report = struct {
     receipt_sealed: bool,
     memory_classes: usize,
     scheduler_ready: usize,
+    router_passed: bool,
+    workers_passed: bool,
+    analogy_passed: bool,
+    world_model_passed: bool,
+    hil_stream_passed: bool,
+    hil_events: usize,
     passed: bool,
 };
 
@@ -30,7 +41,6 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io) !Report {
     const fault_ok = fault_lab.allPassed(&faults);
 
     try aerospace.pitchControllerContract().validate();
-    const aero_ok = true;
 
     const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(256 * 1024));
     defer allocator.free(bytes);
@@ -66,22 +76,40 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io) !Report {
         .verification = &.{"receipt"},
     });
 
-    const passed = cf.passed and fault_ok and aero_ok and graph.claim_support_edges >= 1 and
+    const route = try router.selftest();
+    try workers.selftest();
+    const hit = try analogy.selftest();
+    _ = hit;
+    const wm = try world_model.selftest();
+    const hil = try hil_stream.selftest(allocator);
+
+    const v1 = cf.passed and fault_ok and graph.claim_support_edges >= 1 and
         rec.claims_supported >= 1 and sched.readyCount() == 1;
+    const v2 = std.mem.eql(u8, route.model_id, "strip-trajectory-local") and
+        wm.passed and hil.passed;
+    const passed = v1 and v2;
 
     return .{
         .counterfactual_passed = cf.passed,
         .fault_lab_passed = fault_ok,
-        .aerospace_passed = aero_ok,
+        .aerospace_passed = true,
         .causal_support_edges = graph.claim_support_edges,
         .receipt_sealed = rec.signature_json.len > 0,
         .memory_classes = std.meta.fields(memory.Class).len,
         .scheduler_ready = sched.readyCount(),
+        .router_passed = true,
+        .workers_passed = true,
+        .analogy_passed = true,
+        .world_model_passed = wm.passed,
+        .hil_stream_passed = hil.passed,
+        .hil_events = hil.events_emitted,
         .passed = passed,
     };
 }
 
-test "frontier pack passes" {
+test "frontier pack v2 passes" {
     const report = try run(std.testing.allocator, std.testing.io);
     try std.testing.expect(report.passed);
+    try std.testing.expect(report.router_passed);
+    try std.testing.expect(report.hil_stream_passed);
 }

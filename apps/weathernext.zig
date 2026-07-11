@@ -1,6 +1,6 @@
 //! `strip-weathernext` — platform-plane weather client (never authoritative).
 //! Defaults to WeatherNext Graph until WN2 leaves open beta.
-//! Interim live: Open-Meteo or NOAA/NWS (Vertex WeatherNext still EAP).
+//! Open replacement: multi-model stack (AIFS+Atlas+FCN3); interim live via Open-Meteo/NWS.
 
 const std = @import("std");
 const strip = @import("strip");
@@ -10,10 +10,12 @@ fn usage() void {
         \\usage:
         \\  strip-weathernext status
         \\  strip-weathernext fixture
-        \\  strip-weathernext fetch --live [--interim open-meteo|nws]
+        \\  strip-weathernext stack
+        \\  strip-weathernext stack-plan
+        \\  strip-weathernext fetch --live [--interim open-meteo|nws|aifs|ifs]
         \\
-        \\Live: STRIP_WEATHERNEXT_ENDPOINT, or --interim until Vertex WN is GA.
-        \\Vertex WeatherNext 2 remains EAP (no public REST); Maps Weather API needs OAuth.
+        \\WN2 Vertex remains EAP. Open stack doctrine: docs/domain/WEATHER-OPEN-STACK.md
+        \\Live interim never runs from zig build verify.
         \\
     , .{});
 }
@@ -39,6 +41,18 @@ pub fn main(init: std.process.Init) !u8 {
         const got = try strip.platform.weathernext.fetchFixture(allocator);
         defer allocator.free(got.digest_owned);
         const json = try strip.platform.weathernext.formatReport(allocator, got.report);
+        defer allocator.free(json);
+        try writeOut(init, json);
+        return 0;
+    }
+    if (std.mem.eql(u8, cmd, "stack")) {
+        const json = try strip.platform.weather_open_stack.formatCatalogJson(allocator);
+        defer allocator.free(json);
+        try writeOut(init, json);
+        return if (strip.platform.weather_open_stack.requireCoreIds()) 0 else 1;
+    }
+    if (std.mem.eql(u8, cmd, "stack-plan")) {
+        const json = try strip.platform.weather_open_stack.formatPlanJson(allocator);
         defer allocator.free(json);
         try writeOut(init, json);
         return 0;
@@ -70,11 +84,19 @@ pub fn main(init: std.process.Init) !u8 {
                     user_agent = strip.platform.weathernext.nws_user_agent;
                     break :blk strip.platform.weathernext.interim_nws_points_endpoint;
                 }
-                std.debug.print("unknown --interim {s} (supported: open-meteo, nws)\n", .{name});
+                if (std.mem.eql(u8, name, "aifs")) {
+                    model_family = "ECMWF AIFS (Open-Meteo bridge; open WN2-stack operational anchor)";
+                    break :blk strip.platform.weathernext.interim_aifs_endpoint;
+                }
+                if (std.mem.eql(u8, name, "ifs")) {
+                    model_family = "ECMWF IFS 0.25 (Open-Meteo bridge; NWP comparator)";
+                    break :blk strip.platform.weathernext.interim_ifs_endpoint;
+                }
+                std.debug.print("unknown --interim {s} (supported: open-meteo, nws, aifs, ifs)\n", .{name});
                 return 2;
             }
             break :blk endpoint_env orelse {
-                std.debug.print("STRIP_WEATHERNEXT_ENDPOINT required, or pass --interim open-meteo|nws\n", .{});
+                std.debug.print("STRIP_WEATHERNEXT_ENDPOINT required, or pass --interim open-meteo|nws|aifs|ifs\n", .{});
                 return 2;
             };
         };
@@ -101,7 +123,7 @@ pub fn main(init: std.process.Init) !u8 {
 }
 
 fn writeOut(init: std.process.Init, json: []const u8) !void {
-    var buffer: [4096]u8 = undefined;
+    var buffer: [8192]u8 = undefined;
     var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
     const writer = &file_writer.interface;
     defer writer.flush() catch {};

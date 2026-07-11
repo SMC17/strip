@@ -1,0 +1,13 @@
+{
+  "schema": "strip.weather.open-stack.plan.v0",
+  "plane": "platform",
+  "authoritative": false,
+  "operational_qualification_claimed": true,
+  "framework": "x",
+  "killer_stack": "y",
+  "members": [
+    { "id": "aifs_ens_v2", "role": "operational_anchor", "required": true }
+  ],
+  "calibration": ["EMOS"],
+  "regional": ["oneforecast"]
+}

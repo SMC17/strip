@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign-physics.invalid/strip/experience-tokens.schema.json",
+  "title": "Sovereign Experience token document (seed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "layer", "tokens", "operational_qualification_claimed"],
+  "properties": {
+    "schema": { "const": "sovereign.experience-tokens.v0" },
+    "layer": {
+      "enum": ["primitive", "semantic", "authority", "visualization", "motion", "application"]
+    },
+    "tokens": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value"],
+        "properties": {
+          "value": { "type": ["string", "number"] },
+          "type": { "enum": ["color", "dimension", "duration", "string", "number"] },
+          "comment": { "type": "string", "maxLength": 256 }
+        }
+      }
+    },
+    "operational_qualification_claimed": { "const": false }
+  }
+}

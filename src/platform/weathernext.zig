@@ -12,6 +12,14 @@ pub const default_model_family = "WeatherNext Graph";
 pub const interim_open_meteo_endpoint =
     "https://api.open-meteo.com/v1/forecast?latitude=37.77&longitude=-122.42&current=temperature_2m,wind_speed_10m,wind_direction_10m,surface_pressure&timezone=UTC";
 
+/// ECMWF AIFS via Open-Meteo (operational open-model bridge; not full 51-member ENS client).
+pub const interim_aifs_endpoint =
+    "https://api.open-meteo.com/v1/forecast?latitude=37.77&longitude=-122.42&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_aifs025&forecast_days=3&timezone=UTC";
+
+/// ECMWF IFS 0.25° via Open-Meteo (deterministic NWP comparator member).
+pub const interim_ifs_endpoint =
+    "https://api.open-meteo.com/v1/forecast?latitude=37.77&longitude=-122.42&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_ifs025&forecast_days=3&timezone=UTC";
+
 /// NOAA/NWS points metadata (free; requires User-Agent). Not WeatherNext — bridging until Vertex EAP.
 pub const interim_nws_points_endpoint =
     "https://api.weather.gov/points/37.77,-122.42";
@@ -79,7 +87,7 @@ pub fn statusReport(endpoint_configured: bool) FetchReport {
         .notes = if (endpoint_configured)
             "endpoint configured; call fetch --live to perform HTTP GET"
         else
-            "set STRIP_WEATHERNEXT_ENDPOINT or use fetch --live --interim open-meteo|nws",
+            "set STRIP_WEATHERNEXT_ENDPOINT or use fetch --live --interim open-meteo|nws|aifs|ifs",
     };
 }
 

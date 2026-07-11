@@ -27,13 +27,14 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 
 ## WeatherNext / WeatherLab (platform only)
 
-- **CLI:** `strip-weathernext status|fixture|fetch --live [--interim open-meteo]`
-- **Docs:** [domain/WEATHER-EXTERNAL.md](domain/WEATHER-EXTERNAL.md)
+- **CLI:** `strip-weathernext status|fixture|stack|stack-plan|fetch --live [--interim open-meteo|nws|aifs|ifs]`
+- **Docs:** [domain/WEATHER-EXTERNAL.md](domain/WEATHER-EXTERNAL.md), [domain/WEATHER-OPEN-STACK.md](domain/WEATHER-OPEN-STACK.md)
 - **Default model family:** WeatherNext Graph (WN1-class) until WN2 leaves open beta/EAP
+- **Open WN2 substitute:** typed multi-model stack (AIFS + Atlas + FourCastNet 3); Earth2Studio runners deferred
 - **Source id:** `weathernext-2` remains bibliographic; fixture model id is `weathernext-graph`
-- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` or `--interim open-meteo|nws`
+- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` or `--interim open-meteo|nws|aifs|ifs`
 - **Vertex WN2:** still EAP (no public REST); Maps Weather API requires OAuth (Gemini key insufficient)
-- **Forbidden:** Simulation truth; OpsSpec weather without operator approval; **not run from `zig build verify`**
+- **Forbidden:** Simulation truth; OpsSpec weather without operator approval; **not run from `zig build verify`** (offline `stack`/`stack-plan`/`fixture` only)
 
 ## Dispatch decision engine (advisory)
 

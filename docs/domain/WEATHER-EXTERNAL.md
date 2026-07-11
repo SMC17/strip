@@ -39,3 +39,9 @@ Unapproved AI weather pulls are an explicit market-gap risk (see DISPATCH-OPS).
 Strip’s native weather contracts (US76, Dryden/von Kármán, wind fields) stay
 deterministic and local. External ML forecasts are candidates until human-signed
 into an evidence package.
+
+## Open WN2 substitute (no Vertex required)
+
+See [WEATHER-OPEN-STACK.md](WEATHER-OPEN-STACK.md). Typed catalog:
+`strip-weathernext stack` / `stack-plan`. Live operational-anchor bridge:
+`--interim aifs` (Open-Meteo `ecmwf_aifs025`).

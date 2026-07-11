@@ -1,0 +1,20 @@
+{
+  "schema": "sovereign.experience-tokens.v0",
+  "layer": "authority",
+  "tokens": {
+    "authority.proposal.color": { "value": "#7C3AED", "type": "color", "comment": "candidate / proposal — never looks like accepted" },
+    "authority.simulated.color": { "value": "#2563EB", "type": "color" },
+    "authority.unit_tested.color": { "value": "#0EA5E9", "type": "color" },
+    "authority.accepted.color": { "value": "#15803D", "type": "color", "comment": "accepted/validated only" },
+    "authority.warning.color": { "value": "#D97706", "type": "color" },
+    "authority.outside_envelope.color": { "value": "#C2410C", "type": "color" },
+    "authority.refuted.color": { "value": "#B91C1C", "type": "color" },
+    "authority.stale.color": { "value": "#6B7280", "type": "color" },
+    "authority.proposal.symbol": { "value": "◇", "type": "string" },
+    "authority.simulated.symbol": { "value": "△", "type": "string" },
+    "authority.accepted.symbol": { "value": "✓", "type": "string" },
+    "authority.stale.symbol": { "value": "◷", "type": "string" },
+    "authority.refuted.symbol": { "value": "⨯", "type": "string" }
+  },
+  "operational_qualification_claimed": false
+}

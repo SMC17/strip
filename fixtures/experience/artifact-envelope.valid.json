@@ -1,0 +1,38 @@
+{
+  "schema": "sovereign.artifact-envelope.v0",
+  "id": "forecast-member-aifs-demo-001",
+  "kind": "forecast_member",
+  "schema_version": "0",
+  "value": {
+    "variable": "temperature_2m",
+    "lead_hours": 24,
+    "sample": 18.4
+  },
+  "units": { "symbol": "degC", "system": "si" },
+  "generated_at": "2026-07-11T23:00:00Z",
+  "valid_at": "2026-07-12T23:00:00Z",
+  "source": {
+    "engine": "strip-weathernext",
+    "engine_version": "0.1",
+    "model": "ecmwf_aifs025",
+    "model_version": "open-meteo-bridge"
+  },
+  "context": {
+    "intended_use": "platform_plane_candidate_only",
+    "scenario_id": "sfo-point-demo",
+    "run_id": "run-open-stack-001"
+  },
+  "validity": {
+    "status": "unknown",
+    "constraints": ["not OpsSpec weather", "interim HTTP bridge"]
+  },
+  "uncertainty": {
+    "type": "qualitative",
+    "payload": { "note": "single Open-Meteo AIFS member sample; not calibrated ensemble MOS" }
+  },
+  "authority": {
+    "level": "proposal",
+    "evidence_ids": ["strip.weather.open-stack.catalog.v0"]
+  },
+  "operational_qualification_claimed": false
+}

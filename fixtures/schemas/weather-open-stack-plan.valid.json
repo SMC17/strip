@@ -1,0 +1,19 @@
+{
+  "schema": "strip.weather.open-stack.plan.v0",
+  "plane": "platform",
+  "authoritative": false,
+  "operational_qualification_claimed": false,
+  "framework": "Earth2Studio is the preferred integration layer (GraphCast/Pangu/Aurora/FuXi/AIFS/U-Cast). Local weight runners are deferred; Open-Meteo+NWS are interim HTTP bridges only.",
+  "killer_stack": "AIFS ENS v2 + Atlas + FourCastNet 3 + regional OneForecast/StormScope + local calibration — more open/auditable than WN2 even without a single-model CRPS win.",
+  "members": [
+    { "id": "aifs_ens_v2", "role": "operational_anchor", "required": true },
+    { "id": "atlas", "role": "frontier_ensemble", "required": true },
+    { "id": "fourcastnet3", "role": "large_ensemble_engine", "required": true },
+    { "id": "fuxi_2_1", "role": "deterministic_detail", "required": false },
+    { "id": "aurora", "role": "deterministic_detail", "required": false },
+    { "id": "oneforecast", "role": "regional_refinement", "required": false },
+    { "id": "nws_bridge", "role": "calibration_target", "required": false }
+  ],
+  "calibration": ["EMOS", "isotonic", "learned_quantile_mapping"],
+  "regional": ["oneforecast", "stormscope", "wrf_or_mpas_or_fv3"]
+}

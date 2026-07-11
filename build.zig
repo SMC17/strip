@@ -322,7 +322,13 @@ pub fn build(b: *std.Build) void {
         }),
     });
     b.installArtifact(weathernext_cli);
-    // Platform-only: install but do not run live fetch from verify.
+    // Platform-only: install + offline stack catalog in verify; never live fetch.
+    const run_weathernext_stack = b.addRunArtifact(weathernext_cli);
+    run_weathernext_stack.addArg("stack");
+    const run_weathernext_plan = b.addRunArtifact(weathernext_cli);
+    run_weathernext_plan.addArg("stack-plan");
+    const run_weathernext_fixture = b.addRunArtifact(weathernext_cli);
+    run_weathernext_fixture.addArg("fixture");
 
     const google_cli = b.addExecutable(.{
         .name = "strip-google",
@@ -400,4 +406,7 @@ pub fn build(b: *std.Build) void {
     verify_step.dependOn(&run_dispatch.step);
     verify_step.dependOn(&run_google_catalog.step);
     verify_step.dependOn(&run_google_gemini_fixture.step);
+    verify_step.dependOn(&run_weathernext_stack.step);
+    verify_step.dependOn(&run_weathernext_plan.step);
+    verify_step.dependOn(&run_weathernext_fixture.step);
 }

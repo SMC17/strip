@@ -4,7 +4,7 @@
 //! descriptions against a pinned release manifest and expected digests.
 
 const std = @import("std");
-const serialization = @import("../serialization/digest.zig");
+const serialization = @import("../serialization/root.zig");
 
 pub const pinned_product = "OpenVSP";
 pub const pinned_version = "3.42.0";
@@ -74,10 +74,25 @@ pub const GeometryArtifact = struct {
         return buffer[0..index];
     }
 
-    pub fn digest(self: GeometryArtifact) !serialization.Identifier {
-        var buffer: [4096]u8 = undefined;
-        const canonical = try self.canonicalBytes(&buffer);
-        return serialization.sha256(canonical);
+    pub fn digest(self: GeometryArtifact) serialization.digest.Identifier {
+        var hasher = std.crypto.hash.sha2.Sha256.init(.{});
+        serialization.canonical_encoder.appendText(&hasher, self.name);
+        serialization.canonical_encoder.appendText(&hasher, "|");
+        serialization.canonical_encoder.appendText(&hasher, self.units);
+        serialization.canonical_encoder.appendText(&hasher, "|");
+        serialization.canonical_encoder.appendText(&hasher, self.up_axis);
+        serialization.canonical_encoder.appendText(&hasher, "|");
+        for (self.components) |component| {
+            serialization.canonical_encoder.appendText(&hasher, component.name);
+            serialization.canonical_encoder.appendText(&hasher, "|");
+            serialization.canonical_encoder.appendText(&hasher, component.kind);
+            serialization.canonical_encoder.appendText(&hasher, "|");
+            serialization.canonical_encoder.appendGeometryCoord(&hasher, component.span_m);
+            serialization.canonical_encoder.appendGeometryCoord(&hasher, component.chord_m);
+            serialization.canonical_encoder.appendGeometryCoord(&hasher, component.sweep_deg);
+            serialization.canonical_encoder.appendGeometryCoord(&hasher, component.dihedral_deg);
+        }
+        return serialization.canonical_encoder.finishHasher(&hasher);
     }
 };
 
@@ -110,7 +125,7 @@ pub const ConformanceManifest = struct {
 
 pub const ConformanceReport = struct {
     component_count: u32,
-    geometry_digest: serialization.Identifier,
+    geometry_digest: serialization.digest.Identifier,
     digest_matches: bool,
     version_matches: bool,
     passed: bool,
@@ -124,7 +139,7 @@ pub fn verifyConformance(
     try artifact.validate();
     if (!std.mem.eql(u8, artifact.name, manifest.artifact_name)) return error.ArtifactNameMismatch;
 
-    const digest = try artifact.digest();
+    const digest = artifact.digest();
     var digest_text: [71]u8 = undefined;
     @memcpy(digest_text[0..7], "sha256:");
     @memcpy(digest_text[7..], digest.hex[0..64]);
@@ -200,7 +215,7 @@ test "geometry digest changes when span changes" {
         .up_axis = "Y",
         .components = &.{.{ .name = "MainWing", .kind = "Wing", .span_m = 10.1, .chord_m = 1.5 }},
     };
-    const base_digest = try base.digest();
-    const mutated_digest = try mutated.digest();
+    const base_digest = base.digest();
+    const mutated_digest = mutated.digest();
     try std.testing.expect(!std.mem.eql(u8, &base_digest.hex, &mutated_digest.hex));
 }

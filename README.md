@@ -1,16 +1,18 @@
 # Strip
 
-Evidence-bearing aerospace computation in Zig.
+**Trust and evidence OS** for computational aerospace engineering — in Zig.
 
 Strip starts with one invariant: a numerical result is incomplete unless it
 identifies its model, units, intended use, validity envelope, and proof.
+
+See [docs/CATEGORY.md](docs/CATEGORY.md) for the category thesis and [ROADMAP-1.0.md](ROADMAP-1.0.md) for the frozen programme.
 
 ## What exists
 
 - evidence, provenance, dependency, uncertainty, schema, and public-use types
 - typed vector/frame math and WGS84 geodetic/ECEF/NED transforms
 - deterministic time, event ordering, named RNG streams, identities, and replay
-- a bounded atmosphere model and coupled rigid-body 6-DOF flight kernel
+- a unified US76 atmosphere API (layered 0–86 km; troposphere envelope variant) and coupled rigid-body 6-DOF flight kernel
 - fixed-wing aerodynamics, multirotor propulsion, trim, and analysis primitives
 - weather/turbulence through 86 km, terrain, perception timing, and human factors
 - deterministic multi-rate runtime, scene composition, collision, and sensor timing
@@ -34,6 +36,7 @@ zig build
 ./zig-out/bin/strip-validation
 ./zig-out/bin/strip-fidelity
 ./zig-out/bin/strip-proof-gates
+./zig-out/bin/strip-verify
 ./zig-out/bin/strip-record-replay-baseline
 ./zig-out/bin/strip-promote-replay-baseline
 ```
@@ -66,7 +69,7 @@ An out-of-envelope query returns structured JSON with `"result": null` and
 exit status 2:
 
 ```sh
-./zig-out/bin/strip atmosphere 12000 research
+./zig-out/bin/strip atmosphere 90000 research
 ```
 
 ## Architecture

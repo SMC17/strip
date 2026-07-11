@@ -79,10 +79,20 @@ pub const ExportConformanceManifest = struct {
     }
 };
 
+pub const GeometryConformance = enum {
+    analytic_digest_match,
+    smoke_band_match,
+    digest_mismatch,
+    failed,
+};
+
 pub const ExportReport = struct {
     backend: ExportBackend,
     triangle_count: u32,
     surface_area_m2: f64,
+    invocation_succeeded: bool,
+    mesh_valid: bool,
+    geometry_conformance: GeometryConformance,
     digest_matches: bool,
     count_matches: bool,
     area_matches: bool,
@@ -212,7 +222,7 @@ pub fn verifyExportConformance(
     backend: ExportBackend,
 ) !ExportReport {
     try manifest.validate();
-    const digest = try mesh.digest();
+    const digest = mesh.digest();
     var digest_text: [71]u8 = undefined;
     @memcpy(digest_text[0..7], "sha256:");
     @memcpy(digest_text[7..], digest.hex[0..64]);
@@ -226,6 +236,9 @@ pub fn verifyExportConformance(
             .backend = backend,
             .triangle_count = count,
             .surface_area_m2 = area,
+            .invocation_succeeded = false,
+            .mesh_valid = false,
+            .geometry_conformance = .failed,
             .digest_matches = false,
             .count_matches = false,
             .area_matches = false,
@@ -243,11 +256,19 @@ fn verifyAnalyticConformance(
     const digest_matches = std.mem.eql(u8, digest_text, manifest.expected_mesh_digest);
     const count_matches = count == manifest.expected_triangle_count;
     const area_matches = @abs(area - manifest.expected_surface_area_m2) <= manifest.area_tolerance_m2;
-    const passed = digest_matches and count_matches and area_matches;
+    const mesh_valid = count > 0 and std.math.isFinite(area) and area > 0.0;
+    const geometry_conformance: GeometryConformance = if (digest_matches)
+        .analytic_digest_match
+    else
+        .digest_mismatch;
+    const passed = digest_matches and count_matches and area_matches and mesh_valid;
     return .{
         .backend = .analytic_stl_exporter,
         .triangle_count = count,
         .surface_area_m2 = area,
+        .invocation_succeeded = true,
+        .mesh_valid = mesh_valid,
+        .geometry_conformance = geometry_conformance,
         .digest_matches = digest_matches,
         .count_matches = count_matches,
         .area_matches = area_matches,
@@ -266,20 +287,34 @@ fn verifyOpenVspCmdConformance(
             .backend = .openvsp_cmd,
             .triangle_count = count,
             .surface_area_m2 = area,
+            .invocation_succeeded = false,
+            .mesh_valid = false,
+            .geometry_conformance = .failed,
             .digest_matches = false,
             .count_matches = false,
             .area_matches = false,
             .passed = false,
         };
     };
+    const mesh_valid = count > 0 and std.math.isFinite(area) and area > 0.0;
     const count_matches = count >= policy.min_triangle_count and count <= policy.max_triangle_count;
     const area_matches = area >= policy.min_surface_area_m2 and area <= policy.max_surface_area_m2;
-    const passed = count_matches and area_matches;
+    const digest_matches = std.mem.eql(u8, digest_text, manifest.expected_mesh_digest);
+    const geometry_conformance: GeometryConformance = if (digest_matches)
+        .analytic_digest_match
+    else if (count_matches and area_matches)
+        .smoke_band_match
+    else
+        .failed;
+    const passed = mesh_valid and count_matches and area_matches;
     return .{
         .backend = .openvsp_cmd,
         .triangle_count = count,
         .surface_area_m2 = area,
-        .digest_matches = std.mem.eql(u8, digest_text, manifest.expected_mesh_digest),
+        .invocation_succeeded = true,
+        .mesh_valid = mesh_valid,
+        .geometry_conformance = geometry_conformance,
+        .digest_matches = digest_matches,
         .count_matches = count_matches,
         .area_matches = area_matches,
         .passed = passed,

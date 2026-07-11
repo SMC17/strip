@@ -57,10 +57,22 @@ pub const Store = struct {
         return n;
     }
 
-    /// FAC stub: prefer episodes that also share recovery non-emptiness when query wants recovery.
-    fn facScore(episode: Episode, want_recovery: bool) f64 {
-        if (!want_recovery) return 1.0;
-        return if (episode.recovery.len > 0) 1.25 else 0.75;
+    /// FAC: ordered pairwise feature adjacency bonus + recovery preference.
+    fn facScore(episode: Episode, query: []const Feature, want_recovery: bool) f64 {
+        var order_bonus: f64 = 0;
+        if (query.len >= 2 and episode.features.len >= 2) {
+            var qi: usize = 0;
+            while (qi + 1 < query.len) : (qi += 1) {
+                const a = query[qi];
+                const b = query[qi + 1];
+                var ei: usize = 0;
+                while (ei + 1 < episode.features.len) : (ei += 1) {
+                    if (episode.features[ei] == a and episode.features[ei + 1] == b) order_bonus += 0.5;
+                }
+            }
+        }
+        const recovery_bonus: f64 = if (want_recovery and episode.recovery.len > 0) 1.25 else if (want_recovery) 0.75 else 1.0;
+        return recovery_bonus + order_bonus;
     }
 
     pub fn retrieve(self: *const Store, query: []const Feature, want_recovery: bool, out: []Hit) !usize {
@@ -73,7 +85,7 @@ pub const Store = struct {
             out[n] = .{
                 .episode_id = ep.id,
                 .overlap = ov,
-                .fac_score = @as(f64, @floatFromInt(ov)) * facScore(ep, want_recovery),
+                .fac_score = @as(f64, @floatFromInt(ov)) * facScore(ep, query, want_recovery),
             };
             n += 1;
         }

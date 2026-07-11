@@ -386,7 +386,46 @@ pub fn runSerial(
     return runProgressionOverStream(allocator, &reader.interface, &writer.interface, "serial_device", deadline_ns);
 }
 
+/// In-process Unix-socket self-test (threaded serve). Safe from any binary / unit test.
+pub fn selftestUnixThreaded(io: std.Io, allocator: std.mem.Allocator, deadline_ns: u64) !ProgressionResult {
+    var path_buf: [80]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, "/tmp/strip-hil-thr-{d}.sock", .{std.Thread.getCurrentId()});
+    std.Io.Dir.deleteFileAbsolute(io, path) catch {};
+
+    const ServeCtx = struct {
+        io: std.Io,
+        path: []const u8,
+        err: ?anyerror = null,
+
+        fn run(self: *@This()) void {
+            serveUnix(self.io, self.path, true) catch |e| {
+                self.err = e;
+            };
+        }
+    };
+    var ctx: ServeCtx = .{ .io = io, .path = path };
+    const thread = try std.Thread.spawn(.{}, ServeCtx.run, .{&ctx});
+
+    var attempts: u8 = 0;
+    const result = while (attempts < 100) : (attempts += 1) {
+        if (runUnix(io, allocator, path, deadline_ns)) |ok| break ok else |_| {
+            std.Io.sleep(io, .{ .nanoseconds = 20_000_000 }, .awake) catch {};
+        }
+    } else {
+        thread.join();
+        return error.UnixSelftestConnectFailed;
+    };
+
+    thread.join();
+    if (ctx.err) |e| return e;
+    std.Io.Dir.deleteFileAbsolute(io, path) catch {};
+    var tagged = result;
+    tagged.report.transport = "unix_socket_daemon";
+    return tagged;
+}
+
 /// End-to-end Unix-socket daemon self-test via child process serve (real Io).
+/// Requires argv[0] to be `strip-hil-bench` (or another binary that implements `serve`).
 pub fn selftestUnix(io: std.Io, allocator: std.mem.Allocator, deadline_ns: u64) !ProgressionResult {
     var path_buf: [64]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, "/tmp/strip-hil-{d}.sock", .{std.Thread.getCurrentId()});

@@ -10,7 +10,10 @@ pub fn main(init: std.process.Init) !u8 {
     _ = it.next();
     const sub = it.next() orelse {
         std.debug.print(
-            \\usage: strip-trajectory selftest|audit|frontier|receipt|hil-stream [--path PATH] [--expect-fail] [--out DIR]
+            \\usage:
+            \\  strip-trajectory selftest|audit|frontier|receipt|hil-stream [--unix] [--path PATH] [--expect-fail] [--out DIR]
+            \\  strip-trajectory router status [--intent ask|plan|agent|research|validation|hil|long_horizon]
+            \\  strip-trajectory router --live [--intent ...] "<prompt>"
             \\
         , .{});
         return 2;
@@ -19,6 +22,10 @@ pub fn main(init: std.process.Init) !u8 {
     var path: []const u8 = "fixtures/trajectory/reference-uas-atmosphere.jsonl";
     var expect_fail = false;
     var out_dir: []const u8 = "trajectory.evidence";
+    var unix = false;
+    var intent_text: []const u8 = "research";
+    var live = false;
+    var prompt: ?[]const u8 = null;
     while (it.next()) |arg| {
         if (std.mem.eql(u8, arg, "--path")) {
             path = it.next() orelse return 2;
@@ -26,8 +33,25 @@ pub fn main(init: std.process.Init) !u8 {
             expect_fail = true;
         } else if (std.mem.eql(u8, arg, "--out")) {
             out_dir = it.next() orelse return 2;
+        } else if (std.mem.eql(u8, arg, "--unix")) {
+            unix = true;
+        } else if (std.mem.eql(u8, arg, "--intent")) {
+            intent_text = it.next() orelse return 2;
+        } else if (std.mem.eql(u8, arg, "--live")) {
+            live = true;
+        } else if (arg.len > 0 and arg[0] != '-') {
+            prompt = arg;
         } else return 2;
     }
+
+    const parseIntent = struct {
+        fn go(text: []const u8) !strip.trajectory.router.Intent {
+            inline for (std.meta.fields(strip.trajectory.router.Intent)) |field| {
+                if (std.mem.eql(u8, text, field.name)) return @field(strip.trajectory.router.Intent, field.name);
+            }
+            return error.UnknownIntent;
+        }
+    }.go;
 
     if (std.mem.eql(u8, sub, "selftest")) {
         const report = try strip.trajectory.jsonl.selftest(allocator, init.io, path);
@@ -61,7 +85,7 @@ pub fn main(init: std.process.Init) !u8 {
         const writer = &file_writer.interface;
         defer writer.flush() catch {};
         try writer.print(
-            "{{\"schema\":\"strip.trajectory.frontier.v1\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"router_passed\":{},\"workers_passed\":{},\"analogy_passed\":{},\"world_model_passed\":{},\"hil_stream_passed\":{},\"hil_events\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Router does not call external model APIs in verify\",\"Worker fabric is in-process only\",\"Analogy is structural feature overlap not embeddings\",\"World-model is a 1-D toy plant\",\"HIL stream uses in-process bench protocol\"]}}\n",
+            "{{\"schema\":\"strip.trajectory.frontier.v1\",\"counterfactual_passed\":{},\"fault_lab_passed\":{},\"aerospace_passed\":{},\"causal_support_edges\":{d},\"receipt_sealed\":{},\"memory_classes\":{d},\"scheduler_ready\":{d},\"router_passed\":{},\"workers_passed\":{},\"analogy_passed\":{},\"world_model_passed\":{},\"hil_stream_passed\":{},\"hil_events\":{d},\"passed\":{},\"operational_qualification_claimed\":false,\"limits\":[\"Live OpenRouter/Gemini only via router --live; never from verify\",\"Worker fabric in-process with JSONL assignment persist\",\"Analogy is MAC/FAC feature overlap not embeddings\",\"World-model 1-D ID loop plus rigid-body free-fall residual\",\"HIL JSONL from in-process and threaded unix daemon\"]}}\n",
             .{
                 report.counterfactual_passed,
                 report.fault_lab_passed,
@@ -111,20 +135,28 @@ pub fn main(init: std.process.Init) !u8 {
         return 0;
     }
     if (std.mem.eql(u8, sub, "hil-stream")) {
-        const result = try strip.trajectory.hil_stream.streamToJsonl(allocator, 50_000_000);
+        const result = if (unix)
+            try strip.trajectory.hil_stream.streamUnix(allocator, init.io, 50_000_000)
+        else
+            try strip.trajectory.hil_stream.streamToJsonl(allocator, 50_000_000);
         defer allocator.free(result.jsonl_owned);
         try std.Io.Dir.cwd().createDirPath(init.io, out_dir);
         var path_buf: [512]u8 = undefined;
-        const out_path = try std.fmt.bufPrint(&path_buf, "{s}/hil-stream.jsonl", .{out_dir});
+        const out_path = try std.fmt.bufPrint(
+            &path_buf,
+            "{s}/{s}",
+            .{ out_dir, if (unix) "hil-unix-stream.jsonl" else "hil-stream.jsonl" },
+        );
         try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = out_path, .data = result.jsonl_owned });
         var buffer: [768]u8 = undefined;
         var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
         const writer = &file_writer.interface;
         defer writer.flush() catch {};
         try writer.print(
-            "{{\"schema\":\"strip.trajectory.hil-stream.v0\",\"out\":\"{s}\",\"events_emitted\":{d},\"hil_passed\":{},\"fold_passed\":{},\"jsonl_bytes\":{d},\"passed\":{},\"operational_qualification_claimed\":false}}\n",
+            "{{\"schema\":\"strip.trajectory.hil-stream.v0\",\"out\":\"{s}\",\"unix\":{},\"events_emitted\":{d},\"hil_passed\":{},\"fold_passed\":{},\"jsonl_bytes\":{d},\"passed\":{},\"operational_qualification_claimed\":false}}\n",
             .{
                 out_path,
+                unix,
                 result.report.events_emitted,
                 result.report.hil_passed,
                 result.report.fold_passed,
@@ -133,6 +165,39 @@ pub fn main(init: std.process.Init) !u8 {
             },
         );
         return if (result.report.passed) 0 else 1;
+    }
+    if (std.mem.eql(u8, sub, "router")) {
+        const intent = parseIntent(intent_text) catch return 2;
+        if (live) {
+            const p = prompt orelse {
+                std.debug.print("router --live requires a prompt string\n", .{});
+                return 2;
+            };
+            const got = try strip.trajectory.router_live.dispatchLive(init.io, allocator, init.environ_map, intent, p);
+            defer {
+                allocator.free(got.digest_owned);
+                allocator.free(got.preview_owned);
+                allocator.free(got.body_owned);
+            }
+            const json = try strip.trajectory.router_live.formatLiveJson(allocator, got.report);
+            defer allocator.free(json);
+            var buffer: [4096]u8 = undefined;
+            var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
+            const writer = &file_writer.interface;
+            defer writer.flush() catch {};
+            try writer.writeAll(json);
+            const ok = if (got.report.http_status) |s| s >= 200 and s < 300 else false;
+            return if (ok) 0 else 1;
+        }
+        const report = try strip.trajectory.router_live.status(init.io, allocator, init.environ_map, intent);
+        const json = try strip.trajectory.router_live.formatLiveJson(allocator, report);
+        defer allocator.free(json);
+        var buffer: [2048]u8 = undefined;
+        var file_writer = std.Io.File.stdout().writer(init.io, &buffer);
+        const writer = &file_writer.interface;
+        defer writer.flush() catch {};
+        try writer.writeAll(json);
+        return 0;
     }
     return 2;
 }

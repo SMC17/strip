@@ -1,44 +1,36 @@
 # Strip trajectories (assurance agent OS)
 
 Date: 2026-07-11  
-Proof level: `integration-tested`  
+Proof level: `integration-tested` (+ platform-plane live router when keys present)  
 Operational qualification: **false**
 
-## Strategic call
+## Live router (platform plane)
 
-Clean-room aerospace substrate. Not a Cursor protocol clone.
+Keys (never committed):
 
-## Architecture map
+- Google: `GOOGLE_API_KEY` / `GEMINI_API_KEY` / `~/.local/state/stax/google-api-key`
+- OpenRouter: `OPENROUTER_API_KEY` / `~/.config/openrouter/key`
 
-| Layer | Surface | Honest limit |
-|-------|---------|--------------|
-| ToolCall IR | `action` + `aerospace` | contracts, not autopilot |
-| Event fold / claims | `store` + JSONL | fixture + HIL-stream narratives |
-| Counterfactual | `counterfactual` | policy-denial branch |
-| Causal provenance | `causal` | support/contradict edges |
-| Fault lab | `fault_lab` | 4 scenarios |
-| Receipt | `receipt` Ed25519 | sealed JSON |
-| Memory classes | `memory` | retention policy only |
-| Scheduler | `scheduler` | typed deps |
-| **Multi-model router** | `router` | fixture registry + env probes; **no live API calls in verify** |
-| **Worker fabric** | `workers` | in-process pools/labels/single-use |
-| **Analogical memory** | `analogy` | MAC/FAC-style feature overlap, not embeddings |
-| **World-model loop** | `world_model` | 1-D toy plant predict/execute/residual |
-| **HIL → JSONL** | `hil_stream` | in-process `physical_bench_protocol` → foldable events |
-| Evidence binding | `programs/reference-uas.toml` | trajectory digest |
+```sh
+./zig-out/bin/strip-trajectory router status --intent research
+./zig-out/bin/strip-trajectory router --live --intent ask "Reply with exactly: US76_OK"
+```
+
+`zig build verify` never calls these endpoints.
+
+## Deepened surfaces
+
+| Gap | Now |
+|-----|-----|
+| Router | Live OpenRouter + Gemini dispatch; offline fixture select in verify |
+| Workers | Assignment JSONL persistence under `trajectory.evidence/` |
+| Analogy | Ordered FAC adjacency bonus + recovery preference |
+| World-model | 1-D ID loop + Strip rigid-body free-fall residual gate |
+| HIL→JSONL | In-process + `--unix` daemon stream |
 
 ## Commands
 
 ```sh
 ./zig-out/bin/strip-trajectory frontier
-./zig-out/bin/strip-trajectory hil-stream --out trajectory.evidence
-./zig-out/bin/strip-trajectory receipt --out trajectory.evidence
+./zig-out/bin/strip-trajectory hil-stream --unix --out trajectory.evidence
 ```
-
-## Still not claimed
-
-- Hosted model inference from verify
-- Distributed/K8s workers or Temporal durability
-- Embedding / neural analogy
-- Full 6-DOF digital twin as world model
-- Serial/UART HIL device streaming

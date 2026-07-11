@@ -10,41 +10,18 @@
 
 OpenRouter and any remote API belong **only** to the platform plane. Outputs are drafts until they pass schema validation, assurance review, and (where applicable) human sign-off.
 
-## OpenRouter (planned)
+## OpenRouter (platform only)
 
-**Use cases (non-authoritative):**
-
-- Natural-language → structured campaign TOML draft
-- Failure-cluster summarization for counterexample reports
-- Test-card prose from flight-test foundry metrics
-- Gap explanations in assurance reports
-- Dispatch briefing drafts / market-gap triage (platform only; human go/no-go)
-
-**Forbidden:**
-
-- Setting simulation parameters without manifest
-- Approving claims or waivers
-- Modifying evidence graph directly
-- Any call from `zig build verify`, proof/verification gates, or RK4 executive
-- Authoritative weather, ATC, or Part 135/121 release decisions
-
-**Wiring pattern:**
-
-```
-platform/openrouter/
-├── client.zig          # HTTP via std or thin Python sidecar
-├── prompts/            # Versioned, content-addressed prompt templates
-├── schemas/            # Strict JSON outputs only
-└── audit.zig           # Log every request/response hash + model id
-```
-
-Environment: `OPENROUTER_API_KEY` — platform jobs only; never in CI sim paths.
+- **Client:** `src/platform/openrouter.zig`
+- **Key:** `OPENROUTER_API_KEY` or `~/.config/openrouter/key` (mode 600)
+- **CLI:** `strip-trajectory router status| --live`
+- **Forbidden:** any call from `zig build verify`
 
 ## Google / DeepMind (platform only)
 
 - **Docs:** [domain/GOOGLE-DEEPMIND.md](domain/GOOGLE-DEEPMIND.md)
-- **CLI:** `strip-google catalog|gemini …`
-- **Gemini live:** `GEMINI_API_KEY` or `GOOGLE_API_KEY` from [AI Studio](https://aistudio.google.com/apikey)
+- **CLI:** `strip-google catalog|gemini …` and `strip-trajectory router --live` (Gemini path)
+- **Gemini live:** `GEMINI_API_KEY` / `GOOGLE_API_KEY` or `~/.local/state/stax/google-api-key`
 - **WeatherNext:** still `strip-weathernext` (Vertex/endpoint — not the Gemini key)
 - **Verify:** offline `catalog` + `gemini fixture` only; no live network calls
 

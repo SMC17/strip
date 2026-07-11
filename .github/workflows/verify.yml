@@ -197,5 +197,8 @@ jobs:
               raise SystemExit(f"expected openvsp_cmd backend, got {ov.get('export_backend')}")
           if not ov.get("export_real_passed"):
               raise SystemExit("export_real_passed is false")
+          conf = ov.get("export_geometry_conformance")
+          if conf not in ("landmark_match", "openvsp_cmd_digest_match", "analytic_digest_match"):
+              raise SystemExit(f"export_real_passed requires landmark/digest conformance, got {conf}")
           print("real OpenVSP export gate passed")
           PY

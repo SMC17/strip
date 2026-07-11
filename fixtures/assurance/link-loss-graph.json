@@ -1,0 +1,48 @@
+{
+  "schema": "strip.assurance.graph.v0",
+  "nodes": [
+    {
+      "id": "model:uas-simulation",
+      "kind": "model",
+      "strength": "unit_tested",
+      "evidence_revision": 3,
+      "dependencies": []
+    },
+    {
+      "id": "test:loss-of-link",
+      "kind": "test_case",
+      "strength": "integration_tested",
+      "evidence_revision": 2,
+      "dependencies": [
+        { "id": "model:uas-simulation", "required_revision": 3 }
+      ]
+    },
+    {
+      "id": "result:loss-of-link",
+      "kind": "test_result",
+      "strength": "integration_tested",
+      "evidence_revision": 2,
+      "dependencies": [
+        { "id": "test:loss-of-link", "required_revision": 2 }
+      ]
+    },
+    {
+      "id": "requirement:bounded-link-loss",
+      "kind": "requirement",
+      "strength": "integration_tested",
+      "evidence_revision": 1,
+      "dependencies": [
+        { "id": "result:loss-of-link", "required_revision": 2 }
+      ]
+    },
+    {
+      "id": "claim:bounded-link-loss-simulation",
+      "kind": "claim",
+      "strength": "integration_tested",
+      "evidence_revision": 1,
+      "dependencies": [
+        { "id": "requirement:bounded-link-loss", "required_revision": 1 }
+      ]
+    }
+  ]
+}

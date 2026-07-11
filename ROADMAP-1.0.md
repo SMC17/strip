@@ -63,14 +63,14 @@ takeoff → climb → waypoint → descent → landing
 | ID | Issue | Status |
 |----|-------|--------|
 | P0.1 | Subprocess JSON string lifetime (JSBSim integrate/coeff, OpenVSP export) | **Fixed** 2026-07-10 |
-| P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Partial** — claims split: invocation / mesh_valid / geometry_conformance |
+| P0.2 | OpenVSP “real” gate is coarse smoke test (area/triangle bands only) | **Partial** — `export_real_passed` requires landmark or digest; smoke alone no longer qualifies |
 | P0.3 | Stale STL / nonzero vsp exit accepted | **Partial** — delete-before-export; exit policy still relaxed |
 | P0.4 | `watertight_required` ignored | **Fixed** 2026-07-10 |
 | P0.5 | Canonical buffer heuristics | **Fixed** 2026-07-10 — streaming encoder hashes coordinates in place |
 | P0.6 | Duplicate atmosphere (`atmosphere.zig` 0–11 km vs `weather` 0–86 km) | **Fixed** 2026-07-10 — `strip.atmosphere` delegates to `weather.atmosphere` |
 | P0.7 | Global JSBSim tolerance (50 K, 50 m/s on all vars) | **Fixed** 2026-07-10 — per-variable `MetricAcceptance` |
 | P0.8 | Validation report not joined to case `expected_dimensions` | **Fixed** 2026-07-10 — `validation.join.validateReportAgainstCase` |
-| P0.9 | 18-source manifest hashes URLs not document content | **Partial** — US76 + comparator fixture use `source_content`/`fixture_content` extraction |
+| P0.9 | 18-source manifest hashes URLs not document content | **Fixed** 2026-07-10 — all 19 records content-hashed (`source_content` bibliographic extractions or `fixture_content`) |
 | P0.10 | `proof_gates` name overclaims | **Fixed** 2026-07-10 — `strip-verification-gates` + schema `strip.verification-gates.v3` |
 
 ### Stage 1 exit criteria

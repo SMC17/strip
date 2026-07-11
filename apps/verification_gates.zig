@@ -225,7 +225,7 @@ pub fn main(init: std.process.Init) !u8 {
                     export_query_val.backend,
                 );
                 export_passed = export_report.passed;
-                export_real_passed = export_query_val.backend == .openvsp_cmd and export_report.passed;
+                export_real_passed = export_query_val.backend == .openvsp_cmd and export_report.real_passed;
                 export_invocation_succeeded = export_report.invocation_succeeded;
                 export_mesh_valid = export_report.mesh_valid;
                 export_geometry_conformance = @tagName(export_report.geometry_conformance);

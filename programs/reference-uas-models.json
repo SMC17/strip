@@ -1,0 +1,95 @@
+{
+  "schema": "strip.model-package.v1",
+  "id": "reference-uas-models",
+  "version": "0.1.0",
+  "models": [
+    {
+      "schema": "strip.model.v1",
+      "id": "strip.atmosphere.us76-layered",
+      "version": "0.2.0",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": {
+        "implementation": "implemented",
+        "testing": "unit_tested",
+        "analysis": "analytical",
+        "comparison": "cross_implementation",
+        "validation": "none"
+      },
+      "provenance": {
+        "source": "us-standard-atmosphere-1976"
+      },
+      "dependencies": [],
+      "validity_envelope": {
+        "variable": "geopotential_altitude_m",
+        "minimum": 0.0,
+        "maximum": 86000.0,
+        "unit": "m"
+      },
+      "uncertainty_status": "bounded",
+      "intended_uses": ["preliminary_design", "simulation_training"]
+    },
+    {
+      "schema": "strip.model.v1",
+      "id": "strip.dynamics.rigid-body-rk4",
+      "version": "0.2.0",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": {
+        "implementation": "implemented",
+        "testing": "unit_tested",
+        "analysis": "none",
+        "comparison": "none",
+        "validation": "none"
+      },
+      "provenance": {
+        "source": "strip-internal"
+      },
+      "dependencies": [],
+      "validity_envelope": {
+        "variable": "integration_step_s",
+        "minimum": 0.0,
+        "maximum": 3600.0,
+        "unit": "s"
+      },
+      "uncertainty_status": "unknown",
+      "intended_uses": ["preliminary_design", "simulation_training"]
+    },
+    {
+      "schema": "strip.model.v1",
+      "id": "strip.uas.contingency-simulation",
+      "version": "0.1.0",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": {
+        "implementation": "implemented",
+        "testing": "unit_tested",
+        "analysis": "none",
+        "comparison": "none",
+        "validation": "experimental"
+      },
+      "provenance": {
+        "source": "strip-internal"
+      },
+      "dependencies": [
+        {
+          "id": "strip.dynamics.rigid-body-rk4",
+          "version": "0.2.0",
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "proof": {
+            "implementation": "implemented",
+            "testing": "unit_tested",
+            "analysis": "none",
+            "comparison": "none",
+            "validation": "none"
+          }
+        }
+      ],
+      "validity_envelope": {
+        "variable": "mission_duration_s",
+        "minimum": 0.0,
+        "maximum": 600.0,
+        "unit": "s"
+      },
+      "uncertainty_status": "estimated",
+      "intended_uses": ["preliminary_design"]
+    }
+  ]
+}

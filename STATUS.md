@@ -82,7 +82,7 @@ campaign-10k without that env still expects `flight_test: missing`.
 | OpenVSP export | `OPENSP_CMD` via `openvsp_box_wing.vspscript` or `analytic_stl_exporter` | Nonzero vsp exit fails; structural mesh bounds; analytic exact digest pin |
 | Replay | pinned per-arch (`pending_count: 0`); fails if any case pending | Five ReleaseSafe/Debug legs; same RK4 fingerprint across current matrix |
 | Uncertainty analytic/MC | affine propagation + calibration | Synthetic affine + campaign holdout coverage |
-| Flight evidence (Gate 5) | `software_only` → `hardware_in_loop` → `flight_test` (sealed held-out package in verify) | Held-out sensor-model CSV, not aircraft log; `operational_qualification_claimed: false` |
+| Flight evidence (Gate 5) | `software_only` → `hardware_in_loop` → `flight_test` (sealed held-out package in verify) | Default = public aircraft Flight Review fixed-wing ULog export; still not operator-owned; `operational_qualification_claimed: false` |
 
 Verification gate runner:
 
@@ -95,10 +95,9 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Operator-owned flight/ulog before Month-6 ops claim (`--ulog PATH` + public sample already wired)
+- Operator-owned (your) flight/ulog — public aircraft Flight Review log is now the verify default
 - Real embeddings backend for analogy (`EmbeddingLane` stub; MAC/FAC authoritative)
-- Live serial/UART HIL hardware (`hil-stream --serial` wired; verify stays unix/in-process)
-- Vertex WeatherNext Graph/Gen when EAP ends (interim: Open-Meteo)
+- Vertex WeatherNext EAP / Maps Weather OAuth (interim: Open-Meteo + NOAA/NWS)
 
 ## CI (`verify` workflow)
 

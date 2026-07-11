@@ -40,9 +40,27 @@ Keys (never committed):
 
 ## Still blocked / operator-owned
 
-- Operator-owned flight/ulog before Month-6 ops claim (public PX4 sample remains default)
-- Real embedding backend for analogy (stub only; do not fake vectors)
-- Serial HIL against live UART hardware (CLI wired; not required in verify)
+- **Your** operator-owned flight/ulog (public Flight Review fixed-wing log is now default sealed evidence)
+- Real embedding backend for analogy (stub only)
+- Vertex WeatherNext EAP / Google Maps Weather OAuth (interim: Open-Meteo + NOAA/NWS)
+
+## Public aircraft flight log
+
+```sh
+tools/fetch_public_flight_ulog.sh
+./zig-out/bin/strip-flight-seal build --require-holdout
+# or from cached .ulg:
+./zig-out/bin/strip-flight-seal build --ulog ~/.cache/strip/flight-logs/px4-public-fixedwing-0316157c.ulg
+```
+
+Provenance: `fixtures/validation/flight-test/px4-public-fixedwing-export.provenance.json` (`public_aircraft_flight_log`).
+
+## Serial / UART HIL
+
+```sh
+tools/hil_serial_pty_smoke.sh
+./zig-out/bin/strip-hil-bench selftest-serial-pty
+```
 
 ## Live PX4 SITL (opt-in; never verify)
 

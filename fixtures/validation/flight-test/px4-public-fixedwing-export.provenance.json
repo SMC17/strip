@@ -1,0 +1,39 @@
+{
+  "schema": "strip.flight-telemetry-provenance.v0",
+  "id": "px4-public-fixedwing-body-ax-001",
+  "artifact": "fixtures/validation/flight-test/px4-public-fixedwing-export.csv",
+  "source_ulog_cache": "~/.cache/strip/flight-logs/px4-public-fixedwing-0316157c.ulg",
+  "source_ulog_sha256": "c618ae05cffefff1fe1428fea4086e4772f3d9cd9ae0249cca15eda3bfebad9c",
+  "source_ulog_origin": "https://logs.px4.io/download?log=0316157c-5f88-433b-8bab-c690fd0b24fb",
+  "source_ulog_review": "https://logs.px4.io/plot_app?log=0316157c-5f88-433b-8bab-c690fd0b24fb",
+  "license": "CC-BY PX4 (Flight Review public log)",
+  "channel": "body_ax",
+  "topic": "sensor_combined.accelerometer_m_s2[0]",
+  "vehicle": {
+    "mav_type": "fixed_wing",
+    "airframe": "Generic Standard Plane (2100)",
+    "hardware": "PX4_FMU_V3 (V2)",
+    "software": "v1.15.1 (93eef0c7)",
+    "sys_name": "PX4",
+    "sys_os_name": "NuttX"
+  },
+  "provenance_class": "public_aircraft_flight_log",
+  "generation": {
+    "method": "tools/ulog_to_strip_csv.py — evenly spaced samples from Flight Review public fixed-wing ULog",
+    "not_aircraft_flight_log": false,
+    "not_operator_owned_flight": true,
+    "public_px4_flight_review_log": true,
+    "logging_duration_s": 983.68
+  },
+  "split": {
+    "calibration_rows": 5,
+    "blinded_holdout_rows": 2
+  },
+  "limitations": [
+    "Real public aircraft flight ULog (CC-BY PX4 via logs.px4.io) — not a Strip sensor-model CSV.",
+    "NOT operator-owned; NOT FSTD/operational clearance for this operator.",
+    "Full .ulg (~27MB) cached via tools/fetch_public_flight_ulog.sh; CSV is the sealed artifact.",
+    "operational_qualification_claimed remains false until operator-owned evidence is sealed."
+  ],
+  "operational_qualification_claimed": false
+}

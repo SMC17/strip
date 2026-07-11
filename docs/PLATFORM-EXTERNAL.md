@@ -31,7 +31,8 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 - **Docs:** [domain/WEATHER-EXTERNAL.md](domain/WEATHER-EXTERNAL.md)
 - **Default model family:** WeatherNext Graph (WN1-class) until WN2 leaves open beta/EAP
 - **Source id:** `weathernext-2` remains bibliographic; fixture model id is `weathernext-graph`
-- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` or interim Open-Meteo via `--interim open-meteo`
+- **Live:** `STRIP_WEATHERNEXT_ENDPOINT` or `--interim open-meteo|nws`
+- **Vertex WN2:** still EAP (no public REST); Maps Weather API requires OAuth (Gemini key insufficient)
 - **Forbidden:** Simulation truth; OpsSpec weather without operator approval; **not run from `zig build verify`**
 
 ## Dispatch decision engine (advisory)
@@ -42,8 +43,9 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 
 ## HIL daemon
 
-- **CLI:** `strip-hil-bench local|selftest-unix|serve|run` with `--unix` or `--serial`
-- **Verify:** runs `selftest-unix` (child serve + client progression)
+- **CLI:** `strip-hil-bench local|selftest-unix|selftest-serial-pty|serve|run` with `--unix` or `--serial`
+- **Serial PTY smoke:** `tools/hil_serial_pty_smoke.sh` (requires `socat`; `--once` bounds serve without EOF)
+- **Verify:** runs `selftest-unix` only (child serve + client progression); serial PTY is opt-in
 
 ## Aviation domain map (bibliography)
 
@@ -78,7 +80,7 @@ OpenRouter and any remote API belong **only** to the platform plane. Outputs are
 
 ## Flight evidence
 
-- **Today:** `strip-flight-seal` defaults to `px4-ulog-export.csv` from public PX4 ULog (`tools/ulog_to_strip_csv.py`)
+- **Today:** `strip-flight-seal` defaults to `px4-public-fixedwing-export.csv` from public Flight Review fixed-wing ULog (`tools/fetch_public_flight_ulog.sh` + `tools/ulog_to_strip_csv.py`); provenance_class `public_aircraft_flight_log`
 - **Next:** Operator-owned flight/ulog before Month-6 operational claim
 
 ## OpenMDAO

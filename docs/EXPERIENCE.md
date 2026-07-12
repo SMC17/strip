@@ -65,14 +65,16 @@ Replace neon/glass mockups with:
 | Game | raylib-zig (Gradient) — separate art direction |
 | TUI | Vaxis from same tokens (Mast) |
 
-## Seed artifacts in this repo
+## Seed artifacts / canonical home
+
+Canonical: [SMC17/sovereign-experience](https://github.com/SMC17/sovereign-experience)
 
 | Path | Role |
 |------|------|
-| `schemas/artifact-envelope.schema.json` | Typed value wrapper (authority, units, provenance) |
-| `schemas/experience-tokens.schema.json` | Token-layer contract |
-| `fixtures/experience/authority.tokens.json` | Authority color/symbol seed |
-| `fixtures/experience/artifact-envelope.valid.json` | Golden envelope |
+| Lit `sx-authority-badge` / `sx-measured-value` | Evidence components + Storybook |
+| `packages/tokens/experience-tokens.css` | Generated token CSS |
+| Strip mirrors | `schemas/` + `fixtures/experience/` until consumers migrate |
+| `sovereign_ui` | LiveView reference app (`bin/sync-experience.sh`) |
 
 Flagship vertical slices (next): Yard box-barge margins, Strip UAS link-loss
 replay, ztop temporal rewind, stax-proof claim lineage — extract shared components

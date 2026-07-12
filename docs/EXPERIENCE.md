@@ -1,7 +1,8 @@
 # Sovereign Experience seed (Strip)
 
 Date: 2026-07-11  
-Status: **seed contracts** — not a shipped design system. Split target: `SMC17/sovereign-experience`.
+Status: **seed contracts split to** [SMC17/sovereign-experience](https://github.com/SMC17/sovereign-experience).  
+Strip retains mirrors under `schemas/` + `fixtures/experience/` for verify until consumers migrate.
 
 ## Why this lives here first
 

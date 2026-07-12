@@ -1,0 +1,24 @@
+{
+  "schema": "strip.trajectory.receipt.v0",
+  "trajectory_id": "reference-uas-atmosphere",
+  "events_path": "fixtures/strip/uas-trajectory.jsonl",
+  "events_sha256": "87ab0e7d855cb459063d05ed33ab2ed37461472ca91654b09c33ab38798c2edd",
+  "authority": {
+    "level": "unit-tested",
+    "evidence_ids": [
+      "strip-us76-validation"
+    ]
+  },
+  "note": "Ed25519-signed fixture; cryptographic_proof=true; OQ false",
+  "verification_mode": "ed25519",
+  "cryptographic_proof": true,
+  "operational_qualification_claimed": false,
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key_id": "strip-dev-ed25519",
+    "public_key_hex": "daaba8ab0153c187cbc289f1440d36d9602cfc51bcb0fd66ecb32bbebac8e277",
+    "value_hex": "12ff9c67c3995c2312a2fd71fd5f36a4ce3e99ccfc60e2e082328b141c103db1d552cc7a7e005bd5de49a9399c3c99fd92c1a51a71d9e8d480229b0da6d1cb07",
+    "payload_sha256_hex": "006a65815fca836f1bd2f310c5a0d12af8ea48aec7503b3fdc1bd95fd70ac491",
+    "status": "signed"
+  }
+}

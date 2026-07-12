@@ -1,0 +1,8 @@
+{
+  "schema": "strip.dev.ed25519.v0",
+  "public_key_id": "strip-dev-ed25519",
+  "private_key_hex": "56fbf379bb1699d37f36db8562e5554f174b8a63a2ae53ece0a710228938ca69",
+  "public_key_hex": "daaba8ab0153c187cbc289f1440d36d9602cfc51bcb0fd66ecb32bbebac8e277",
+  "note": "DEV FIXTURE ONLY — not production custody; OQ false",
+  "operational_qualification_claimed": false
+}

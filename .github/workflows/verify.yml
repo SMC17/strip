@@ -288,3 +288,20 @@ jobs:
         with:
           name: campaign-evidence-10k
           path: campaign.evidence/
+
+  experience-receipt-crypto:
+    name: Experience Ed25519 receipt fixture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/experience-receipt-verify/package-lock.json
+      - name: Install receipt verify deps
+        working-directory: tools/experience-receipt-verify
+        run: npm ci
+      - name: Verify Experience field-presence + Ed25519 fixtures
+        working-directory: tools/experience-receipt-verify
+        run: node verify.mjs

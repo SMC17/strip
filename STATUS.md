@@ -2,6 +2,9 @@
 
 Date: 2026-07-11
 
+**North star:** AF/Navy capture as sub/support/prime-on-narrow — shared doc in
+[SMC17/sovereign-experience](https://github.com/SMC17/sovereign-experience)
+`docs/NORTH_STAR.md`. Strip is the aerospace (AF) programme under that compass.
 **Programme:** [ROADMAP-1.0.md](ROADMAP-1.0.md) — reference UAS vertical slice only until Month 6 exit.  
 **Category:** [docs/CATEGORY.md](docs/CATEGORY.md) — trust and evidence OS thesis.  
 **Docs site:** `/home/user/sovereign-physics/strip/website` — `cd` there, then `npm ci && npm start` (not `~/website`; `d` may be a docker alias).  

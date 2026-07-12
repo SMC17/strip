@@ -98,7 +98,8 @@ tools/promote_replay_from_ci.sh baseline.json
 
 ## Next proof work
 
-- Experience system: [SMC17/sovereign-experience](https://github.com/SMC17/sovereign-experience) (`make check`); Strip keeps schema mirrors
+- Experience system: [SMC17/sovereign-experience](https://github.com/SMC17/sovereign-experience) (`npm run check`); Strip keeps schema mirrors + Experience Ed25519 fixture CI
+- Align Zig `strip-trajectory receipt` wire format with Experience canonical-JSON Ed25519 (dual format today)
 - Vertex WeatherNext EAP / Maps Weather OAuth — **open substitute:** AIFS+Atlas+FCN3 stack (`docs/domain/WEATHER-OPEN-STACK.md`; live AIFS/IFS via Open-Meteo)
 - Real embeddings backend for analogy (`EmbeddingLane` stub; MAC/FAC authoritative)
 - Operator-owned (your) flight/ulog — public aircraft Flight Review log is now the verify default
@@ -112,6 +113,7 @@ tools/promote_replay_from_ci.sh baseline.json
 | `replay-baseline-collect` | `ubuntu-latest` | merge baselines; assert `pending_count == 0` |
 | `openvsp-real-export` | `ubuntu-24.04` | OpenVSP 3.42.0 deb (SHA-256 pinned), xvfb, `STRIP_REQUIRE_OPENSP_CMD=1`, Gate 2d real mesh |
 | `campaign-10k` | `ubuntu-latest` | Full 10k Monte Carlo + execution_identity + tier ladder |
+| `experience-receipt-crypto` | `ubuntu-latest` | Experience-format field-presence + Ed25519 fixture verify (not Zig wire parity) |
 
 ## Scaffold-level contracts
 

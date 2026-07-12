@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+/**
+ * Strip CI gate: verify Experience Ed25519 receipt fixtures.
+ *
+ * Honest dual-stack note: Strip-native `strip-trajectory receipt` still uses a
+ * digest-hex attestation envelope. This gate proves the AF wedge Experience
+ * wire format verifies in Strip CI — not Zig↔JS receipt parity.
+ */
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  verifyReceiptFieldPresence,
+  verifyReceiptEd25519,
+  hexToBytes,
+} from "./lib/receipt.js";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const fix = (...p) => resolve(root, "fixtures/experience-receipt", ...p);
+
+const errors = [];
+
+const field = JSON.parse(readFileSync(fix("uas-receipt.json"), "utf8"));
+const fieldCheck = verifyReceiptFieldPresence(field);
+if (!fieldCheck.ok) errors.push(`field-presence: ${fieldCheck.errors.join("; ")}`);
+
+const signed = JSON.parse(readFileSync(fix("uas-receipt-ed25519.json"), "utf8"));
+const key = JSON.parse(readFileSync(fix("ed25519-dev-key.json"), "utf8"));
+const cryptoCheck = verifyReceiptEd25519(signed, hexToBytes(key.public_key_hex));
+if (!cryptoCheck.ok) errors.push(`ed25519: ${cryptoCheck.errors.join("; ")}`);
+
+const tampered = structuredClone(signed);
+tampered.events_sha256 = "0".repeat(64);
+const bad = verifyReceiptEd25519(tampered, hexToBytes(key.public_key_hex));
+if (bad.ok) errors.push("tampered receipt incorrectly verified");
+
+const out = {
+  workflow: "strip-experience-receipt-crypto",
+  passed: errors.length === 0,
+  field_presence: { ok: fieldCheck.ok },
+  ed25519: {
+    ok: cryptoCheck.ok,
+    public_key_id: signed.signature?.public_key_id,
+    tamper_rejected: !bad.ok,
+  },
+  useful_for: "Strip CI enforces Experience AF crypto receipt fixture",
+  not_claimed: [
+    "Zig receipt wire-format parity with Experience",
+    "HSM custody",
+    "flight clearance",
+    "operational qualification",
+  ],
+  operational_qualification_claimed: false,
+};
+
+if (errors.length) {
+  for (const e of errors) console.error("FAIL:", e);
+  console.log(JSON.stringify(out, null, 2));
+  process.exit(1);
+}
+console.log(JSON.stringify(out, null, 2));

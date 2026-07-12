@@ -1,0 +1,19 @@
+{
+  "schema": "strip.trajectory.receipt.v0",
+  "trajectory_id": "reference-uas-atmosphere",
+  "events_path": "fixtures/strip/uas-trajectory.jsonl",
+  "events_sha256": "fixture-placeholder-not-a-content-hash",
+  "operational_qualification_claimed": false,
+  "verification_mode": "field-presence-only",
+  "cryptographic_proof": false,
+  "authority": {
+    "level": "unit-tested",
+    "evidence_ids": ["strip-us76-validation"]
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key_id": "strip-dev-fixture",
+    "status": "unverified"
+  },
+  "note": "Field-presence fixture only. cryptographic_proof=false; not a signature mock pretending to verify."
+}

@@ -12,6 +12,13 @@ Mirrored from `SMC17/sovereign-experience` `fixtures/strip/` for Strip CI.
 `tools/experience-receipt-verify/` runs Node verify via the Experience
 `@sovereign/assurance` receipt port (vendored `lib/receipt.js`).
 
-**Non-claim:** Strip-native Zig `strip.trajectory.receipt.v0` emitter still uses
-a digest-hex attestation envelope. This directory does not prove Zig↔JS parity.
-`operational_qualification_claimed`: false.
+Set `ZIG_RECEIPT=/path/to/receipt.json` to also verify a Zig-emitted trajectory
+receipt with the same JS verifier.
+
+**Zig emitter:** `strip.trajectory.receipt.v0` from `src/trajectory/receipt.zig`
+now emits Experience-compatible wire format (sorted-key body → SHA-256 → Ed25519
+over raw 32-byte hash). Dual digest-hex envelope is retired for trajectory
+receipts; campaign/evidence may still use `Signature.formatJson` (digest-hex
+message attestation).
+
+`operational_qualification_claimed`: false. No HSM / OQ claim.

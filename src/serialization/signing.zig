@@ -105,6 +105,64 @@ pub fn signDigestHex(key_pair: Ed25519.KeyPair, digest_hex: []const u8) !Signatu
     };
 }
 
+/// Experience AF wire format: Ed25519 over raw SHA-256(payload) bytes (not hex).
+pub const ExperienceSig = struct {
+    public_key_hex: [64]u8,
+    value_hex: [128]u8,
+    payload_sha256_hex: [64]u8,
+
+    pub fn formatJson(self: ExperienceSig, public_key_id: []const u8, buffer: []u8) ![]const u8 {
+        return std.fmt.bufPrint(
+            buffer,
+            "{{\"algorithm\":\"ed25519\",\"payload_sha256_hex\":\"{s}\",\"public_key_hex\":\"{s}\",\"public_key_id\":\"{s}\",\"status\":\"signed\",\"value_hex\":\"{s}\"}}",
+            .{
+                &self.payload_sha256_hex,
+                &self.public_key_hex,
+                public_key_id,
+                &self.value_hex,
+            },
+        );
+    }
+};
+
+fn sha256HexOf(bytes: []const u8, out: *[64]u8) [32]u8 {
+    var digest: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(bytes, &digest, .{});
+    encodeHex(&digest, out) catch unreachable;
+    return digest;
+}
+
+/// Sign SHA-256(payload_bytes) raw digest with Ed25519 (Experience receipt mode).
+pub fn signSha256Payload(key_pair: Ed25519.KeyPair, payload_bytes: []const u8) !ExperienceSig {
+    var payload_hex: [64]u8 = undefined;
+    const digest = sha256HexOf(payload_bytes, &payload_hex);
+    const sig = try key_pair.sign(&digest, null);
+    var public_hex: [64]u8 = undefined;
+    var value_hex: [128]u8 = undefined;
+    try encodeHex(&key_pair.public_key.bytes, &public_hex);
+    try encodeHex(&sig.toBytes(), &value_hex);
+    return .{
+        .public_key_hex = public_hex,
+        .value_hex = value_hex,
+        .payload_sha256_hex = payload_hex,
+    };
+}
+
+pub fn verifySha256Payload(public_hex: []const u8, value_hex: []const u8, payload_bytes: []const u8) !void {
+    var expected_hex: [64]u8 = undefined;
+    const digest = sha256HexOf(payload_bytes, &expected_hex);
+    const public_bytes = try decodeHex(32, public_hex);
+    const sig_bytes = try decodeHex(64, value_hex);
+    const public_key = try Ed25519.PublicKey.fromBytes(public_bytes);
+    const sig = Ed25519.Signature.fromBytes(sig_bytes);
+    try sig.verify(&digest, public_key);
+}
+
+/// Convenience: SHA-256 the message, then Experience-sign the raw digest.
+pub fn signMessage(key_pair: Ed25519.KeyPair, message: []const u8) !ExperienceSig {
+    return signSha256Payload(key_pair, message);
+}
+
 pub fn verifyDigestHex(signature: Signature, digest_hex: []const u8) !void {
     if (signature.algorithm != .ed25519) return error.UnsupportedAlgorithm;
     if (!std.mem.eql(u8, &signature.message_digest_hex, digest_hex)) return error.DigestMismatch;
@@ -155,5 +213,17 @@ test "alternate seed produces different public key and verifies" {
     try std.testing.expectError(
         error.PublicKeyMismatch,
         verifyAgainstExpectedPublicKey(signature, digest, ci_public_hex),
+    );
+}
+
+test "experience sha256 payload signs raw digest bytes" {
+    const key_pair = try ciKeyPair();
+    const payload = "{\"schema\":\"strip.trajectory.receipt.v0\"}";
+    const exp = try signSha256Payload(key_pair, payload);
+    try verifySha256Payload(&exp.public_key_hex, &exp.value_hex, payload);
+    try std.testing.expectEqualStrings(ci_public_hex, &exp.public_key_hex);
+    try std.testing.expectError(
+        error.SignatureVerificationFailed,
+        verifySha256Payload(&exp.public_key_hex, &exp.value_hex, "{\"tampered\":true}"),
     );
 }

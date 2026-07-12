@@ -2,11 +2,10 @@
 /**
  * Strip CI gate: verify Experience Ed25519 receipt fixtures.
  *
- * Honest dual-stack note: Strip-native `strip-trajectory receipt` still uses a
- * digest-hex attestation envelope. This gate proves the AF wedge Experience
- * wire format verifies in Strip CI — not Zig↔JS receipt parity.
+ * Optional: set ZIG_RECEIPT to a path of a Zig-emitted receipt.json to also
+ * verify with the Experience JS verifier (interop check).
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -34,6 +33,27 @@ tampered.events_sha256 = "0".repeat(64);
 const bad = verifyReceiptEd25519(tampered, hexToBytes(key.public_key_hex));
 if (bad.ok) errors.push("tampered receipt incorrectly verified");
 
+let zigCheck = null;
+const zigPathEnv = process.env.ZIG_RECEIPT;
+if (zigPathEnv) {
+  const zigPath = resolve(zigPathEnv);
+  if (!existsSync(zigPath)) {
+    errors.push(`ZIG_RECEIPT not found: ${zigPath}`);
+  } else {
+    const zigReceipt = JSON.parse(readFileSync(zigPath, "utf8"));
+    const zigField = verifyReceiptFieldPresence(zigReceipt);
+    if (!zigField.ok) errors.push(`zig field-presence: ${zigField.errors.join("; ")}`);
+    const zigCrypto = verifyReceiptEd25519(zigReceipt);
+    if (!zigCrypto.ok) errors.push(`zig ed25519: ${zigCrypto.errors.join("; ")}`);
+    zigCheck = {
+      path: zigPath,
+      field_ok: zigField.ok,
+      ed25519_ok: zigCrypto.ok,
+      public_key_id: zigReceipt.signature?.public_key_id,
+    };
+  }
+}
+
 const out = {
   workflow: "strip-experience-receipt-crypto",
   passed: errors.length === 0,
@@ -43,9 +63,9 @@ const out = {
     public_key_id: signed.signature?.public_key_id,
     tamper_rejected: !bad.ok,
   },
-  useful_for: "Strip CI enforces Experience AF crypto receipt fixture",
+  zig_receipt: zigCheck,
+  useful_for: "Strip CI enforces Experience AF crypto receipt fixture + optional Zig emit verify",
   not_claimed: [
-    "Zig receipt wire-format parity with Experience",
     "HSM custody",
     "flight clearance",
     "operational qualification",

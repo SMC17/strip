@@ -28,6 +28,11 @@ jobs:
         run: |
           export PATH="${{ github.workspace }}/.venv/bin:${PATH}"
           zig build verify
+      - name: Verify Zig trajectory receipt (Experience wire format)
+        working-directory: tools/experience-receipt-verify
+        run: |
+          npm ci
+          ZIG_RECEIPT=../../trajectory.evidence/receipt.json node verify.mjs
       - name: Install replay baseline recorder
         run: zig build
       - name: Record replay baseline (x86_64 linux Debug)

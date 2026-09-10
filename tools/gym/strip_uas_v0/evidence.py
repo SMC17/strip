@@ -39,7 +39,8 @@ def build_evidence(
             "not_faa_certification": True,
             "not_arp6983_conformance": True,
             "not_flight_clearance": True,
-            "not_vspaero_panel": True,
+            "not_vspaero_panel": True,  # VLM reward path is still not a cert panel case
+            "vspaero_reward_exploratory_only": True,
             "learning_in_ops": False,
         },
     }
@@ -79,6 +80,19 @@ def build_evidence(
                     "evidence": ["aero_l1"],
                 }
             )
+        if getattr(aero, "vspaero_used", False):
+            claims.append(
+                {
+                    "id": "vspaero_vlm",
+                    "statement": (
+                        "Wing CL/CD from VSPAERO vortex-lattice (OpenVSP); "
+                        f"fidelity={aero.fidelity}. Exploratory L1 VLM rank only — "
+                        "not cert panel, not ARP6983, not flight clearance."
+                    ),
+                    "status": "supported_at_l1_vlm",
+                    "evidence": ["aero_l1", "vspaero_l1"],
+                }
+            )
     else:
         claims.append(
             {
@@ -94,7 +108,7 @@ def build_evidence(
             "Produce a geometrically feasible wing with improved L1 L/D "
             "rank vs parent (offline search only)"
         ),
-        "strategies": ["L0_monitor", "L1_aero_rank", "offline_search_only"],
+        "strategies": ["L0_monitor", "L1_aero_rank", "L1_vspaero_optional", "offline_search_only"],
         "solutions": ["strip_uas_v0"],
         "context": [
             "public_osint_gym",

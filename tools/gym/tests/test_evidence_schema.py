@@ -13,6 +13,7 @@ def test_evidence_emitted():
     assert pack["agent_class"] == "learned_offline"
     assert pack["odd"]["limits"]["not_faa_certification"] is True
     assert pack["odd"]["limits"]["not_arp6983_conformance"] is True
+    assert pack["odd"]["limits"]["vspaero_reward_exploratory_only"] is True
     sa = pack["strip_assurance"]
     assert sa["not_certification"] is True
     assert sa["not_faa_ai_assurance_approval"] is True

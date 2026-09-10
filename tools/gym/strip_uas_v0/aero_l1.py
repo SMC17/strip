@@ -1,12 +1,13 @@
-"""L1 aero ranking for parametric wing / UAS (NeuralFoil when available).
+"""L1 aero ranking for parametric wing / UAS.
 
-Fidelity: L1 — suitable for offline design-search ranking of simple wings.
-NOT FAA certification, NOT ARP6983 conformance, NOT flight-test validated,
-NOT CREATE/VSPAERO panel solve (that would be L2).
+Fidelity ladder (exploratory only):
 
-When ``neuralfoil`` is installed, section CL/CD come from the ML surrogate at
-the wing mean AoA and a Re based on MAC. Otherwise a thin-airfoil + parabolic
-drag polar fallback is used and labeled explicitly.
+* **NeuralFoil / analytic** — cheap section + induced-drag rank (default).
+* **VSPAERO** — optional vortex-lattice CL/CD when OpenVSP CLI is present
+  (``prefer_vspaero=True``). Used by DesignSearchEnv reward when enabled.
+
+NOT FAA certification, NOT ARP6983 conformance, NOT flight-test validated.
+VSPAERO here is L1 VLM ranking — not a cert panel case.
 """
 
 from __future__ import annotations
@@ -33,7 +34,8 @@ class AeroResult:
     alpha_deg: float
     fidelity: str
     neuralfoil_used: bool
-    notes: str
+    vspaero_used: bool = False
+    notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -45,6 +47,7 @@ class AeroResult:
             "alpha_deg": self.alpha_deg,
             "fidelity": self.fidelity,
             "neuralfoil_used": self.neuralfoil_used,
+            "vspaero_used": self.vspaero_used,
             "notes": self.notes,
         }
 
@@ -95,17 +98,75 @@ def _neuralfoil_section(
     )
 
 
+def _vspaero_wing(
+    w: WingState,
+    *,
+    work_dir: str | None = None,
+    timeout_sec: float = 120.0,
+) -> AeroResult | None:
+    """Try VSPAERO VLM for wing-level CL/CD; return None if skipped/failed."""
+    try:
+        from .teachers import vspaero_l1
+    except Exception:
+        return None
+
+    avail = vspaero_l1.detect()
+    if not avail.available:
+        return None
+
+    r = vspaero_l1.run_for_wing(
+        w, availability=avail, work_dir=work_dir, timeout_sec=timeout_sec
+    )
+    if r.get("skipped") or r.get("CL") is None or r.get("CD") is None:
+        return None
+
+    cl = float(r["CL"])
+    cd = float(max(r["CD"], 1e-9))
+    cm = None if r.get("CM") is None else float(r["CM"])
+    ld = cl / cd
+    re = _re_mac(w)
+    notes = (
+        "VSPAERO vortex-lattice wing CL/CD (parametric). "
+        "Exploratory L1 VLM rank — not FAA cert / not ARP6983 / not flight clearance."
+    )
+    return AeroResult(
+        CL=cl,
+        CD=cd,
+        CM=cm,
+        LD=float(ld),
+        Re_mac=float(re),
+        alpha_deg=float(w.alpha_deg),
+        fidelity="L1_vspaero_vlm",
+        neuralfoil_used=False,
+        vspaero_used=True,
+        notes=notes,
+    )
+
+
 def estimate_aero(
     w: WingState,
     *,
     u_mps: float = 25.0,
     prefer_neuralfoil: bool = True,
+    prefer_vspaero: bool = False,
+    vspaero_work_dir: str | None = None,
+    vspaero_timeout_sec: float = 120.0,
 ) -> AeroResult:
     """Return wing-level L1 aero rank metrics.
 
-    Uses section aero + simple finite-wing corrections (Oswald e≈0.85,
-    induced drag). Ranking only — not a VLM/panel prediction.
+    When ``prefer_vspaero`` is True and OpenVSP ``vspscript``+``vspaero`` are
+    available, uses VSPAERO CL/CD directly (DesignSearchEnv reward path).
+    Otherwise uses section aero + simple finite-wing corrections (NeuralFoil
+    or analytic) — the cheap default L1 path.
     """
+    if prefer_vspaero:
+        vs = _vspaero_wing(
+            w, work_dir=vspaero_work_dir, timeout_sec=vspaero_timeout_sec
+        )
+        if vs is not None:
+            return vs
+        # fall through cleanly — OpenVSP absent or script failed
+
     re = _re_mac(w, u_mps=u_mps)
     # Effective section AoA ≈ freestream + half tip twist (crude)
     alpha_eff = w.alpha_deg + 0.5 * w.twist_deg
@@ -126,8 +187,12 @@ def estimate_aero(
     ld = cl_wing / max(cd_wing, 1e-6)
     notes = (
         "Exploratory L1 wing rank (section + induced). "
-        "Not FAA cert / not ARP6983 / not flight clearance / not VSPAERO."
+        "Not FAA cert / not ARP6983 / not flight clearance."
     )
+    if prefer_vspaero:
+        notes = (
+            "VSPAERO unavailable or skipped; fell back to cheap L1. " + notes
+        )
     if nf_used:
         notes = "NeuralFoil section + induced-drag rank. " + notes
     else:
@@ -141,6 +206,7 @@ def estimate_aero(
         alpha_deg=float(alpha_eff),
         fidelity=fid,
         neuralfoil_used=nf_used,
+        vspaero_used=False,
         notes=notes,
     )
 

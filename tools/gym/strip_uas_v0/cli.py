@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from .gallery import write_gallery
-from .teachers import jsbsim_stub, neuralfoil_stub, openvsp_stub
+from .teachers import jsbsim_stub, neuralfoil_stub, openvsp_stub, vspaero_l1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,6 +23,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Force analytic L1 polar even if neuralfoil is installed",
     )
+    run.add_argument(
+        "--vspaero",
+        action="store_true",
+        help=(
+            "Drive DesignSearchEnv reward from VSPAERO CL/CD when "
+            "vspscript+vspaero available (skips cleanly otherwise)"
+        ),
+    )
 
     det = sub.add_parser("detect-teachers", help="Probe aero teacher availability")
 
@@ -34,10 +42,12 @@ def main(argv: list[str] | None = None) -> int:
             steps=args.steps,
             seed=args.seed,
             prefer_neuralfoil=not args.no_neuralfoil,
+            prefer_vspaero=args.vspaero,
         )
         print(
             f"Wrote {args.out} improved={manifest['n_improved']} "
-            f"best_dLD={manifest['best_delta_ld']:.6f}"
+            f"best_dLD={manifest['best_delta_ld']:.6f} "
+            f"vspaero={manifest.get('prefer_vspaero')}"
         )
         return 0
     if args.cmd == "detect-teachers":
@@ -45,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
             ("neuralfoil", neuralfoil_stub),
             ("jsbsim", jsbsim_stub),
             ("openvsp", openvsp_stub),
+            ("vspaero", vspaero_l1),
         ):
             d = mod.detect().to_dict()
             print(f"{name}: available={d.get('available')} {d}")

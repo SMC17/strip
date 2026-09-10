@@ -22,6 +22,7 @@ class ChildResult:
     reward_sum: float
     method: str
     evidence_count: int
+    fidelity: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -30,6 +31,7 @@ class ChildResult:
             "cd": self.cd,
             "reward_sum": self.reward_sum,
             "evidence_count": self.evidence_count,
+            "fidelity": self.fidelity,
             "delta_ld_vs_parent": None,
             "wing": self.wing.to_dict(),
         }
@@ -44,7 +46,11 @@ def _run_episode(env: DesignSearchEnv, policy, steps: int) -> ChildResult:
         total_r += float(reward)
         if term or trunc:
             break
-    aero = estimate_aero(env.state, prefer_neuralfoil=env.prefer_neuralfoil)
+    aero = estimate_aero(
+        env.state,
+        prefer_neuralfoil=env.prefer_neuralfoil,
+        prefer_vspaero=env.prefer_vspaero,
+    )
     return ChildResult(
         wing=env.state,
         ld=aero.LD,
@@ -52,6 +58,7 @@ def _run_episode(env: DesignSearchEnv, policy, steps: int) -> ChildResult:
         reward_sum=total_r,
         method=getattr(policy, "name", "policy"),
         evidence_count=len(env.evidence_packs),
+        fidelity=aero.fidelity,
     )
 
 
@@ -77,7 +84,17 @@ def hillclimb_policy_factory(rng: np.random.Generator):
             if not d.allow or d.projected is None:
                 score = -1.0
             else:
-                score = _reward(d.projected, env.parent_ld, env.parent_area)
+                # Proposal scoring stays on cheap NeuralFoil/analytic even when
+                # prefer_vspaero=True (VSPAERO per-candidate is too expensive).
+                # Accepted-step reward in env.step uses VSPAERO when enabled.
+                score = _reward(
+                    d.projected,
+                    env.parent_ld,
+                    env.parent_area,
+                    prefer_neuralfoil=env.prefer_neuralfoil,
+                    prefer_vspaero=False,
+                    parent_cd=env.parent_cd,
+                )
             if score > best_score:
                 best_score = score
                 best_a = a
@@ -94,11 +111,17 @@ def run_search(
     seed: int = 0,
     evidence_root: Path | None = None,
     prefer_neuralfoil: bool = True,
+    prefer_vspaero: bool = False,
 ) -> list[dict[str, Any]]:
     rng = np.random.default_rng(seed)
     results: list[dict[str, Any]] = []
     for i, parent in enumerate(parents):
-        parent_ld = estimate_aero(parent, prefer_neuralfoil=prefer_neuralfoil).LD
+        parent_aero = estimate_aero(
+            parent,
+            prefer_neuralfoil=prefer_neuralfoil,
+            prefer_vspaero=prefer_vspaero,
+        )
+        parent_ld = parent_aero.LD
         ed = None if evidence_root is None else evidence_root / f"parent_{i:02d}"
         env = DesignSearchEnv(
             parent=parent,
@@ -106,6 +129,7 @@ def run_search(
             seed=seed + i,
             evidence_dir=str(ed) if ed else None,
             prefer_neuralfoil=prefer_neuralfoil,
+            prefer_vspaero=prefer_vspaero,
         )
         for factory in (random_policy_factory, hillclimb_policy_factory):
             policy = factory(rng)
@@ -113,7 +137,9 @@ def run_search(
             row = child.to_dict()
             row["delta_ld_vs_parent"] = child.ld - parent_ld
             row["parent_ld"] = parent_ld
+            row["parent_fidelity"] = parent_aero.fidelity
             row["parent_index"] = i
             row["improved"] = child.ld > parent_ld
+            row["prefer_vspaero"] = prefer_vspaero
             results.append(row)
     return results

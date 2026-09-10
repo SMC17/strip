@@ -19,7 +19,8 @@ promote L1 ranks into cert language.
 |------|--------|------|
 | L0 reject | `wing.evaluate_l0` + `monitors` | Geometric / algebraic filter |
 | L1 rank | `aero_l1.estimate_aero` | NeuralFoil section (+ induced) or analytic polar |
-| L2 panel | *(next)* OpenVSP / VSPAERO | Geometry + panel — stubbed teacher only today |
+| L1 VLM (optional) | `teachers.vspaero_l1` + `prefer_vspaero` | VSPAERO CL/CD in **reward** when CLI present |
+| L2 panel | *(next)* richer OpenVSP wing | Thickness / airfoil / multi-surface — not cert |
 | L3 CFD | *(later)* | Out of scope for v0 |
 | L4 ops | — | Explicitly out of scope (`learning_in_ops=False`) |
 
@@ -42,7 +43,8 @@ Protocol matches Yard-Sea (`detect` / `run` / skip-cleanly):
 | Teacher | Role |
 |---------|------|
 | `teachers.neuralfoil_stub` | L1 section CL/CD/CM when `pip install neuralfoil` |
-| `teachers.openvsp_stub` | Geometry CLI smoke (POD); VSPAERO not wired |
+| `teachers.openvsp_stub` | Geometry CLI smoke (POD) |
+| `teachers.vspaero_l1` | Parametric wing VSPAEROSweep → CL/CD/CM (reward path) |
 | `teachers.jsbsim_stub` | FDM integrate smoke |
 
 ## CLI
@@ -52,6 +54,7 @@ pip install -r requirements.txt
 pytest -q
 python -m strip_uas_v0 detect-teachers
 python -m strip_uas_v0 run-search --parents 5 --steps 40 --out out/gallery
+python -m strip_uas_v0 run-search --vspaero --parents 2 --steps 3 --out out/gallery_vspaero
 ```
 
 ## Non-goals

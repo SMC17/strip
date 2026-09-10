@@ -38,6 +38,7 @@ def write_gallery(
     steps: int = 40,
     seed: int = 0,
     prefer_neuralfoil: bool = True,
+    prefer_vspaero: bool = False,
 ) -> dict[str, Any]:
     out_dir = Path(out_dir)
     children_dir = out_dir / "children"
@@ -46,13 +47,16 @@ def write_gallery(
     parents = default_parents(n_parents, seed=seed)
     parent_meta = []
     for i, p in enumerate(parents):
-        a = estimate_aero(p, prefer_neuralfoil=prefer_neuralfoil)
+        a = estimate_aero(
+            p, prefer_neuralfoil=prefer_neuralfoil, prefer_vspaero=prefer_vspaero
+        )
         parent_meta.append(
             {
                 "index": i,
                 "ld": a.LD,
                 "cd": a.CD,
                 "fidelity": a.fidelity,
+                "vspaero_used": a.vspaero_used,
                 "wing": p.to_dict(),
             }
         )
@@ -62,6 +66,7 @@ def write_gallery(
         seed=seed,
         evidence_root=evidence_dir,
         prefer_neuralfoil=prefer_neuralfoil,
+        prefer_vspaero=prefer_vspaero,
     )
     improved = [r for r in results if r.get("improved")]
     for j, r in enumerate(results):
@@ -78,6 +83,7 @@ def write_gallery(
         "parents": parent_meta,
         "best_delta_ld": max(deltas) if deltas else 0.0,
         "prefer_neuralfoil": prefer_neuralfoil,
+        "prefer_vspaero": prefer_vspaero,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True))
     lines = [
@@ -87,8 +93,10 @@ def write_gallery(
         f"- Results: {len(results)}",
         f"- Improved L/D vs parent: {len(improved)}",
         f"- Best ΔL/D: {manifest['best_delta_ld']:.6f}",
+        f"- prefer_vspaero: {prefer_vspaero}",
         "",
-        "Fidelity: L0 geometric monitors + L1 NeuralFoil/analytic aero.",
+        "Fidelity: L0 geometric monitors + L1 NeuralFoil/analytic "
+        "(optional VSPAERO VLM reward).",
         "Not FAA cert / not ARP6983 / not operational.",
         "",
     ]
@@ -99,7 +107,8 @@ def write_gallery(
     )[:10]:
         lines.append(
             f"- {r.get('method')} parent={r.get('parent_index')} "
-            f"ΔLD={r.get('delta_ld_vs_parent'):.6f} LD={r.get('ld'):.6f}"
+            f"ΔLD={r.get('delta_ld_vs_parent'):.6f} LD={r.get('ld'):.6f} "
+            f"fid={r.get('fidelity')}"
         )
     (out_dir / "summary.md").write_text("\n".join(lines) + "\n")
     return manifest

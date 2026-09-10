@@ -1,0 +1,7 @@
+numpy>=1.24
+gymnasium>=0.29
+pytest>=7.0
+# Optional L1 section surrogate:
+# neuralfoil>=0.3
+# Optional FDM / geometry oracles:
+# jsbsim>=1.2

@@ -1,0 +1,151 @@
+{
+  "oswald": {
+    "max_abs_err_nita_scholz": 0.011286685282275832,
+    "max_abs_err_old": 0.17387963766328518,
+    "mean_abs_err_nita_scholz": 0.005241469367761521,
+    "mean_abs_err_old": 0.12558816230167114,
+    "rows": [
+      {
+        "AR": 6.0,
+        "e_lifting_line": 0.9913796376632852,
+        "e_nita_scholz": 0.9858292938273233,
+        "e_old_convention": 0.8175,
+        "taper": 0.35
+      },
+      {
+        "AR": 6.0,
+        "e_lifting_line": 0.9884526930265429,
+        "e_nita_scholz": 0.9883067563307188,
+        "e_old_convention": 0.825,
+        "taper": 0.5
+      },
+      {
+        "AR": 6.0,
+        "e_lifting_line": 0.9769191003721156,
+        "e_nita_scholz": 0.9780654037381071,
+        "e_old_convention": 0.835,
+        "taper": 0.7
+      },
+      {
+        "AR": 6.0,
+        "e_lifting_line": 0.9539349062552117,
+        "e_nita_scholz": 0.9548345416951868,
+        "e_old_convention": 0.85,
+        "taper": 1.0
+      },
+      {
+        "AR": 8.0,
+        "e_lifting_line": 0.9874670395173569,
+        "e_nita_scholz": 0.9811945539200461,
+        "e_old_convention": 0.8175,
+        "taper": 0.35
+      },
+      {
+        "AR": 8.0,
+        "e_lifting_line": 0.9830991765180827,
+        "e_nita_scholz": 0.9844695422498809,
+        "e_old_convention": 0.825,
+        "taper": 0.5
+      },
+      {
+        "AR": 8.0,
+        "e_lifting_line": 0.9672678521288642,
+        "e_nita_scholz": 0.9709661535507409,
+        "e_old_convention": 0.835,
+        "taper": 0.7
+      },
+      {
+        "AR": 8.0,
+        "e_lifting_line": 0.936670620062496,
+        "e_nita_scholz": 0.9406725724125927,
+        "e_old_convention": 0.85,
+        "taper": 1.0
+      },
+      {
+        "AR": 12.0,
+        "e_lifting_line": 0.9799389599935697,
+        "e_nita_scholz": 0.9720545937948557,
+        "e_old_convention": 0.8175,
+        "taper": 0.35
+      },
+      {
+        "AR": 12.0,
+        "e_lifting_line": 0.9726446311621187,
+        "e_nita_scholz": 0.9768838158355764,
+        "e_old_convention": 0.825,
+        "taper": 0.5
+      },
+      {
+        "AR": 12.0,
+        "e_lifting_line": 0.949361181443149,
+        "e_nita_scholz": 0.9570724068993711,
+        "e_old_convention": 0.835,
+        "taper": 0.7
+      },
+      {
+        "AR": 12.0,
+        "e_lifting_line": 0.9065591503643601,
+        "e_nita_scholz": 0.9135726158075135,
+        "e_old_convention": 0.85,
+        "taper": 1.0
+      },
+      {
+        "AR": 18.0,
+        "e_lifting_line": 0.9699462141044477,
+        "e_nita_scholz": 0.9586595288221719,
+        "e_old_convention": 0.8175,
+        "taper": 0.35
+      },
+      {
+        "AR": 18.0,
+        "e_lifting_line": 0.9585101351735464,
+        "e_nita_scholz": 0.9657219130388635,
+        "e_old_convention": 0.825,
+        "taper": 0.5
+      },
+      {
+        "AR": 18.0,
+        "e_lifting_line": 0.9264714569972149,
+        "e_nita_scholz": 0.9369616526122554,
+        "e_old_convention": 0.835,
+        "taper": 0.7
+      },
+      {
+        "AR": 18.0,
+        "e_lifting_line": 0.8707878420443758,
+        "e_nita_scholz": 0.8757291269555445,
+        "e_old_convention": 0.85,
+        "taper": 1.0
+      }
+    ]
+  },
+  "schema": "strip_uas_v0.analytic_fallback.v1",
+  "section_ladson_naca0012": {
+    "after": {
+      "mean_E_CD_pct": 25.43778475601259,
+      "median_abs_E_CD_pct": 29.356887073257443,
+      "median_abs_dCL": 0.03008893834447246,
+      "n": 47
+    },
+    "before": {
+      "mean_E_CD_pct": -230.96139123501084,
+      "median_abs_E_CD_pct": 272.7577377094367,
+      "median_abs_dCL": 0.03008893834447246,
+      "n": 47
+    }
+  },
+  "section_lsat_symmetric": {
+    "after": {
+      "mean_E_CD_pct": -9.078254179932056,
+      "median_abs_E_CD_pct": 28.94732106726059,
+      "median_abs_dCL": 0.05451959011900498,
+      "n": 509
+    },
+    "before": {
+      "mean_E_CD_pct": -59.629413139586504,
+      "median_abs_E_CD_pct": 40.80479068754164,
+      "median_abs_dCL": 0.05451959011900498,
+      "n": 509
+    }
+  }
+}

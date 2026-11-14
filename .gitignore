@@ -9,3 +9,4 @@ tools/__pycache__/
 /flight.evidence/
 /trajectory.evidence/
 .venv/
+__pycache__/

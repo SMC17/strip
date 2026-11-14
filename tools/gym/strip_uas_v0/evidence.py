@@ -53,7 +53,7 @@ def build_evidence(
         },
     }
     if acceptance is None and aero is not None:
-        acceptance = accept_aero(aero).to_dict()
+        acceptance = accept_aero(aero, wing=wing).to_dict()
     accepted = bool(acceptance and acceptance.get("passed"))
     claims: list[dict[str, Any]] = []
     if l0.feasible and aero is not None and not accepted:
@@ -117,6 +117,23 @@ def build_evidence(
                     "evidence": ["aero_l1", "vspaero_l1"],
                 }
             )
+        adv = [c for c in (acceptance or {}).get("checks", [])
+               if c.get("advisory") and str(c.get("name", "")).startswith("applicability:")]
+        out = [c["name"].split(":", 1)[1] for c in adv if not c.get("passed")]
+        if out:
+            claims.append(
+                {
+                    "id": "outside_validated_envelope",
+                    "statement": (
+                        "Aero number lies outside the oracle's measured-polar validity envelope ("
+                        + ", ".join(out)
+                        + "); credited at L1 but not backed by reference data "
+                        "(reports/validation/neuralfoil_polar_validation.md)."
+                    ),
+                    "status": "advisory",
+                    "evidence": ["acceptance", "validation_report"],
+                }
+            )
     else:
         claims.append(
             {
@@ -169,6 +186,7 @@ def build_evidence(
         "l0": l0.to_dict(),
         "aero": None if aero is None else aero.to_dict(),
         "acceptance": acceptance,
+        "applicability": _applicability(acceptance),
         "reward": reward,
         "action": action,
         "monitor": {"allow": monitor_allowed, "reason_codes": monitor_reasons},
@@ -177,6 +195,22 @@ def build_evidence(
     }
     pack["strip_assurance"] = strip_overlay(pack)
     return pack
+
+
+def _applicability(acceptance: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not acceptance:
+        return None
+    adv = [c for c in acceptance.get("checks", []) if c.get("advisory")
+           and str(c.get("name", "")).startswith("applicability:")]
+    if not adv:
+        return None
+    return {
+        "inside_validated_envelope": all(c.get("passed") for c in adv),
+        "failed": [c["name"].split(":", 1)[1] for c in adv if not c.get("passed")],
+        "checks": adv,
+        "source": "reports/validation/neuralfoil_polar_validation.json",
+        "advisory_only": True,
+    }
 
 
 def write_evidence(pack: dict[str, Any], directory: Path) -> Path:

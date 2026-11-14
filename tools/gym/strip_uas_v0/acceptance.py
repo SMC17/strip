@@ -10,6 +10,7 @@ assurance, NOT ARP6983 / ED-324 conformance, NOT flight clearance.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping
@@ -31,13 +32,14 @@ class Check:
     value: float | str | None = None
     threshold: float | str | None = None
     detail: str = ""
+    advisory: bool = False  # recorded in evidence; never affects ``passed`` / reward
 
     def to_dict(self) -> dict[str, Any]:
         v = self.value
         if isinstance(v, float) and not math.isfinite(v):
             v = None
         return {"name": self.name, "passed": bool(self.passed), "value": v,
-                "threshold": self.threshold, "detail": self.detail}
+                "threshold": self.threshold, "detail": self.detail, "advisory": self.advisory}
 
 
 @dataclass
@@ -47,11 +49,16 @@ class AcceptanceResult:
 
     @property
     def passed(self) -> bool:
-        return bool(self.checks) and all(c.passed for c in self.checks)
+        gating = [c for c in self.checks if not c.advisory]
+        return bool(gating) and all(c.passed for c in gating)
 
     @property
     def failed_checks(self) -> list[str]:
-        return [c.name for c in self.checks if not c.passed]
+        return [c.name for c in self.checks if not c.passed and not c.advisory]
+
+    @property
+    def failed_advisories(self) -> list[str]:
+        return [c.name for c in self.checks if not c.passed and c.advisory]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -59,6 +66,7 @@ class AcceptanceResult:
             "oracle": self.oracle,
             "passed": self.passed,
             "failed_checks": self.failed_checks,
+            "failed_advisories": self.failed_advisories,
             "checks": [c.to_dict() for c in self.checks],
             "notes": "Harness acceptance only; not FAA AI assurance / not ARP6983 / not flight clearance.",
         }
@@ -78,12 +86,15 @@ def is_accepted(result: Mapping[str, Any] | None) -> bool:
     return isinstance(acc, Mapping) and acc.get("passed") is True
 
 
-def accept_aero(aero: Any, *, parent_fidelity: str | None = None) -> AcceptanceResult:
+def accept_aero(aero: Any, *, parent_fidelity: str | None = None, wing: Any = None) -> AcceptanceResult:
     """L1 / VSPAERO aero acceptance.
 
     ``parent_fidelity``: when given, the child must have been evaluated at the
     same fidelity. A VSPAERO parent compared with an analytic-fallback child is a
     silent mixed-fidelity comparison and is rejected.
+
+    Advisory ``applicability:*`` checks (measured-polar validity envelope, see
+    ``applicability.py``) are appended; they never change ``passed``.
     """
     a = aero.to_dict() if hasattr(aero, "to_dict") else dict(aero or {})
     res = AcceptanceResult(oracle=str(a.get("fidelity", "L1")))
@@ -109,4 +120,10 @@ def accept_aero(aero: Any, *, parent_fidelity: str | None = None) -> AcceptanceR
             Check("fidelity_matches_parent", a.get("fidelity") == parent_fidelity,
                   a.get("fidelity"), parent_fidelity)
         )
+    from .applicability import assess
+
+    for name, ok, val, thr, detail in assess(a, wing)["checks"]:
+        if not (thr is None or isinstance(thr, (str, float, int))):
+            thr = json.dumps(thr)
+        res.checks.append(Check(f"applicability:{name}", bool(ok), val, thr, detail, advisory=True))
     return res

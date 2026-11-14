@@ -113,7 +113,7 @@ def evaluate_point(w: WingState, p: MissionPoint, mass_kg: float, *,
         return {**row, "trimmed": False, "reason": t.get("reason", "trim_not_converged"),
                 "accepted": False, "value": None}
     a = t["aero"]
-    acc = accept_aero(a).to_dict()
+    acc = accept_aero(a, wing=w).to_dict()
     drag = q * S * a.CD
     if p.metric == "range":
         value = a.CL / a.CD

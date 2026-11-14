@@ -27,7 +27,7 @@ def screen_parent(w: WingState, *, prefer_neuralfoil: bool = True) -> dict[str, 
 
     l0 = evaluate_l0(w)
     a = estimate_aero(w, prefer_neuralfoil=prefer_neuralfoil, prefer_vspaero=False)
-    acc = accept_aero(a)
+    acc = accept_aero(a, wing=w)
     reasons = []
     if not l0.feasible:
         reasons.append("l0_infeasible")

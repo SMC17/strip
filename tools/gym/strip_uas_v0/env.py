@@ -37,13 +37,14 @@ def _reward(
     prefer_neuralfoil: bool = True,
     prefer_vspaero: bool = False,
     parent_cd: float | None = None,
+    aero: Any = None,
 ) -> float:
     """Improve L/D (and optionally CL/CD) vs parent; preserve area.
 
     When ``prefer_vspaero`` is set, ``estimate_aero`` pulls VSPAERO CL/CD if
     OpenVSP is present; otherwise NeuralFoil/analytic remains the cheap L1.
     """
-    a = estimate_aero(
+    a = aero if aero is not None else estimate_aero(
         w, prefer_neuralfoil=prefer_neuralfoil, prefer_vspaero=prefer_vspaero
     )
     # Improve L/D vs parent; preserve area (payload/mission proxy)
@@ -112,6 +113,40 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             prefer_neuralfoil=self.prefer_neuralfoil,
             prefer_vspaero=self.prefer_vspaero,
         )
+
+    def _cheap_parent(self) -> AeroResult:
+        """Parent aero at the cheap proposal fidelity (never VSPAERO), cached per parent."""
+        key = tuple(self.parent.as_vector())
+        cached = getattr(self, "_cheap_parent_cache", None)
+        if cached is None or cached[0] != key:
+            cached = (key, estimate_aero(self.parent, prefer_neuralfoil=self.prefer_neuralfoil, prefer_vspaero=False))
+            self._cheap_parent_cache = cached
+        return cached[1]
+
+    def candidate_reward(self, w: WingState) -> tuple[float, dict[str, Any]]:
+        """Score an already-monitored proposal for look-ahead search.
+
+        Uses the cheap fidelity (NeuralFoil / analytic; VSPAERO per candidate is
+        too expensive) and the *same-fidelity* parent baseline, then applies the
+        acceptance gate exactly as ``step`` does: out-of-envelope or
+        mixed-fidelity proposals score -1 instead of looking attractive.
+        Returns ``(score, acceptance_dict)``.
+        """
+        cp = self._cheap_parent()
+        a = estimate_aero(w, prefer_neuralfoil=self.prefer_neuralfoil, prefer_vspaero=False)
+        acc = accept_aero(a, parent_fidelity=cp.fidelity).to_dict()
+        if not acc["passed"]:
+            return -1.0, acc
+        score = _reward(
+            w,
+            cp.LD,
+            self.parent_area,
+            prefer_neuralfoil=self.prefer_neuralfoil,
+            prefer_vspaero=False,
+            parent_cd=cp.CD,
+            aero=a,
+        )
+        return score, acc
 
     def _obs(self) -> np.ndarray:
         a = self._estimate(self.state)

@@ -10,7 +10,7 @@ import numpy as np
 
 from . import __version__
 from .aero_l1 import estimate_aero
-from .env import DesignSearchEnv, _reward
+from .env import DesignSearchEnv
 from .monitors import monitor_action
 from .provenance import OptimizerRecord
 from .wing import WingState
@@ -88,17 +88,10 @@ def hillclimb_policy_factory(rng: np.random.Generator):
             if not d.allow or d.projected is None:
                 score = -1.0
             else:
-                # Proposal scoring stays on cheap NeuralFoil/analytic even when
-                # prefer_vspaero=True (VSPAERO per-candidate is too expensive).
-                # Accepted-step reward in env.step uses VSPAERO when enabled.
-                score = _reward(
-                    d.projected,
-                    env.parent_ld,
-                    env.parent_area,
-                    prefer_neuralfoil=env.prefer_neuralfoil,
-                    prefer_vspaero=False,
-                    parent_cd=env.parent_cd,
-                )
+                # Same acceptance gate as env.step, at the cheap proposal fidelity
+                # against a same-fidelity parent baseline (VSPAERO per candidate is
+                # too expensive; the accepted step still uses VSPAERO when enabled).
+                score, _acc = env.candidate_reward(d.projected)
             if score > best_score:
                 best_score = score
                 best_a = a

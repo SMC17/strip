@@ -82,7 +82,11 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         cg: Any = None,
         sm_target: float = 0.10,
         mission: Any = None,
+        airframe: Any = None,
     ) -> None:
+        # Optional tail / fuselage terms for the stability gate (``airframe.Airframe``;
+        # ``"default"`` sizes one off the parent wing by convention). None = wing alone.
+        self.airframe = airframe
         # Multi-point mission reward (``mission.Mission``); None keeps the single-alpha L/D reward.
         self.mission = mission
         self._mission_parent: tuple[tuple[float, ...], list[dict[str, Any]]] | None = None
@@ -133,9 +137,12 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             return acc, None
         from .stability import accept_stability, cg_for_margin, merge_acceptance, static_margin
 
+        from .airframe import resolve
+
+        self.airframe = resolve(self.airframe, self.parent)
         if self.cg is None:
-            self.cg = cg_for_margin(self.parent, self.sm_target)
-        stab = static_margin(w, self.cg)
+            self.cg = cg_for_margin(self.parent, self.sm_target, airframe=self.airframe)
+        stab = static_margin(w, self.cg, airframe=self.airframe)
         return merge_acceptance(acc, accept_stability(stab)), stab
 
     def _mission_reward(self, w: WingState) -> tuple[float, dict[str, Any]]:

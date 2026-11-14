@@ -69,6 +69,31 @@ def _section_rows(polars) -> dict[str, Any]:
     return out
 
 
+def neuralfoil_path_switch(n: int = 300, seed: int = 0) -> dict[str, Any]:
+    """Effect of moving the NeuralFoil path from the old e convention to Nita & Scholz (round 4).
+
+    Same section results; the old wing C_D is rebuilt as C_d,sec + C_L^2/(pi A e_old)."""
+    from .section_tc_impact import _random_designs
+
+    ld_new, ld_old, e_new, e_old, nf = [], [], [], [], 0
+    for w in _random_designs(n, seed):
+        a = aero_l1.estimate_aero(w)
+        nf += int(a.neuralfoil_used)
+        ar = max(w.aspect_ratio(), 1.0)
+        en, eo = aero_l1.span_efficiency(w), old_oswald(w.taper)
+        cd_sec = a.CD - a.CL**2 / (math.pi * ar * en)
+        cd_old = cd_sec + a.CL**2 / (math.pi * ar * eo)
+        ld_new.append(a.LD); ld_old.append(a.CL / max(cd_old, 1e-6)); e_new.append(en); e_old.append(eo)
+    ln, lo = np.asarray(ld_new), np.asarray(ld_old)
+    rk = lambda x: np.argsort(np.argsort(x))  # noqa: E731
+    k = max(1, n // 10)
+    return {"n": n, "seed": seed, "n_neuralfoil": nf, "median_e_new": float(np.median(e_new)),
+            "median_e_old": float(np.median(e_old)),
+            "median_rel_LD_change_pct": float(np.median((ln - lo) / lo * 100)),
+            "spearman_LD_old_vs_new": float(np.corrcoef(rk(lo), rk(ln))[0, 1]),
+            "top_decile_overlap": len(set(np.argsort(-lo)[:k]) & set(np.argsort(-ln)[:k])) / k}
+
+
 def analyse() -> dict[str, Any]:
     lad = v.load_ladson()
     lsat_sym = [p for p in v.load_lsat()]
@@ -81,6 +106,7 @@ def analyse() -> dict[str, Any]:
     err_old = [abs(r["e_old_convention"] - r["e_lifting_line"]) for r in e_rows]
     return {
         "schema": SCHEMA,
+        "neuralfoil_path_switch": neuralfoil_path_switch(),
         "section_ladson_naca0012": _section_rows(lad),
         "section_lsat_symmetric": _section_rows(lsat_sym) if lsat_sym else None,
         "oswald": {"rows": e_rows, "max_abs_err_nita_scholz": max(err_ns), "max_abs_err_old": max(err_old),
@@ -108,11 +134,17 @@ def render_markdown(r: dict[str, Any]) -> str:
           "| AR | taper | e lifting line | e Nita & Scholz | e old |", "|---|---|---|---|---|"]
     for x in o["rows"]:
         L.append(f"| {x['AR']:.0f} | {x['taper']:.2f} | {x['e_lifting_line']:.3f} | {x['e_nita_scholz']:.3f} | {x['e_old_convention']:.3f} |")
+    sw = r.get("neuralfoil_path_switch")
+    if sw:
+        L += ["", f"## NeuralFoil path switched to Nita & Scholz ({sw['n']} random designs, seed {sw['seed']}, "
+              f"{sw['n_neuralfoil']} on NeuralFoil)", "",
+              f"- Median e: {sw['median_e_old']:.3f} (old convention) -> {sw['median_e_new']:.3f}",
+              f"- Median L/D change: {sw['median_rel_LD_change_pct']:+.1f}%; Spearman L/D old vs new "
+              f"{sw['spearman_LD_old_vs_new']:.3f}; top-decile overlap {sw['top_decile_overlap']:.0%}"]
     L += ["", "## Limits", "",
           "- Fully turbulent C_f over-predicts drag for laminar low-Re sections (LSAT): the fallback is conservative there.",
           "- No lift-dependent profile drag and no stall model in the fallback section; thin-airfoil C_l ignores thickness and Re.",
-          "- The NeuralFoil path still uses the historical e = 0.85 - 0.05(1 - taper) convention; switching it is a reward change "
-          "and is not done here.",
+          "- The NeuralFoil path now uses the same Nita & Scholz e (round 4); see the switch block above.",
           "- Not FAA / ARP6983; exploratory L1."]
     return "\n".join(L) + "\n"
 

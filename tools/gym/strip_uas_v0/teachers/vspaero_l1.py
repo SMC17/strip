@@ -59,6 +59,7 @@ _VSPAERO_SCRIPT = r"""void main()
     SetParmVal( wing_id, "Tip_Chord", "XSec_1", TIP_CHORD_PLACEHOLDER );
     SetParmVal( wing_id, "Area", "XSec_1", AREA_PLACEHOLDER );
     SetParmVal( wing_id, "Sweep", "XSec_1", SWEEP_PLACEHOLDER );
+    SetParmVal( wing_id, "Sweep_Location", "XSec_1", 0.25 );
     SetParmVal( wing_id, "Twist", "XSec_1", TWIST_PLACEHOLDER );
     SetParmVal( wing_id, "Tess_W", "Shape", 33 );
     SetParmVal( wing_id, "SectTess_U", "XSec_1", 8 );
@@ -329,6 +330,8 @@ def _wing_params(
     root = max(1e-4, chord_root_m)
     span = max(1e-3, span_m)
     area = span * 0.5 * (root + tip)
+    # OpenVSP XSec "Area" is the area of ONE wing panel (the model is mirrored), so
+    # the per-side value is half the total; passing the total doubled the span.
     return {
         "root_chord": root,
         "tip_chord": tip,
@@ -345,7 +348,7 @@ def _render_script(params: dict[str, float]) -> str:
     repl = {
         "ROOT_CHORD_PLACEHOLDER": f"{params['root_chord']:.8f}",
         "TIP_CHORD_PLACEHOLDER": f"{params['tip_chord']:.8f}",
-        "AREA_PLACEHOLDER": f"{params['area']:.8f}",
+        "AREA_PLACEHOLDER": f"{0.5 * params['area']:.8f}",
         "SWEEP_PLACEHOLDER": f"{params['sweep']:.8f}",
         "TWIST_PLACEHOLDER": f"{params['twist']:.8f}",
         "ALPHA_PLACEHOLDER": f"{params['alpha']:.8f}",

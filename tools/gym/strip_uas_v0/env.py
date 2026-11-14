@@ -78,7 +78,16 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         prefer_neuralfoil: bool = True,
         prefer_vspaero: bool = False,
         optimizer: OptimizerRecord | None = None,
+        stability_gate: bool = False,
+        cg: Any = None,
+        sm_target: float = 0.10,
     ) -> None:
+        # Static-stability gate (wing-alone VLM neutral point; CG is a convention). With
+        # ``cg=None`` the CG is fixed where the parent has ``sm_target`` margin and held.
+        self.stability_gate = stability_gate
+        self._cg_given = cg
+        self.sm_target = sm_target
+        self.cg = cg
         self.max_steps = max_steps
         self._seed = seed
         self.base_seed = int(seed)
@@ -114,6 +123,17 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             prefer_vspaero=self.prefer_vspaero,
         )
 
+    def _gate(self, w: WingState, acc: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """Fold the static-margin checks into ``acc`` when the stability gate is on."""
+        if not self.stability_gate:
+            return acc, None
+        from .stability import accept_stability, cg_for_margin, merge_acceptance, static_margin
+
+        if self.cg is None:
+            self.cg = cg_for_margin(self.parent, self.sm_target)
+        stab = static_margin(w, self.cg)
+        return merge_acceptance(acc, accept_stability(stab)), stab
+
     def _cheap_parent(self) -> AeroResult:
         """Parent aero at the cheap proposal fidelity (never VSPAERO), cached per parent."""
         key = tuple(self.parent.as_vector())
@@ -134,7 +154,7 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         """
         cp = self._cheap_parent()
         a = estimate_aero(w, prefer_neuralfoil=self.prefer_neuralfoil, prefer_vspaero=False)
-        acc = accept_aero(a, parent_fidelity=cp.fidelity).to_dict()
+        acc, _ = self._gate(w, accept_aero(a, parent_fidelity=cp.fidelity).to_dict())
         if not acc["passed"]:
             return -1.0, acc
         score = _reward(
@@ -169,6 +189,8 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             self.parent = options["parent"]
         if "optimizer" in options:
             self.optimizer = options["optimizer"]
+        if "parent" in options and self._cg_given is None:
+            self.cg = None  # re-derive the fixed CG from the new parent
         self.episode_index = int(options.get("episode_index", self.episode_index + 1))
         self.seeds = seeds_record(self.base_seed, self.episode_index)
         self._seed = self.seeds["episode_seed"]
@@ -242,7 +264,9 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         self.state = decision.projected
         l0 = evaluate_l0(self.state)
         aero = self._estimate(self.state)
-        acc = accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict()
+        acc, stab = self._gate(
+            self.state, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict()
+        )
         if acc["passed"]:
             reward = _reward(
                 self.state,
@@ -286,6 +310,8 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             "rejected": False,
             "acceptance": acc,
         }
+        if stab is not None:
+            info["stability"] = stab
         return self._obs(), reward, terminated, truncated, info
 
     def claim_done(
@@ -304,13 +330,15 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         fresh = WingState.from_vector(self.state.as_vector())
         l0 = evaluate_l0(fresh)
         aero = self._estimate(fresh)
-        acc = accept_aero(aero, parent_fidelity=self.parent_aero_fidelity)
+        acc_d, stab = self._gate(fresh, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict())
         measured = {"LD": aero.LD, "CL": aero.CL, "CD": aero.CD, "area": fresh.area_m2()}
+        if stab is not None:
+            measured["static_margin"] = stab["static_margin"]
         reasons: list[str] = []
         if not l0.feasible:
             reasons.append("l0_infeasible:" + ",".join(l0.violations))
-        if not acc.passed:
-            reasons.append("acceptance_failed:" + ",".join(acc.failed_checks))
+        if not acc_d["passed"]:
+            reasons.append("acceptance_failed:" + ",".join(acc_d["failed_checks"]))
         mismatches = {}
         for k, v in (claimed or {}).items():
             if k not in measured:
@@ -338,7 +366,8 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             "parent_fidelity": self.parent_aero_fidelity,
             "improved": improved,
             "l0": l0.to_dict(),
-            "acceptance": acc.to_dict(),
+            "acceptance": acc_d,
+            "stability": stab,
             "wing": fresh.to_dict(),
             "optimizer": self.optimizer.to_dict(),
             "seeds": dict(self.seeds),

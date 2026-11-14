@@ -33,11 +33,10 @@ set +e
 OUT="$(cd "$WORK" && "${RUN[@]}" -script "$WORK/pin.vspscript" 2>&1)"
 RC=$?
 set -e
+if [[ $RC -ne 0 ]]; then echo "$OUT" | tail -5; echo "openvsp exited $RC: refusing to pin"; exit 1; fi
 if grep -q "Error Code:\|strip_vsp_api_error:" <<<"$OUT"; then echo "$OUT" | grep "Error Code:\|strip_vsp_api_error:"; echo "OpenVSP API errors: refusing to pin"; exit 1; fi
 grep -q "strip_vsp_export_ok" <<<"$OUT" || { echo "$OUT"; echo "export marker missing"; exit 1; }
 [[ -s "$STL" ]] || { echo "no STL written"; exit 1; }
-# 3.42.0 exits nonzero on teardown on some hosts even after a complete export;
-# the marker above is printed only after ExportFile returns.
 echo "openvsp exit code: $RC (marker present, 0 API errors)"
 
 (cd "$ROOT" && zig build -Doptimize=ReleaseSafe >/dev/null)

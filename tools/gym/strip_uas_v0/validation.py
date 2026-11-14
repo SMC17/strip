@@ -18,10 +18,12 @@ Oracles:
   airfoil's coordinates (what the gym calls, but with the right geometry).
 * ``neuralfoil_xlarge`` — same, largest model.
 * ``gym_section`` — exactly what ``aero_l1._neuralfoil_section`` evaluates: a NACA
-  4-digit section (max camber at 0.4 c) with the measured airfoil's t/c and max camber,
-  NeuralFoil small. Checked on every measured section whose camber is inside the gym's
+  4-digit section with the measured airfoil's t/c, max camber and max-camber position p
+  (p clipped to the gym band ``wing.CAMBER_POS_MIN..MAX``), NeuralFoil small. Checked on every measured section whose camber is inside the gym's
   band (<= 6% c). The gym's NACA family cannot represent other camber lines (position,
   reflex, aft loading), so this measures the cost of that family choice too.
+* ``gym_section_p04`` — baseline: the same with p fixed at 0.4 (the gym before camber
+  position was a design parameter).
 * ``gym_section_camber_blind`` — baseline: a symmetric NACA 00xx at the measured t/c on
   every measured airfoil (the gym before camber was a design parameter).
 * ``analytic`` — the gym's thin-airfoil / parabolic-drag fallback (NACA 0012 only).
@@ -46,7 +48,8 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 
 VALIDATION_SCHEMA = "strip_uas_v0.validation.polars.v1"
-ORACLES = ("neuralfoil_small", "neuralfoil_xlarge", "gym_section", "gym_section_camber_blind", "analytic")
+ORACLES = ("neuralfoil_small", "neuralfoil_xlarge", "gym_section", "gym_section_p04", "gym_section_camber_blind",
+           "analytic")
 SYMMETRIC_CAMBER_TOL = 0.005
 
 # Envelope criteria (stated conventions, configurable): a Re band is "validated"
@@ -303,10 +306,34 @@ def section_geometry(coords: np.ndarray, n: int = 201) -> tuple[float, float]:
     return float(np.max(yu - yl) / ch), float(np.max(np.abs((yu + yl) / 2 - (yu[0] + yl[0]) / 2)) / ch)
 
 
+def section_camber_position(coords: np.ndarray, n: int = 201) -> float:
+    """x/c of the maximum |camber| (same mean line as ``section_geometry``); 0 for a symmetric section."""
+    c = np.asarray(coords, float)
+    ile = int(np.argmin(c[:, 0]))
+    x0, x1 = c[:, 0].min(), c[:, 0].max()
+    ch = max(x1 - x0, 1e-9)
+    up, lo = c[: ile + 1][::-1], c[ile:]
+    xs = x0 + ch * (1 - np.cos(np.linspace(0, math.pi, n))) / 2
+    yu = np.interp(xs, up[:, 0], up[:, 1])
+    yl = np.interp(xs, lo[:, 0], lo[:, 1])
+    if np.mean(yu - yl) < 0:
+        yu, yl = yl, yu
+    cam = np.abs((yu + yl) / 2 - (yu[0] + yl[0]) / 2)
+    if cam.max() <= 1e-9:
+        return 0.0
+    return float((xs[int(np.argmax(cam))] - x0) / ch)
+
+
 def _geom(p: "Polar") -> tuple[float, float]:
     if "tc" not in p.meta:
         p.meta["tc"], p.meta["camber"] = section_geometry(p.coords)
     return p.meta["tc"], p.meta["camber"]
+
+
+def _camber_pos(p: "Polar") -> float:
+    if "camber_pos" not in p.meta:
+        p.meta["camber_pos"] = section_camber_position(p.coords)
+    return p.meta["camber_pos"]
 
 
 # ------------------------------------------------------------------ oracles
@@ -332,15 +359,16 @@ def predict(p: Polar, oracle: str) -> dict[str, np.ndarray] | None:
         r = nf.get_aero_from_kulfan_parameters(_kulfan_for(p), alpha=p.alpha, Re=np.full(n, p.Re),
                                                xtr_upper=xtr, xtr_lower=xtr, model_size=size)
         return {"cl": np.asarray(r["CL"]), "cd": np.asarray(r["CD"]), "conf": np.asarray(r["analysis_confidence"])}
-    if oracle in ("gym_section", "gym_section_camber_blind"):
+    if oracle in ("gym_section", "gym_section_p04", "gym_section_camber_blind"):
         tc, camber = _geom(p)
         from .teachers import neuralfoil_stub
-        from .wing import CAMBER_MAX, CAMBER_POS
+        from .wing import CAMBER_MAX, CAMBER_POS, CAMBER_POS_MAX, CAMBER_POS_MIN
 
-        if oracle == "gym_section":
+        if oracle in ("gym_section", "gym_section_p04"):
             if camber > CAMBER_MAX:
                 return None
-            kp = neuralfoil_stub.naca4_kulfan(tc, camber if camber > SYMMETRIC_CAMBER_TOL else 0.0, CAMBER_POS)
+            pos = CAMBER_POS if oracle == "gym_section_p04" else min(CAMBER_POS_MAX, max(CAMBER_POS_MIN, _camber_pos(p)))
+            kp = neuralfoil_stub.naca4_kulfan(tc, camber if camber > SYMMETRIC_CAMBER_TOL else 0.0, pos)
         else:
             kp = neuralfoil_stub.naca00_kulfan(tc)
         # Gym geometry + model size; transition matched to the experiment so the comparison
@@ -401,7 +429,7 @@ def validate(oracles: Iterable[str] = ORACLES, *, polars: Sequence[Polar] | None
             att = p.attached_mask
             for k in range(p.alpha.size):
                 rows.append({
-                    "tc": _geom(p)[0], "camber": _geom(p)[1],
+                    "tc": _geom(p)[0], "camber": _geom(p)[1], "camber_pos": _camber_pos(p),
                     "airfoil": p.airfoil, "source": p.source, "Re": p.Re, "alpha": float(p.alpha[k]),
                     "attached": bool(att[k]), "dCL": float(pr["cl"][k] - p.cl[k]),
                     "E_CD": float((p.cd[k] - pr["cd"][k]) / p.cd[k] * 100.0),
@@ -434,6 +462,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         return {"overall": {"n": 0}, "attached": {"n": 0}, "by_Re_band": {}, "envelope": None}
     arr = lambda key, sel: np.asarray([r[key] for r in rows if sel(r)], float)  # noqa: E731
     att = lambda r: r["attached"]  # noqa: E731
+    cam = lambda r: r["attached"] and r["camber"] > SYMMETRIC_CAMBER_TOL  # noqa: E731
     by_band = {}
     for lo, hi in RE_BANDS:
         sel = lambda r, lo=lo, hi=hi: r["attached"] and lo <= r["Re"] < hi  # noqa: E731
@@ -462,6 +491,13 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "by_camber": {f"{lo:.2f}-{hi:.2f}": _summ(arr("dCL", lambda r, lo=lo, hi=hi: r["attached"] and lo <= r["camber"] < hi),
                                                    arr("E_CD", lambda r, lo=lo, hi=hi: r["attached"] and lo <= r["camber"] < hi))
                       for lo, hi in ((0.0, 0.005), (0.005, 0.02), (0.02, 0.04), (0.04, 0.07), (0.07, 1.0))},
+        "camber_pos_range": ([float(arr("camber_pos", cam).min()), float(arr("camber_pos", cam).max())]
+                             if any(cam(r) for r in rows) else None),
+        "camber_pos_p05_p95": ([float(np.quantile(arr("camber_pos", cam), q)) for q in (0.05, 0.95)]
+                               if any(cam(r) for r in rows) else None),
+        "by_camber_pos": {f"{lo:.2f}-{hi:.2f}": _summ(arr("dCL", lambda r, lo=lo, hi=hi: cam(r) and lo <= r["camber_pos"] < hi),
+                                                       arr("E_CD", lambda r, lo=lo, hi=hi: cam(r) and lo <= r["camber_pos"] < hi))
+                          for lo, hi in ((0.0, 0.3), (0.3, 0.375), (0.375, 0.425), (0.425, 0.5), (0.5, 1.0))},
         "confidence_vs_abs_dCL_spearman": _spearman(-conf, err),
         "envelope": {
             "validated_Re_bands": [[lo, hi] for lo, hi in ok_bands],
@@ -505,6 +541,16 @@ def render_markdown(rep: dict[str, Any]) -> str:
             if v.get("n"):
                 L.append(f"| `{o}` | {b} | {v['n']} | {v['median_abs_dCL']:.3f} | {v['median_abs_E_CD_pct']:.1f} | "
                          f"{'yes' if v['validated'] else 'no'} |")
+    L += ["", "## Cambered sections by max-camber position p (attached, camber > 0.5% c)", "",
+          "| oracle | p bin | n | median abs ΔCL | median abs E_CD% |", "|---|---|---|---|---|"]
+    for o in ("gym_section", "gym_section_p04"):
+        for b, v in rep["per_oracle"].get(o, {}).get("by_camber_pos", {}).items():
+            if v.get("n"):
+                L.append(f"| `{o}` | {b} | {v['n']} | {v['median_abs_dCL']:.3f} | {v['median_abs_E_CD_pct']:.1f} |")
+    gs = rep["per_oracle"].get("gym_section", {})
+    if gs.get("camber_pos_range"):
+        L += ["", f"Measured p of cambered sections: range {gs['camber_pos_range'][0]:.2f}-{gs['camber_pos_range'][1]:.2f}, "
+              f"5-95% {gs['camber_pos_p05_p95'][0]:.2f}-{gs['camber_pos_p05_p95'][1]:.2f}."]
     L += ["", "## Post-stall (not used for envelopes)", ""]
     for o, s in rep["per_oracle"].items():
         ps = s.get("post_stall", {})
@@ -521,10 +567,11 @@ def render_markdown(rep: dict[str, Any]) -> str:
         if env:
             L.append(f"- `{o}`: validated Re bands {env['validated_Re_bands'] or 'none'} ({env['criteria']}).")
     L += ["", "## Caveats", "", rep["notes"],
-          "- `gym_section` is the gym's section model: NACA 4-digit with max camber at 0.4 c, at the measured t/c and max camber "
-          "(`w.tc`, `w.camber`). Checked on every measured section with camber <= 6% c; a non-NACA section is represented by the "
-          "NACA 4-digit of the same thickness and camber, so camber-line shape (position, reflex, aft loading) is a model error "
-          "here. `analytic` is checked on NACA 0012 only.",
+          "- `gym_section` is the gym's section model: NACA 4-digit at the measured t/c, max camber and max-camber position "
+          "(`w.tc`, `w.camber`, `w.camber_pos`; p clipped to the gym band 0.25-0.6). Checked on every measured section with "
+          "camber <= 6% c; a non-NACA section is represented by the NACA 4-digit with the same thickness, camber and p, so the "
+          "remaining camber-line shape (reflex, aft loading) is a model error here. `gym_section_p04` is the same with p = 0.4. "
+          "`analytic` is checked on NACA 0012 only.",
           "- `gym_section_camber_blind` is the pre-camber baseline (symmetric NACA 00xx at the measured t/c on every airfoil).",
           "- On NACA 0012 the gym section (AeroSandbox NACA 0012, open trailing edge 0.25% c) is ~0.05 high on C_L against "
           "Ladson, while the closed-TE coordinates used by `neuralfoil_small` match to 0.006: NeuralFoil is sensitive to "

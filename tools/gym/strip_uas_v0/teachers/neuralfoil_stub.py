@@ -116,11 +116,12 @@ def naca4_kulfan(tc: float, camber: float = 0.0, camber_pos: float = 0.4) -> dic
 
     camber == 0 returns ``naca00_kulfan(tc)`` exactly (so symmetric designs are unchanged). Cambered
     sections are a least-squares CST fit of AeroSandbox's NACA 4-digit coordinates (open TE as in
-    the 0012 reference), cached on (tc, camber) rounded to 1e-4.
+    the 0012 reference), cached on (tc, camber) rounded to 1e-4 and camber_pos rounded to 0.01 (the section
+    evaluated uses p to the nearest 0.01 c: convention, finer than the NACA designation).
     """
     if camber <= 1e-6:
         return naca00_kulfan(tc)
-    return dict(_fit_naca4(round(float(tc), 4), round(float(camber), 4), round(float(camber_pos), 3)))
+    return dict(_fit_naca4(round(float(tc), 4), round(float(camber), 4), round(float(camber_pos), 2)))
 
 
 @lru_cache(maxsize=4096)

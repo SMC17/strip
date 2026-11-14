@@ -7,9 +7,9 @@ from strip_uas_v0.wing import WingState
 def test_reset_and_step():
     env = DesignSearchEnv(parent=WingState(), max_steps=5, seed=1, prefer_neuralfoil=False)
     obs, info = env.reset()
-    assert obs.shape == (13,)
+    assert obs.shape == (14,)
     obs2, reward, term, trunc, info2 = env.step(np.zeros(8))
-    assert obs2.shape == (13,)
+    assert obs2.shape == (14,)
     assert isinstance(reward, float)
     assert info2["rejected"] is False
     assert "LD" in info2

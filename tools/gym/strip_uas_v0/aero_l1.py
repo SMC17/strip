@@ -23,6 +23,13 @@ MU_SL = 1.789e-5  # Pa·s
 NU_SL = MU_SL / RHO_SL
 G = 9.80665
 
+# Section thickness model for the NeuralFoil path: the design's w.tc selects a symmetric
+# NACA 00xx section (exact Kulfan scaling, teachers.neuralfoil_stub.naca00_kulfan). Before
+# this, every design was evaluated on NACA 0012 regardless of w.tc. The flag exists only so
+# reports/validation/section_tc_impact can reproduce the old behaviour; do not toggle in training.
+MAP_SECTION_TC = True
+SECTION_MODEL = "naca00xx_at_design_tc"
+
 
 @dataclass
 class AeroResult:
@@ -83,9 +90,14 @@ def _neuralfoil_section(
         cl, cd, cm = _analytic_section(alpha_deg, tc)
         return cl, cd, cm, False, "L1_analytic_polar"
 
-    # Prefer NACA00xx-ish via default kulfan; thickness not fully mapped —
-    # honesty: section surrogate at alpha/Re, not 3D wing solve.
-    r = neuralfoil_stub.run(alpha_deg=alpha_deg, Re=re, model_size="small")
+    # Symmetric NACA 00xx at the design thickness (camber not modelled); section
+    # surrogate at alpha/Re, not a 3-D wing solve.
+    if MAP_SECTION_TC:
+        kp = neuralfoil_stub.naca00_kulfan(tc)
+        name = f"naca00xx_t{tc:.4f}"
+    else:
+        kp, name = None, "naca0012"
+    r = neuralfoil_stub.run(alpha_deg=alpha_deg, Re=re, model_size="small", kulfan_parameters=kp, airfoil=name)
     if r.get("skipped") or r.get("CL") is None or r.get("CD") is None:
         cl, cd, cm = _analytic_section(alpha_deg, tc)
         return cl, cd, cm, False, "L1_analytic_polar"
@@ -194,7 +206,8 @@ def estimate_aero(
             "VSPAERO unavailable or skipped; fell back to cheap L1. " + notes
         )
     if nf_used:
-        notes = "NeuralFoil section + induced-drag rank. " + notes
+        notes = (f"NeuralFoil section (symmetric NACA 00xx at t/c {w.tc:.3f}) + induced-drag rank. "
+                 if MAP_SECTION_TC else "NeuralFoil section (fixed NACA 0012) + induced-drag rank. ") + notes
     else:
         notes = "Analytic polar fallback (neuralfoil absent or skipped). " + notes
     return AeroResult(

@@ -22,5 +22,5 @@ Example (analytic L1 polar, 5 kg): span 2.4→3.0 m with root chord 0.33 m impro
 
 Limits: wing alone (no fuselage/tail/prop drag), sea-level ISA, quasi-steady, mass and
 speeds are conventions, L1 wing CL lacks a finite-span lift-slope correction (trim
-alphas optimistic), and the NeuralFoil path ignores `tc` (default Kulfan section), so
-thickness changes score zero there. Not a performance prediction; not FAA / ARP6983.
+alphas optimistic), and the NeuralFoil path models `tc` only as a symmetric NACA 00xx
+section of that thickness (no camber; see reports/validation/section_tc_impact.md). Not a performance prediction; not FAA / ARP6983.

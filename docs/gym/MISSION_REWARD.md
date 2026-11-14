@@ -16,9 +16,10 @@ to `CL_req = m·g/(½ρV²S)` at each point, same mass throughout:
 vs. parent. A point is credited only when both wings trim inside the band and pass the
 aero acceptance gate at the same fidelity; otherwise the env reward is −1.
 
-Example (analytic L1 polar, 5 kg): span 2.4→3.0 m with root chord 0.33 m improves climb
-+16% and loiter +12% but loses cruise L/D −3%; the worst-case term pulls the score from
-+0.085 (mean) to +0.055.
+Example (analytic L1 polar, 5 kg): span 2.4→3.0 m with root chord 0.25 m (higher AR, about
+the same area) improves climb +8.5% and loiter +18% but loses cruise L/D −1.2%; the worst-case
+term pulls the score from +0.084 (mean) to +0.071. (Numbers changed when the fallback polar
+moved to the published-basis C_d0 build-up and Nita & Scholz Oswald factor.)
 
 Limits: wing alone (no fuselage/tail/prop drag), sea-level ISA, quasi-steady, mass and
 speeds are conventions, L1 wing CL lacks a finite-span lift-slope correction (trim

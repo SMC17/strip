@@ -63,16 +63,45 @@ def _re_mac(w: WingState, u_mps: float = 25.0) -> float:
     return max(1e4, u_mps * w.mac_m() / NU_SL)
 
 
-def _analytic_section(alpha_deg: float, tc: float) -> tuple[float, float, float | None]:
-    """Thin-airfoil CL + parabolic CD (exploratory fallback)."""
+# Analytic fallback (no NeuralFoil). Published bases:
+# * section C_l: thin-airfoil theory, 2*pi*alpha (Anderson, Fundamentals of Aerodynamics §4.7);
+#   the +-1.2/1.4 clamp is a convention (no stall model).
+# * section C_d: component build-up, C_d0 = 2 * C_f * FF with the turbulent flat-plate
+#   C_f = 0.455 / (log10 Re)^2.58 (Schlichting; Raymer, Aircraft Design, eq. 12.27) and the
+#   wing form factor FF = 1 + 0.6/(x/c)_m * t/c + 100 (t/c)^4 (Raymer eq. 12.30) with
+#   (x/c)_m = 0.3 (convention for NACA 4-digit-like sections). Fully turbulent (no laminar run),
+#   no lift-dependent profile drag: both are stated limits, not tuned.
+# * wing induced drag: C_Di = C_L^2 / (pi A e) with the theoretical Oswald factor of
+#   Nita & Scholz (2012), based on Hoerner's taper function shifted for sweep:
+#   e = 1 / (1 + f(lambda - d_lambda) A), f(l) = 0.0524 l^4 - 0.15 l^3 + 0.1659 l^2 - 0.0706 l + 0.0119,
+#   d_lambda = -0.357 + 0.45 exp(-0.0375 phi_25[deg]). Wing alone: no fuselage / C_D0 / Mach
+#   statistical corrections (those are aircraft-level).
+XC_MAX_THICKNESS = 0.3
+
+
+def skin_friction_turbulent(re: float) -> float:
+    return 0.455 / math.log10(max(re, 1e4)) ** 2.58
+
+
+def section_cd0_buildup(tc: float, re: float) -> float:
+    ff = 1.0 + 0.6 / XC_MAX_THICKNESS * tc + 100.0 * tc**4
+    return 2.0 * skin_friction_turbulent(re) * ff
+
+
+def oswald_nita_scholz(aspect_ratio: float, taper: float, sweep25_deg: float) -> float:
+    """Theoretical Oswald (span) efficiency, Nita & Scholz (2012), wing alone."""
+    dl = -0.357 + 0.45 * math.exp(-0.0375 * sweep25_deg)
+    x = taper - dl
+    f = 0.0524 * x**4 - 0.15 * x**3 + 0.1659 * x**2 - 0.0706 * x + 0.0119
+    return 1.0 / (1.0 + f * aspect_ratio)
+
+
+def _analytic_section(alpha_deg: float, tc: float, re: float = 4.0e5) -> tuple[float, float, float | None]:
+    """Thin-airfoil C_l + build-up C_d0 (exploratory fallback; see bases above)."""
     alpha = math.radians(alpha_deg)
-    cl = 2.0 * math.pi * alpha  # thin airfoil
-    # soft stall-ish clamp
+    cl = 2.0 * math.pi * alpha
     cl = max(-1.2, min(1.4, cl))
-    cd0 = 0.006 + 0.8 * (tc - 0.12) ** 2
-    k = 0.04 + 0.5 * abs(tc - 0.12)
-    cd = cd0 + k * cl * cl
-    return float(cl), float(max(cd, 1e-4)), None
+    return float(cl), float(section_cd0_buildup(tc, re)), None
 
 
 def _neuralfoil_section(
@@ -82,12 +111,12 @@ def _neuralfoil_section(
     try:
         from .teachers import neuralfoil_stub
     except Exception:
-        cl, cd, cm = _analytic_section(alpha_deg, tc)
+        cl, cd, cm = _analytic_section(alpha_deg, tc, re)
         return cl, cd, cm, False, "L1_analytic_polar"
 
     avail = neuralfoil_stub.detect()
     if not avail.available:
-        cl, cd, cm = _analytic_section(alpha_deg, tc)
+        cl, cd, cm = _analytic_section(alpha_deg, tc, re)
         return cl, cd, cm, False, "L1_analytic_polar"
 
     # Symmetric NACA 00xx at the design thickness (camber not modelled); section
@@ -99,7 +128,7 @@ def _neuralfoil_section(
         kp, name = None, "naca0012"
     r = neuralfoil_stub.run(alpha_deg=alpha_deg, Re=re, model_size="small", kulfan_parameters=kp, airfoil=name)
     if r.get("skipped") or r.get("CL") is None or r.get("CD") is None:
-        cl, cd, cm = _analytic_section(alpha_deg, tc)
+        cl, cd, cm = _analytic_section(alpha_deg, tc, re)
         return cl, cd, cm, False, "L1_analytic_polar"
     return (
         float(r["CL"]),
@@ -185,15 +214,20 @@ def estimate_aero(
     if prefer_neuralfoil:
         cl_sec, cd_sec, cm, nf_used, fid = _neuralfoil_section(alpha_eff, re, w.tc)
     else:
-        cl_sec, cd_sec, cm = _analytic_section(alpha_eff, w.tc)
+        cl_sec, cd_sec, cm = _analytic_section(alpha_eff, w.tc, re)
         nf_used, fid = False, "L1_analytic_polar"
 
     ar = max(w.aspect_ratio(), 1.0)
     # Simple sweep / taper knockdowns (exploratory)
     sweep_rad = math.radians(abs(w.sweep_deg))
     cl_wing = cl_sec * math.cos(sweep_rad) ** 2
-    e = 0.85 - 0.05 * (1.0 - w.taper)  # taper mild effect
-    e = max(0.6, min(0.95, e))
+    if nf_used:
+        # NeuralFoil path keeps its historical span-efficiency convention (not a published
+        # correlation); see reports/validation/analytic_fallback.md for the comparison.
+        e = 0.85 - 0.05 * (1.0 - w.taper)
+        e = max(0.6, min(0.95, e))
+    else:
+        e = oswald_nita_scholz(ar, w.taper, w.sweep_deg)
     cd_i = (cl_wing**2) / (math.pi * ar * e)
     cd_wing = cd_sec + cd_i
     ld = cl_wing / max(cd_wing, 1e-6)

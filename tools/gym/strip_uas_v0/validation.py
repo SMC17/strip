@@ -348,7 +348,7 @@ def predict(p: Polar, oracle: str) -> dict[str, np.ndarray] | None:
             return None
         from .aero_l1 import _analytic_section
 
-        v = [_analytic_section(float(a), 0.12) for a in p.alpha]
+        v = [_analytic_section(float(a), 0.12, p.Re) for a in p.alpha]
         return {"cl": np.asarray([x[0] for x in v]), "cd": np.asarray([x[1] for x in v]), "conf": np.full(n, np.nan)}
     raise ValueError(oracle)
 
@@ -526,8 +526,8 @@ def render_markdown(rep: dict[str, Any]) -> str:
           "- Ladson is tripped at 5% chord; every NeuralFoil oracle (including `gym_section`) is run with xtr = 0.05 for those "
           "polars and free transition (n_crit 9) for LSAT. The gym itself always runs free transition; with free transition "
           "the gym section is ~27% low on C_d against the tripped Ladson data, which is a test-condition mismatch, not a model error.",
-          "- `analytic` (the no-NeuralFoil fallback, labelled exploratory in `aero_l1`) uses section k = 0.04 on C_l², "
-          "several times the measured drag-due-to-lift; its C_d is not usable as a prediction and it has no validated envelope."]
+          "- `analytic` (the no-NeuralFoil fallback) uses thin-airfoil C_l and a fully turbulent C_d0 = 2 C_f FF build-up "
+          "(Raymer) with no lift-dependent profile drag, so it under-predicts C_d at high C_l; see analytic_fallback.md."]
     return "\n".join(L) + "\n"
 
 

@@ -104,7 +104,7 @@ pub fn main(init: std.process.Init) !u8 {
     defer allocator.free(openvsp_bytes);
     var openvsp_pin_present = std.mem.indexOf(u8, openvsp_bytes, "openvsp_cmd_mesh_digest") != null;
     openvsp_pin_present = openvsp_pin_present and
-        std.mem.indexOf(u8, openvsp_bytes, "sha256:471546c1465013f82a2bfcc83c406b584484178134f286c282940278733a4e61") != null;
+        std.mem.indexOf(u8, openvsp_bytes, "sha256:93dc9014f98aa739ce1d41e9bd5b4c3f0d89035f41d178e6b14a288c2054630e") != null;
     if (!openvsp_pin_present) failed = true;
 
     var buffer: [4096]u8 = undefined;

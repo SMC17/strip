@@ -144,6 +144,16 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
         )
     if not os.path.isfile(out_path):
         raise RuntimeError("OPENSP_CMD export did not produce STL output")
+    # OpenVSP reports bad parm names / groups as API errors but keeps going and
+    # exports the *default* geometry. Treat any API error as a failed export.
+    combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    api_errors = [ln.strip() for ln in combined.splitlines() if "Error Code:" in ln or "strip_vsp_api_error:" in ln]
+    if api_errors:
+        raise RuntimeError(
+            f"OpenVSP script reported {len(api_errors)} API error(s); first: {api_errors[0]}"
+        )
+    if "strip_vsp_export_ok" not in combined:
+        raise RuntimeError("OpenVSP script did not reach strip_vsp_export_ok (template mismatch?)")
     metrics = mesh_metrics(out_path)
     return {
         "schema": PROTOCOL,

@@ -1,4 +1,14 @@
 {
+  "neuralfoil_path_switch": {
+    "median_e_new": 0.9524492297180527,
+    "median_e_old": 0.835129693183251,
+    "median_rel_LD_change_pct": 1.9925256301233376,
+    "n": 300,
+    "n_neuralfoil": 300,
+    "seed": 0,
+    "spearman_LD_old_vs_new": 0.996592851031678,
+    "top_decile_overlap": 0.8
+  },
   "oswald": {
     "max_abs_err_nita_scholz": 0.011286685282275832,
     "max_abs_err_old": 0.17387963766328518,

@@ -32,9 +32,14 @@ Mean |Δe|: Nita & Scholz 0.005, old convention 0.126; max |Δe|: 0.011 vs 0.174
 | 18 | 0.70 | 0.926 | 0.937 | 0.835 |
 | 18 | 1.00 | 0.871 | 0.876 | 0.850 |
 
+## NeuralFoil path switched to Nita & Scholz (300 random designs, seed 0, 300 on NeuralFoil)
+
+- Median e: 0.835 (old convention) -> 0.952
+- Median L/D change: +2.0%; Spearman L/D old vs new 0.997; top-decile overlap 80%
+
 ## Limits
 
 - Fully turbulent C_f over-predicts drag for laminar low-Re sections (LSAT): the fallback is conservative there.
 - No lift-dependent profile drag and no stall model in the fallback section; thin-airfoil C_l ignores thickness and Re.
-- The NeuralFoil path still uses the historical e = 0.85 - 0.05(1 - taper) convention; switching it is a reward change and is not done here.
+- The NeuralFoil path now uses the same Nita & Scholz e (round 4); see the switch block above.
 - Not FAA / ARP6983; exploratory L1.

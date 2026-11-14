@@ -17,3 +17,9 @@ Local results (α = 0.1):
 Limits: one airfoil at one Re (grit zones are near-duplicates, so LOGO is optimistic);
 the trip is approximated by `xtr = 0.05` and Mach is ignored; L1→VLM is model-vs-model
 and calibrates a known structured gap (no finite-span lift-slope correction in L1).
+
+## Vendored from SMC17/yard
+
+`strip_uas_v0/conformal.py` is a byte-for-byte vendored copy of the canonical
+`SMC17/yard tools/gym/yard_sea_v0/conformal.py` (domain-neutral wording). `tests/test_conformal_sync.py`
+pins its SHA-256 and compares against a sibling yard checkout when present. Do not edit it here.

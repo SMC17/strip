@@ -11,6 +11,7 @@ Not certification, not operational — ML surrogate for early explore only.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
@@ -81,6 +82,33 @@ def _default_kulfan() -> dict[str, Any]:
             "leading_edge_weight": 0.0,
             "TE_thickness": 0.0025,
         }
+
+
+REF_TC = 0.12  # thickness of the default (NACA 0012) section
+
+
+def naca00_kulfan(tc: float) -> dict[str, Any]:
+    """Kulfan parameters of the symmetric NACA 00xx section with thickness ``tc``.
+
+    NACA 4-digit thickness is linear in t (y_t = 5t·poly(x)), and the CST fit is linear
+    least squares, so the 0012 weights scaled by tc/0.12 are the exact fit of NACA 00xx
+    (checked against ``asb.KulfanAirfoil("naca00xx")`` for xx = 6, 9, 18, 22). Symmetric only:
+    design camber is not modelled.
+    """
+    t = float(tc)
+    if not (0.0 < t < 0.5):
+        raise ValueError(f"tc out of range: {tc}")
+    return dict(_scaled_kulfan(round(t, 5)))
+
+
+@lru_cache(maxsize=256)
+def _scaled_kulfan(t: float) -> tuple[tuple[str, Any], ...]:
+    base = _default_kulfan()
+    f = t / REF_TC
+    out = {}
+    for k, v in base.items():
+        out[k] = v if k == "leading_edge_weight" else np.asarray(v, dtype=float) * f
+    return tuple(out.items())
 
 
 def run(

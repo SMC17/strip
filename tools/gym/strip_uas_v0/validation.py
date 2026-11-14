@@ -5,9 +5,12 @@ Reference data (public):
 * **Ladson NACA 0012**, NASA TM-4074 (1988), Re = 6e6, M = 0.15, transition
   tripped (80/120/180 grit) — vendored at ``data/vendored/`` (US Government work,
   via the NASA Turbulence Modeling Resource).
-* **UIUC LSAT** low-speed airfoil tests, volumes 1-3 (Selig et al.), Re ≈ 6e4-5e5,
-  ~100 airfoils — GPL; fetched by ``data/fetch/fetch_strip_data.py`` into the
+* **UIUC LSAT** low-speed airfoil tests, volumes 1-6 (Selig et al.), Re ≈ 4e4-5e5,
+  ~110 airfoils — GPL; fetched by ``data/fetch/fetch_strip_data.py`` into the
   git-ignored cache, never committed. Only derived statistics are committed.
+  Volumes 1-3 carry the measured model coordinates; volumes 4-6 ship none, so their
+  clean, flap-neutral polars are matched to *nominal* UIUC ADS coordinates
+  (``LSAT_ADS_MAP``); airfoils with no ADS match are skipped and listed.
 
 Oracles:
 
@@ -189,6 +192,83 @@ def _parse_drag(path: Path, coords: dict[str, np.ndarray], volume: str) -> list[
     return out
 
 
+# LSAT vols 4-6 airfoil label (lower-case, model letter / flap suffix removed) -> UIUC ADS file.
+LSAT_ADS_MAP = {
+    "e387": "e387", "fx63-137": "fx63137", "sd2030": "sd2030", "ag12": "ag12", "ag16": "ag16", "ag24": "ag24",
+    "ag35": "ag35", "cal1215j": "cal1215j", "cal2263m": "cal2263m", "cal4014l": "cal4014l", "ma409": "ma409",
+    "s8064": "s8064", "s9000": "s9000", "w1011-20": "w1011", "w1011-30": "w1011", "w1015-20": "w1015",
+    "w1015-30": "w1015",
+}
+_FLAP_SUFFIX = re.compile(r"\s+f[pn]?(-?[\d.]+)$", re.I)
+
+
+def ads_dir() -> Path:
+    return repo_root() / "data" / "cache" / "uiuc_ads"
+
+
+def parse_ads_coords(path: Path) -> np.ndarray:
+    """UIUC ADS .dat (Selig or Lednicer format) -> Selig-ordered (TE upper -> LE -> TE lower)."""
+    rows = []
+    for ln in path.read_text(encoding="latin-1").splitlines()[1:]:
+        t = ln.split()
+        if len(t) >= 2:
+            try:
+                rows.append((float(t[0]), float(t[1])))
+            except ValueError:
+                pass
+    a = np.asarray(rows)
+    if a[0, 0] > 1.5:  # Lednicer: counts line, upper LE->TE, lower LE->TE
+        nu, nl = int(a[0, 0]), int(a[0, 1])
+        up, lo = a[1 : 1 + nu], a[1 + nu : 1 + nu + nl]
+        a = np.vstack([up[::-1], lo[1:]])
+    return a
+
+
+def _lsat_v46_key(name: str, comment: str) -> str | None:
+    """ADS key for a clean, flap-neutral vols 4-6 polar, else None."""
+    c = comment.lower()
+    if "clean" not in c or "serration" in c:
+        return None
+    m = re.search(r"flap\s*=\s*(-?[\d.]+)", c)
+    if m and float(m.group(1)) != 0.0:
+        return None
+    base = re.sub(r"\s*\([A-Z]\)\s*$", "", name.strip())
+    fm = _FLAP_SUFFIX.search(base)
+    if fm:
+        if float(fm.group(1)) != 0.0:
+            return None
+        base = base[: fm.start()]
+    return LSAT_ADS_MAP.get(re.sub(r"\s+", "", base.lower()))
+
+
+def _parse_v46(path: Path, volume: str, skipped: set[str]) -> list[Polar]:
+    lines = path.read_text(encoding="latin-1").splitlines()
+    name = next((ln.split(":", 1)[1].strip() for ln in lines if ln.startswith("Airfoil:")), "")
+    comment = next((ln.split(":", 1)[1].strip().strip("'") for ln in lines if ln.startswith("Comment:")), "")
+    key = _lsat_v46_key(name, comment)
+    if key is None or not (ads_dir() / f"{key}.dat").is_file():
+        if "clean" in comment.lower() and key is None and not re.search(r"flap|f[pn]", (comment + name).lower()):
+            skipped.add(name)
+        return []
+    coords = parse_ads_coords(ads_dir() / f"{key}.dat")
+    out = []
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith("Average Reynolds"):
+            re_ = float(lines[i + 1].split()[0])
+            n = int(lines[i + 3].split()[0])
+            rows = [tuple(map(float, r.split()[:3])) for r in lines[i + 5 : i + 5 + n] if len(r.split()) >= 3]
+            if rows:
+                a = np.asarray(rows)
+                label = re.sub(r"\s+f[pn]?0$", "", name.strip())
+                out.append(Polar(label, f"UIUC LSAT vol {volume}", re_, a[:, 0], a[:, 1], a[:, 2], coords=coords,
+                                 meta={"coord_file": f"uiuc_ads/{key}.dat", "coords": "nominal (UIUC ADS)",
+                                       "comment": comment}))
+    return out
+
+
+LSAT_V46_SKIPPED: set[str] = set()
+
+
 @lru_cache(maxsize=1)
 def load_lsat() -> tuple[Polar, ...]:
     if not lsat_available():
@@ -199,6 +279,11 @@ def load_lsat() -> tuple[Polar, ...]:
         cf, df = d / f"COORD{v}.TXT", d / f"DRAG{v}.TXT"
         if cf.is_file() and df.is_file():
             polars += _parse_drag(df, _parse_coords(cf), v)
+    for v in ("04", "05", "06"):
+        d = lsat_dir() / f"volume{v}"
+        if d.is_dir():
+            for f in sorted(list(d.glob("*_drg.txt")) + list(d.glob("*_drag.dat"))):
+                polars += _parse_v46(f, v, LSAT_V46_SKIPPED)
     return tuple(polars)
 
 
@@ -325,6 +410,8 @@ def validate(oracles: Iterable[str] = ORACLES, *, polars: Sequence[Polar] | None
         "n_points": int(sum(p.alpha.size for p in polars)),
         "sources": sorted({p.source.split(" (")[0] for p in polars}),
         "lsat_available": lsat_available(),
+        "lsat_vol4_6_skipped_no_coords": sorted(LSAT_V46_SKIPPED),
+        "n_polars_by_source": {src: sum(1 for p in polars if p.source == src) for src in sorted({p.source for p in polars})},
         "criteria": {"CL_TOL": CL_TOL, "CD_TOL_PCT": CD_TOL_PCT, "attached": "alpha <= alpha(CL_max,meas)"},
         "per_oracle": per,
         "notes": ("Measured 2-D section data vs section oracles. Wind-tunnel corrections as published; "
@@ -433,6 +520,9 @@ def render_markdown(rep: dict[str, Any]) -> str:
           "- On NACA 0012 the gym section (AeroSandbox NACA 0012, open trailing edge 0.25% c) is ~0.05 high on C_L against "
           "Ladson, while the closed-TE coordinates used by `neuralfoil_small` match to 0.006: NeuralFoil is sensitive to "
           "trailing-edge thickness, and that sensitivity (not the thickness scaling) explains the NACA 0012 ΔC_L.",
+          "- LSAT vols 4-6 ship no coordinates: their clean, flap-neutral polars use nominal UIUC ADS coordinates, not the "
+          "measured model shape (vols 1-3 use measured coordinates). Skipped for lack of ADS coordinates: "
+          + (", ".join(rep.get("lsat_vol4_6_skipped_no_coords") or []) or "none") + ". Flapped-section runs (vols 5-6) are excluded.",
           "- Ladson is tripped at 5% chord; every NeuralFoil oracle (including `gym_section`) is run with xtr = 0.05 for those "
           "polars and free transition (n_crit 9) for LSAT. The gym itself always runs free transition; with free transition "
           "the gym section is ~27% low on C_d against the tripped Ladson data, which is a test-condition mismatch, not a model error.",

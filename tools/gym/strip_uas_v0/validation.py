@@ -17,13 +17,13 @@ Oracles:
 * ``neuralfoil_small`` — NeuralFoil ``model_size="small"`` on the measured
   airfoil's coordinates (what the gym calls, but with the right geometry).
 * ``neuralfoil_xlarge`` — same, largest model.
-* ``gym_section`` — exactly what ``aero_l1._neuralfoil_section`` evaluates: a
-  symmetric NACA 00xx Kulfan section at the design thickness (here: the measured
-  airfoil's t/c), NeuralFoil small. Checked only on measured *symmetric* sections
-  (max camber <= 0.5% c), where it is a like-for-like thickness model.
-* ``gym_section_camber_blind`` — diagnostic: the same NACA 00xx-at-measured-t/c
-  section on every measured airfoil, cambered or not. Quantifies what the gym
-  loses by not modelling camber; not an envelope for anything.
+* ``gym_section`` — exactly what ``aero_l1._neuralfoil_section`` evaluates: a NACA
+  4-digit section (max camber at 0.4 c) with the measured airfoil's t/c and max camber,
+  NeuralFoil small. Checked on every measured section whose camber is inside the gym's
+  band (<= 6% c). The gym's NACA family cannot represent other camber lines (position,
+  reflex, aft loading), so this measures the cost of that family choice too.
+* ``gym_section_camber_blind`` — baseline: a symmetric NACA 00xx at the measured t/c on
+  every measured airfoil (the gym before camber was a design parameter).
 * ``analytic`` — the gym's thin-airfoil / parabolic-drag fallback (NACA 0012 only).
 
 Metrics: ΔC_L = C_L,pred − C_L,meas; drag comparison error
@@ -334,13 +334,18 @@ def predict(p: Polar, oracle: str) -> dict[str, np.ndarray] | None:
         return {"cl": np.asarray(r["CL"]), "cd": np.asarray(r["CD"]), "conf": np.asarray(r["analysis_confidence"])}
     if oracle in ("gym_section", "gym_section_camber_blind"):
         tc, camber = _geom(p)
-        if oracle == "gym_section" and camber > SYMMETRIC_CAMBER_TOL:
-            return None
         from .teachers import neuralfoil_stub
+        from .wing import CAMBER_MAX, CAMBER_POS
 
-        # Gym geometry (NACA 00xx at t/c) + model size; transition matched to the experiment so
-        # the comparison isolates geometry/model error (the gym itself runs free transition).
-        r = nf.get_aero_from_kulfan_parameters(neuralfoil_stub.naca00_kulfan(tc), alpha=p.alpha, Re=np.full(n, p.Re),
+        if oracle == "gym_section":
+            if camber > CAMBER_MAX:
+                return None
+            kp = neuralfoil_stub.naca4_kulfan(tc, camber if camber > SYMMETRIC_CAMBER_TOL else 0.0, CAMBER_POS)
+        else:
+            kp = neuralfoil_stub.naca00_kulfan(tc)
+        # Gym geometry + model size; transition matched to the experiment so the comparison
+        # isolates geometry/model error (the gym itself runs free transition).
+        r = nf.get_aero_from_kulfan_parameters(kp, alpha=p.alpha, Re=np.full(n, p.Re),
                                                xtr_upper=xtr, xtr_lower=xtr, model_size="small")
         return {"cl": np.asarray(r["CL"]), "cd": np.asarray(r["CD"]), "conf": np.asarray(r["analysis_confidence"])}
     if oracle == "analytic":
@@ -453,6 +458,10 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "by_Re_band": by_band,
         "by_airfoil": by_airfoil,
         "tc_range": [float(arr("tc", att).min()), float(arr("tc", att).max())] if att_n(rows) else None,
+        "camber_range": [float(arr("camber", att).min()), float(arr("camber", att).max())] if att_n(rows) else None,
+        "by_camber": {f"{lo:.2f}-{hi:.2f}": _summ(arr("dCL", lambda r, lo=lo, hi=hi: r["attached"] and lo <= r["camber"] < hi),
+                                                   arr("E_CD", lambda r, lo=lo, hi=hi: r["attached"] and lo <= r["camber"] < hi))
+                      for lo, hi in ((0.0, 0.005), (0.005, 0.02), (0.02, 0.04), (0.04, 0.07), (0.07, 1.0))},
         "confidence_vs_abs_dCL_spearman": _spearman(-conf, err),
         "envelope": {
             "validated_Re_bands": [[lo, hi] for lo, hi in ok_bands],
@@ -512,11 +521,11 @@ def render_markdown(rep: dict[str, Any]) -> str:
         if env:
             L.append(f"- `{o}`: validated Re bands {env['validated_Re_bands'] or 'none'} ({env['criteria']}).")
     L += ["", "## Caveats", "", rep["notes"],
-          "- `gym_section` is the gym's section model: symmetric NACA 00xx at the design t/c (`w.tc`). It is checked on the "
-          "measured symmetric sections only (max camber <= 0.5% c; NACA 0012 Ladson, SD8020, NACA 64A010 ...), so a non-NACA "
-          "symmetric section is represented by the NACA 00xx of the same thickness. `analytic` is checked on NACA 0012 only.",
-          "- `gym_section_camber_blind` applies the same NACA 00xx-at-t/c section to every measured airfoil, cambered or not: "
-          "its ΔC_L is dominated by the missing camber (zero-lift angle), which the gym does not model. Diagnostic only.",
+          "- `gym_section` is the gym's section model: NACA 4-digit with max camber at 0.4 c, at the measured t/c and max camber "
+          "(`w.tc`, `w.camber`). Checked on every measured section with camber <= 6% c; a non-NACA section is represented by the "
+          "NACA 4-digit of the same thickness and camber, so camber-line shape (position, reflex, aft loading) is a model error "
+          "here. `analytic` is checked on NACA 0012 only.",
+          "- `gym_section_camber_blind` is the pre-camber baseline (symmetric NACA 00xx at the measured t/c on every airfoil).",
           "- On NACA 0012 the gym section (AeroSandbox NACA 0012, open trailing edge 0.25% c) is ~0.05 high on C_L against "
           "Ladson, while the closed-TE coordinates used by `neuralfoil_small` match to 0.006: NeuralFoil is sensitive to "
           "trailing-edge thickness, and that sensitivity (not the thickness scaling) explains the NACA 0012 ΔC_L.",

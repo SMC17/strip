@@ -23,5 +23,5 @@ moved to the published-basis C_d0 build-up and Nita & Scholz Oswald factor.)
 
 Limits: wing alone (no fuselage/tail/prop drag), sea-level ISA, quasi-steady, mass and
 speeds are conventions, L1 wing CL lacks a finite-span lift-slope correction (trim
-alphas optimistic), and the NeuralFoil path models `tc` only as a symmetric NACA 00xx
-section of that thickness (no camber; see reports/validation/section_tc_impact.md). Not a performance prediction; not FAA / ARP6983.
+alphas optimistic), and the NeuralFoil path models the section as a NACA 4-digit at the
+design `tc` and `camber` (camber position fixed at 0.4 c; see reports/validation/section_tc_impact.md). Not a performance prediction; not FAA / ARP6983.

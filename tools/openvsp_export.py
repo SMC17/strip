@@ -15,8 +15,11 @@ import os
 import subprocess
 import sys
 import tempfile
+from decimal import ROUND_HALF_UP, Decimal
 
 PROTOCOL = "strip.openvsp-export-protocol.v0"
+# Same bytes as Zig strip-mesh-digest / Mesh.digest() (the pinned, gate-enforced digest).
+MESH_DIGEST_METHOD = "strip-mesh-digest.v1:sha256(zig {d:.9}| per coord)"
 
 
 def box_wing_triangles() -> list[tuple[tuple[float, float, float], ...]]:
@@ -67,25 +70,47 @@ def triangle_area(a, b, c) -> float:
     return 0.5 * math.sqrt(cx * cx + cy * cy + cz * cz)
 
 
+_Q9 = Decimal("1e-9")
+
+
+def canonical_mesh_coord(value: float) -> str:
+    """One coordinate exactly as Zig ``std.fmt`` ``{d:.9}`` writes it, plus ``|``.
+
+    Zig rounds the *shortest round-trip* decimal (what ``repr`` gives) half-up
+    (away from zero) to 9 places. Python's ``f"{v:.9f}"`` rounds the exact
+    binary value instead, which differs on ties such as 0.1234567895. This must
+    match ``serialization.canonical_encoder.appendMeshCoord`` byte for byte; the
+    Zig ``strip-mesh-digest`` is canonical and tests cross-check the two.
+    """
+    if not math.isfinite(value):
+        raise ValueError(f"non-finite STL coordinate: {value!r}")
+    return f"{Decimal(repr(float(value))).quantize(_Q9, rounding=ROUND_HALF_UP):.9f}|"
+
+
 def parse_ascii_stl(path: str) -> tuple[list[tuple[tuple[float, float, float], ...]], float, str]:
+    """Parse like Zig ``parseAsciiStl``: trim " \t\r", split on single spaces, 3 coords per vertex."""
     triangles: list[tuple[tuple[float, float, float], ...]] = []
     current: list[tuple[float, float, float]] = []
-    canonical_parts: list[str] = []
-    with open(path, encoding="ascii", errors="ignore") as handle:
-        for raw in handle:
-            line = raw.strip()
-            if line.startswith("vertex"):
-                parts = line.split()
-                if len(parts) >= 4:
-                    vertex = (float(parts[1]), float(parts[2]), float(parts[3]))
-                    current.append(vertex)
-                    canonical_parts.append(f"{vertex[0]:.9f}|{vertex[1]:.9f}|{vertex[2]:.9f}|")
-                    if len(current) == 3:
-                        triangles.append((current[0], current[1], current[2]))
-                        current = []
+    hasher = hashlib.sha256()
+    with open(path, encoding="ascii", errors="ignore", newline="") as handle:
+        for raw in handle.read().split("\n"):
+            line = raw.strip(" \t\r")
+            if not line.startswith("vertex"):
+                continue
+            parts = line.split(" ")
+            if len(parts) < 4:
+                continue
+            vertex = (float(parts[1]), float(parts[2]), float(parts[3]))
+            for coord in vertex:
+                hasher.update(canonical_mesh_coord(coord).encode("ascii"))
+            current.append(vertex)
+            if len(current) == 3:
+                triangles.append((current[0], current[1], current[2]))
+                current = []
+    if not triangles:
+        raise ValueError(f"no triangles in STL: {path}")
     area = sum(triangle_area(*tri) for tri in triangles)
-    digest = hashlib.sha256("".join(canonical_parts).encode("ascii")).hexdigest()
-    return triangles, area, digest
+    return triangles, area, hasher.hexdigest()
 
 
 def mesh_metrics(path: str) -> dict:
@@ -94,6 +119,7 @@ def mesh_metrics(path: str) -> dict:
         "triangle_count": len(triangles),
         "surface_area_m2": area,
         "mesh_digest": f"sha256:{digest}",
+        "mesh_digest_method": MESH_DIGEST_METHOD,
     }
 
 
@@ -108,6 +134,7 @@ def analytic_export(request: dict) -> dict:
         "triangle_count": metrics["triangle_count"],
         "surface_area_m2": metrics["surface_area_m2"],
         "mesh_digest": metrics["mesh_digest"],
+        "mesh_digest_method": metrics["mesh_digest_method"],
         "output_path": out_path,
     }
 
@@ -167,6 +194,7 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
         "triangle_count": metrics["triangle_count"],
         "surface_area_m2": metrics["surface_area_m2"],
         "mesh_digest": metrics["mesh_digest"],
+        "mesh_digest_method": metrics["mesh_digest_method"],
         "output_path": out_path,
         "export_runtime_version": os.environ.get("OPENSP_RUNTIME_VERSION", "unknown"),
     }

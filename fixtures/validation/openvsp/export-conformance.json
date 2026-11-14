@@ -21,7 +21,7 @@
   "limitations": [
     "OPENSP_CMD subprocess export when available; analytic STL exporter otherwise.",
     "Analytic backend requires exact digest pin; openvsp_cmd requires landmark or pinned openvsp_cmd_mesh_digest.",
-    "openvsp_cmd_mesh_digest is the Strip Zig mesh digest (not Python float formatting) of the OpenVSP 3.42.0 (deb sha256 53c02bca...) STL of tools/openvsp_box_wing.vspscript with zero API errors (2368 tris, ~94.38 m2: 8 m fuselage, 10 m x 1.5 m wing, 3 m x 0.8 m tail). Reproduce with tools/openvsp_pin.sh.",
+    "openvsp_cmd_mesh_digest is the Strip Zig mesh digest (tools/openvsp_export.py reports the identical value; parity is tested) of the OpenVSP 3.42.0 (deb sha256 53c02bca...) STL of tools/openvsp_box_wing.vspscript with zero API errors (2368 tris, ~94.38 m2: 8 m fuselage, 10 m x 1.5 m wing, 3 m x 0.8 m tail). Reproduce with tools/openvsp_pin.sh.",
     "Previous pin sha256:471546c1... (~242 m2) was the OpenVSP default wings: the old template set planform parms in the wrong parm groups, which OpenVSP ignored.",
     "Export conformance validates mesh stability, not OpenVSP aerodynamic suitability."
   ]

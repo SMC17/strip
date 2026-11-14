@@ -32,5 +32,8 @@ MATLAB tare chain; NACA/ARC reports are scans. The VLM path therefore stays flag
 sha256-checked). LSAT polars are GPL and Strip is Apache-2.0, so only derived statistics
 (`tools/gym/reports/validation/neuralfoil_polar_validation.*`) are committed.
 
-Not yet registered in `sources/primary-sources.json` (that manifest is digest-gated by the Zig
-verifier; adding records needs the `strip.dataset-manifest.v1` extraction provenance).
+Registered in `sources/primary-sources.json` (`strip.dataset-manifest.v1`, verified by
+`src/validation/source.zig` / `strip-validation`): `ladson-naca0012-tm4074` (digest = the
+vendored file, `source_content`), and `uiuc-lsat-vol1-3`, `uiuc-lsat-vol4-6`,
+`uiuc-airfoil-coordinates` (digest = canonical bibliographic JSON in `sources/extracted/`, since
+the GPL data themselves are not committed). Registration is provenance, not validation evidence.

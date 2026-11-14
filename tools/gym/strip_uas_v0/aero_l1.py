@@ -98,6 +98,11 @@ def oswald_nita_scholz(aspect_ratio: float, taper: float, sweep25_deg: float) ->
     return 1.0 / (1.0 + f * aspect_ratio)
 
 
+def span_efficiency(w: WingState) -> float:
+    """Oswald e used by every cheap path (NeuralFoil and analytic): Nita & Scholz (2012)."""
+    return oswald_nita_scholz(max(w.aspect_ratio(), 1.0), w.taper, w.sweep_deg)
+
+
 def zero_lift_alpha_naca4(camber: float, p: float = 0.4) -> float:
     """Thin-airfoil zero-lift angle [rad] of the NACA 4-digit mean line (Anderson §4.8, eq. 4.61)."""
     if camber <= 0:
@@ -233,13 +238,9 @@ def estimate_aero(
     # Simple sweep / taper knockdowns (exploratory)
     sweep_rad = math.radians(abs(w.sweep_deg))
     cl_wing = cl_sec * math.cos(sweep_rad) ** 2
-    if nf_used:
-        # NeuralFoil path keeps its historical span-efficiency convention (not a published
-        # correlation); see reports/validation/analytic_fallback.md for the comparison.
-        e = 0.85 - 0.05 * (1.0 - w.taper)
-        e = max(0.6, min(0.95, e))
-    else:
-        e = oswald_nita_scholz(ar, w.taper, w.sweep_deg)
+    # Same published Oswald factor on both section paths (was 0.85 - 0.05(1 - taper) on the
+    # NeuralFoil path until round 4; see reports/validation/analytic_fallback.md).
+    e = span_efficiency(w)
     cd_i = (cl_wing**2) / (math.pi * ar * e)
     cd_wing = cd_sec + cd_i
     ld = cl_wing / max(cd_wing, 1e-6)

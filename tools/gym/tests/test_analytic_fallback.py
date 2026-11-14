@@ -52,3 +52,24 @@ def test_report_shows_improvement():
     lad = r["section_ladson_naca0012"]
     assert lad["after"]["median_abs_E_CD_pct"] < lad["before"]["median_abs_E_CD_pct"] / 5
     assert r["oswald"]["mean_abs_err_nita_scholz"] < 0.01 < r["oswald"]["mean_abs_err_old"]
+
+
+@pytest.mark.parametrize("w", [WingState(), WingState(span_m=3.2, chord_root_m=0.22, taper=0.45, sweep_deg=18.0, tc=0.10)])
+def test_both_section_paths_use_the_same_published_e(w):
+    from strip_uas_v0.teachers import neuralfoil_stub
+
+    e = aero_l1.oswald_nita_scholz(w.aspect_ratio(), w.taper, w.sweep_deg)
+    assert aero_l1.span_efficiency(w) == pytest.approx(e)
+    a_fb = aero_l1.estimate_aero(w, prefer_neuralfoil=False)
+    cd_sec = aero_l1.section_cd0_buildup(w.tc, a_fb.Re_mac)
+    assert (a_fb.CD - cd_sec) * 3.141592653589793 * w.aspect_ratio() * e == pytest.approx(a_fb.CL**2, rel=1e-9)
+    if not neuralfoil_stub.detect().available:
+        pytest.skip("neuralfoil not installed")
+    a_nf = aero_l1.estimate_aero(w)
+    assert a_nf.neuralfoil_used
+    kp = neuralfoil_stub.naca4_kulfan(w.tc, w.camber)
+    r = neuralfoil_stub.run(alpha_deg=w.alpha_deg + 0.5 * w.twist_deg, Re=a_nf.Re_mac, model_size="small",
+                            kulfan_parameters=kp, airfoil="x")
+    cd_sec_nf = max(float(r["CD"]), 1e-5)
+    # induced part of the NeuralFoil-path C_D uses the same e as the fallback
+    assert (a_nf.CD - cd_sec_nf) * 3.141592653589793 * w.aspect_ratio() * e == pytest.approx(a_nf.CL**2, rel=1e-6)

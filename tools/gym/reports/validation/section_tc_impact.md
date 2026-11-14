@@ -6,37 +6,37 @@ Schema `strip_uas_v0.section_tc_impact.v1`. Before: NACA 0012 for every design. 
 
 | t/c | CL before | CL after | CD before | CD after | L/D before | L/D after | reward before | reward after |
 |---|---|---|---|---|---|---|---|---|
-| 0.08 | 0.1064 | 0.1306 | 0.00761 | 0.00703 | 13.97 | 18.59 | +0.000 | +0.699 |
-| 0.09 | 0.1064 | 0.1244 | 0.00761 | 0.00715 | 13.97 | 17.40 | +0.000 | +0.521 |
-| 0.10 | 0.1064 | 0.1176 | 0.00761 | 0.00728 | 13.97 | 16.16 | +0.000 | +0.336 |
-| 0.11 | 0.1064 | 0.1113 | 0.00761 | 0.00743 | 13.97 | 14.99 | +0.000 | +0.157 |
-| 0.12 | 0.1064 | 0.1064 | 0.00761 | 0.00761 | 13.97 | 13.97 | +0.000 | +0.000 |
-| 0.13 | 0.1064 | 0.1034 | 0.00761 | 0.00784 | 13.97 | 13.19 | +0.000 | -0.127 |
-| 0.14 | 0.1064 | 0.1023 | 0.00761 | 0.00810 | 13.97 | 12.62 | +0.000 | -0.225 |
-| 0.15 | 0.1064 | 0.1025 | 0.00761 | 0.00839 | 13.97 | 12.22 | +0.000 | -0.302 |
-| 0.16 | 0.1064 | 0.1035 | 0.00761 | 0.00870 | 13.97 | 11.90 | +0.000 | -0.368 |
-| 0.17 | 0.1064 | 0.1046 | 0.00761 | 0.00901 | 13.97 | 11.60 | +0.000 | -0.431 |
-| 0.18 | 0.1064 | 0.1054 | 0.00761 | 0.00933 | 13.97 | 11.29 | +0.000 | -0.497 |
+| 0.08 | 0.1064 | 0.1306 | 0.00756 | 0.00694 | 14.08 | 18.82 | +0.000 | +0.714 |
+| 0.09 | 0.1064 | 0.1244 | 0.00756 | 0.00707 | 14.08 | 17.60 | +0.000 | +0.531 |
+| 0.10 | 0.1064 | 0.1176 | 0.00756 | 0.00720 | 14.08 | 16.32 | +0.000 | +0.342 |
+| 0.11 | 0.1064 | 0.1113 | 0.00756 | 0.00736 | 14.08 | 15.12 | +0.000 | +0.160 |
+| 0.12 | 0.1064 | 0.1064 | 0.00756 | 0.00756 | 14.08 | 14.08 | +0.000 | +0.000 |
+| 0.13 | 0.1064 | 0.1034 | 0.00756 | 0.00779 | 14.08 | 13.28 | +0.000 | -0.129 |
+| 0.14 | 0.1064 | 0.1023 | 0.00756 | 0.00805 | 14.08 | 12.71 | +0.000 | -0.228 |
+| 0.15 | 0.1064 | 0.1025 | 0.00756 | 0.00834 | 14.08 | 12.30 | +0.000 | -0.305 |
+| 0.16 | 0.1064 | 0.1035 | 0.00756 | 0.00864 | 14.08 | 11.98 | +0.000 | -0.371 |
+| 0.17 | 0.1064 | 0.1046 | 0.00756 | 0.00895 | 14.08 | 11.68 | +0.000 | -0.434 |
+| 0.18 | 0.1064 | 0.1054 | 0.00756 | 0.00927 | 14.08 | 11.36 | +0.000 | -0.500 |
 
 ## 300 random designs (seed 0)
 
-- Spearman L/D before vs after: 0.972; CD: 0.969
-- Top-decile L/D overlap: 63%
-- Median CD change: +0.2%
+- Spearman L/D before vs after: 0.971; CD: 0.965
+- Top-decile L/D overlap: 57%
+- Median CD change: +0.3%
 - Spearman(t/c, L/D): before +0.00, after -0.13
-- Mean t/c of top-decile designs: before 0.131, after 0.115
+- Mean t/c of top-decile designs: before 0.132, after 0.112
 
 ## Camber sweep on the default parent (NACA 4-digit, camber at 0.4 c; t/c 0.12)
 
 | camber | CL | CD | L/D | reward |
 |---|---|---|---|---|
-| 0.00 | 0.106 | 0.00761 | 14.0 | +0.000 |
-| 0.01 | 0.227 | 0.00928 | 24.5 | +1.414 |
-| 0.02 | 0.327 | 0.01153 | 28.3 | +1.834 |
-| 0.03 | 0.444 | 0.01534 | 29.0 | +1.695 |
-| 0.04 | 0.558 | 0.02020 | 27.6 | +1.187 |
-| 0.05 | 0.669 | 0.02617 | 25.6 | +0.503 |
-| 0.06 | 0.762 | 0.03233 | 23.6 | -0.188 |
+| 0.00 | 0.106 | 0.00756 | 14.1 | +0.000 |
+| 0.01 | 0.227 | 0.00901 | 25.2 | +1.503 |
+| 0.02 | 0.327 | 0.01097 | 29.8 | +2.037 |
+| 0.03 | 0.444 | 0.01432 | 31.0 | +2.017 |
+| 0.04 | 0.558 | 0.01859 | 30.0 | +1.594 |
+| 0.05 | 0.669 | 0.02384 | 28.1 | +0.970 |
+| 0.06 | 0.762 | 0.02932 | 26.0 | +0.313 |
 
 Camber is a strong reward lever at fixed alpha (it adds lift at the same angle); the trimmed mission reward is the fair comparison. Measured sections back the section model to ~6% camber (neuralfoil_polar_validation.md, `gym_section`).
 
@@ -44,7 +44,7 @@ Camber is a strong reward lever at fixed alpha (it adds lift at the same angle);
 
 Basis: structure.spar_check (14 CFR 23.337/23.303 loads by convention, elliptic loading, Wood Handbook spruce caps, cap-geometry conventions, 5 kg).
 
-- Random designs violating the floor: 4%; mean t/c of the top decile among feasible designs: 0.121.
+- Random designs violating the floor: 4%; mean t/c of the top decile among feasible designs: 0.115.
 - L/D-optimal t/c per planform (100 planforms, t/c grid 0.08-0.18): without the floor median 0.08, 51% at the 0.08 bound; with the floor median 0.10, 37% at 0.08, floor binding in 19%, no feasible t/c in 0%.
 
 ## Reading this honestly

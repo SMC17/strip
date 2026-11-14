@@ -22,10 +22,10 @@ FIDELITY_TO_ORACLE = {
     "L1_neuralfoil_section": "neuralfoil_small",
     "L1_analytic_polar": "analytic",
 }
-# The NeuralFoil gym path always evaluates the default (NACA 0012-like) Kulfan
-# section; w.tc is not mapped into the geometry (aero_l1._neuralfoil_section).
-GYM_SECTION_TC = 0.12
-SECTION_TC_TOL = 0.01
+# The NeuralFoil gym path evaluates a symmetric NACA 00xx at the design t/c
+# (aero_l1._neuralfoil_section). Its thickness model is backed by measured data only over
+# the t/c range of the measured symmetric sections in the report (`gym_section.tc_range`).
+GYM_SECTION_ORACLE = "gym_section"
 
 # Used only if the committed report is missing (same numbers as the report).
 _FALLBACK = {
@@ -33,6 +33,17 @@ _FALLBACK = {
                          "validated_alpha_range": [-8.07, 17.24]},
     "analytic": {"validated_Re_bands": [], "validated_alpha_range": None},
 }
+_FALLBACK_TC_RANGE = [0.0884, 0.1831]
+
+
+@lru_cache(maxsize=1)
+def section_tc_range() -> list[float] | None:
+    """t/c range of the measured symmetric sections the gym's NACA 00xx model was checked on."""
+    try:
+        rep = json.loads(REPORT.read_text())
+        return rep["per_oracle"][GYM_SECTION_ORACLE].get("tc_range")
+    except (OSError, KeyError, ValueError):
+        return list(_FALLBACK_TC_RANGE)
 
 
 @lru_cache(maxsize=1)
@@ -65,8 +76,9 @@ def assess(aero: Any, wing: Any = None) -> dict[str, Any]:
     checks.append(("alpha_in_validated_range", bool(ar) and al is not None and ar[0] <= float(al) <= ar[1],
                    al, ar or "none", "alpha range of attached measured points in validated bands"))
     if wing is not None and oracle == "neuralfoil_small":
-        tc = float(getattr(wing, "tc", GYM_SECTION_TC))
-        checks.append(("section_matches_design_tc", abs(tc - GYM_SECTION_TC) <= SECTION_TC_TOL, tc,
-                       f"{GYM_SECTION_TC}±{SECTION_TC_TOL}",
-                       "gym NeuralFoil path uses a fixed 12% section; design t/c is not modelled"))
+        tc = float(getattr(wing, "tc", 0.12))
+        rng = section_tc_range()
+        checks.append(("section_tc_in_measured_range", bool(rng) and rng[0] <= tc <= rng[1], tc, rng or "none",
+                       "gym NeuralFoil path uses a symmetric NACA 00xx at the design t/c; measured symmetric "
+                       "sections cover this range (camber is not modelled)"))
     return {"oracle": oracle, "checks": checks, "source": str(REPORT.name)}

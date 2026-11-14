@@ -15,26 +15,34 @@ def main() -> int:
         print(f"openvsp python module unavailable: {exc}", file=sys.stderr)
         return 1
 
+    # Mirrors tools/openvsp_box_wing.vspscript (the pinned, CI-exercised path).
+    # Planform parms live in "XSec_1", placement in "XForm"; under "Design" they
+    # are silently ignored and the default wing is exported. Not exercised on
+    # CI: the 3.42.0 Python bindings need libpython3.12.
     vsp.ClearVSPModel()
     fuse_id = vsp.AddGeom("FUSELAGE", "")
     vsp.SetParmVal(fuse_id, "Length", "Design", 8.0)
-    vsp.SetParmVal(fuse_id, "Width", "Design", 1.2)
-    vsp.SetParmVal(fuse_id, "Height", "Design", 1.2)
 
-    wing_id = vsp.AddGeom("WING", "")
-    vsp.SetParmVal(wing_id, "Span", "Design", 10.0)
-    vsp.SetParmVal(wing_id, "Root_Chord", "Design", 1.5)
-    vsp.SetParmVal(wing_id, "Tip_Chord", "Design", 1.5)
-    vsp.SetParmVal(wing_id, "X_Rel_Location", "Design", 2.0)
-
-    tail_id = vsp.AddGeom("WING", "")
-    vsp.SetParmVal(tail_id, "Span", "Design", 3.0)
-    vsp.SetParmVal(tail_id, "Root_Chord", "Design", 0.8)
-    vsp.SetParmVal(tail_id, "Tip_Chord", "Design", 0.8)
-    vsp.SetParmVal(tail_id, "X_Rel_Location", "Design", 7.0)
-    vsp.SetParmVal(tail_id, "Z_Rel_Location", "Design", 1.0)
+    for gid, half_span, chord, x, z in (
+        (vsp.AddGeom("WING", ""), 5.0, 1.5, 2.0, None),
+        (vsp.AddGeom("WING", ""), 1.5, 0.8, 7.0, 1.0),
+    ):
+        vsp.SetDriverGroup(gid, 1, vsp.SPAN_WSECT_DRIVER, vsp.ROOTC_WSECT_DRIVER, vsp.TIPC_WSECT_DRIVER)
+        vsp.SetParmVal(gid, "Span", "XSec_1", half_span)
+        vsp.SetParmVal(gid, "Root_Chord", "XSec_1", chord)
+        vsp.SetParmVal(gid, "Tip_Chord", "XSec_1", chord)
+        vsp.SetParmVal(gid, "Sweep", "XSec_1", 0.0)
+        vsp.SetParmVal(gid, "X_Rel_Location", "XForm", x)
+        if z is not None:
+            vsp.SetParmVal(gid, "Z_Rel_Location", "XForm", z)
 
     vsp.Update()
+    n_err = vsp.ErrorMgr.GetNumTotalErrors()
+    if n_err:
+        while vsp.ErrorMgr.GetNumTotalErrors() > 0:
+            print(vsp.ErrorMgr.PopLastError().GetErrorString(), file=sys.stderr)
+        print(f"OpenVSP reported {n_err} API error(s); refusing to export", file=sys.stderr)
+        return 1
     vsp.ExportFile(output_path, vsp.SET_ALL, vsp.EXPORT_STL)
     if not os.path.isfile(output_path):
         print("OpenVSP export did not produce output", file=sys.stderr)

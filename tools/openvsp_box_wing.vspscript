@@ -5,8 +5,13 @@
 // and placement in "XForm". Setting them under "Design" (as earlier versions of
 // this script did) is silently ignored by OpenVSP 3.42 (API error code 4) and
 // exports the default wing instead. Any API error now fails the export.
+//
+// main() returns int on purpose: vsp / vspscript use the script's main()
+// return value as the process exit code. With `void main()` the exit code is
+// whatever was left in the return register (observed 2, 4, 10 on 3.42.0 and
+// 3.51.3), which made a complete export look like a failed one.
 
-void main()
+int main()
 {
     string out_path = "__OUTPUT_PATH__";
     ClearVSPModel();
@@ -40,7 +45,7 @@ void main()
         Print( "strip_vsp_api_error: " + err.GetErrorString() );
     }
     Print( "strip_vsp_api_errors=" + n_err );
-    if ( n_err > 0 ) { return; }
+    if ( n_err > 0 ) { return 3; }
 
     string mesh_id = ExportFile(out_path, SET_ALL, EXPORT_STL);
     if (mesh_id != "") {
@@ -48,4 +53,5 @@ void main()
     }
     Print( "strip_vsp_wing_span=" + GetParmVal(wing_id, "TotalSpan", "WingGeom") );
     Print( "strip_vsp_export_ok" );
+    return 0;
 }

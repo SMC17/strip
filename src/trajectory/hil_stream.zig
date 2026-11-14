@@ -247,4 +247,3 @@ test "hil unix stream folds" {
     const report = try selftestUnix(std.testing.allocator, std.testing.io);
     try std.testing.expect(report.passed);
 }
-

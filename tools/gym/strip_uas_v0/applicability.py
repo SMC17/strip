@@ -35,6 +35,7 @@ _FALLBACK = {
 }
 _FALLBACK_TC_RANGE = [0.0340, 0.1831]
 _FALLBACK_CAMBER_RANGE = [0.0, 0.0597]
+_FALLBACK_CAMBER_POS_RANGE = [0.33, 0.52]
 
 
 @lru_cache(maxsize=1)
@@ -54,6 +55,16 @@ def section_camber_range() -> list[float] | None:
         return rep["per_oracle"][GYM_SECTION_ORACLE].get("camber_range")
     except (OSError, KeyError, ValueError):
         return list(_FALLBACK_CAMBER_RANGE)
+
+
+@lru_cache(maxsize=1)
+def section_camber_pos_range() -> list[float] | None:
+    """5-95 % range of max-camber position p over the measured cambered sections (`gym_section`)."""
+    try:
+        rep = json.loads(REPORT.read_text())
+        return rep["per_oracle"][GYM_SECTION_ORACLE].get("camber_pos_p05_p95") or list(_FALLBACK_CAMBER_POS_RANGE)
+    except (OSError, KeyError, ValueError):
+        return list(_FALLBACK_CAMBER_POS_RANGE)
 
 
 @lru_cache(maxsize=1)
@@ -93,5 +104,10 @@ def assess(aero: Any, wing: Any = None) -> dict[str, Any]:
         cam = float(getattr(wing, "camber", 0.0))
         crng = section_camber_range()
         checks.append(("section_camber_in_measured_range", bool(crng) and crng[0] <= cam <= crng[1], cam, crng or "none",
-                       "NACA 4-digit camber at 0.4 c; measured sections with this max camber back the section model"))
+                       "NACA 4-digit max camber; measured sections with this max camber back the section model"))
+        if cam > 0.005:
+            pos = float(getattr(wing, "camber_pos", 0.4))
+            prng = section_camber_pos_range()
+            checks.append(("section_camber_pos_in_measured_range", bool(prng) and prng[0] <= pos <= prng[1], pos,
+                           prng or "none", "max-camber position inside the 5-95% p range of the measured cambered sections"))
     return {"oracle": oracle, "checks": checks, "source": str(REPORT.name)}

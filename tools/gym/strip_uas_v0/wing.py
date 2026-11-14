@@ -11,9 +11,12 @@ AR_MIN, AR_MAX = 4.0, 18.0
 TAPER_MIN, TAPER_MAX = 0.35, 1.0
 SWEEP_MIN, SWEEP_MAX = -5.0, 35.0  # deg, quarter-chord proxy
 TC_MIN, TC_MAX = 0.08, 0.18
-# NACA 4-digit max camber (fraction of chord); position fixed at CAMBER_POS (convention: NACA x4xx).
+# NACA 4-digit max camber (fraction of chord) and its chordwise position p (the second digit / 10).
+# CAMBER_POS is the default p (NACA x4xx). The p band is a convention around the 5-95 % range of p of the
+# measured cambered sections (0.33-0.52) that back the section model (neuralfoil_polar_validation).
 CAMBER_MIN, CAMBER_MAX = 0.0, 0.06
 CAMBER_POS = 0.4
+CAMBER_POS_MIN, CAMBER_POS_MAX = 0.25, 0.6
 TWIST_MIN, TWIST_MAX = -8.0, 4.0  # deg washout(+) not required
 ALPHA_MIN, ALPHA_MAX = -4.0, 12.0  # deg section / wing AoA for L1
 SPAN_MIN_M, SPAN_MAX_M = 0.4, 8.0
@@ -31,7 +34,8 @@ class WingState:
     tc: float = 0.12  # thickness / chord
     twist_deg: float = -2.0  # tip geometric twist (washout negative)
     alpha_deg: float = 2.0  # freestream AoA for L1 section/wing rank
-    camber: float = 0.0  # NACA 4-digit max camber / chord at CAMBER_POS (0 = symmetric NACA 00xx)
+    camber: float = 0.0  # NACA 4-digit max camber / chord (0 = symmetric NACA 00xx)
+    camber_pos: float = CAMBER_POS  # chordwise position of max camber / chord (NACA 4-digit p)
 
     def chord_tip_m(self) -> float:
         return self.chord_root_m * self.taper
@@ -65,6 +69,7 @@ class WingState:
             self.twist_deg,
             self.alpha_deg,
             self.camber,
+            self.camber_pos,
         ]
 
     @classmethod
@@ -78,6 +83,7 @@ class WingState:
             twist_deg=float(v[5]),
             alpha_deg=float(v[6]) if len(v) > 6 else 2.0,
             camber=float(v[7]) if len(v) > 7 else 0.0,
+            camber_pos=float(v[8]) if len(v) > 8 else CAMBER_POS,
         )
 
     def clamp_soft(self) -> "WingState":
@@ -90,6 +96,7 @@ class WingState:
         w.twist_deg = max(-10.0, min(6.0, w.twist_deg))
         w.alpha_deg = max(-6.0, min(14.0, w.alpha_deg))
         w.camber = max(0.0, min(0.07, w.camber))
+        w.camber_pos = max(0.15, min(0.7, w.camber_pos))
         return w
 
     def to_dict(self) -> dict[str, Any]:
@@ -137,6 +144,8 @@ def evaluate_l0(w: WingState) -> L0Report:
         vios.append(f"tc_out_of_band:{w.tc:.3f}")
     if not (CAMBER_MIN <= w.camber <= CAMBER_MAX):
         vios.append(f"camber_out_of_band:{w.camber:.4f}")
+    if not (CAMBER_POS_MIN <= w.camber_pos <= CAMBER_POS_MAX):
+        vios.append(f"camber_pos_out_of_band:{w.camber_pos:.3f}")
     if not (TWIST_MIN <= w.twist_deg <= TWIST_MAX):
         vios.append(f"twist_out_of_band:{w.twist_deg:.2f}")
     if not (ALPHA_MIN <= w.alpha_deg <= ALPHA_MAX):
@@ -163,6 +172,7 @@ def evaluate_l0(w: WingState) -> L0Report:
         "sweep_deg": w.sweep_deg,
         "tc": w.tc,
         "camber": w.camber,
+        "camber_pos": w.camber_pos,
         "area_m2": w.area_m2(),
         "mac_m": w.mac_m(),
         "alpha_deg": w.alpha_deg,

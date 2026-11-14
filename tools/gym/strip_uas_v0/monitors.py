@@ -23,15 +23,15 @@ class MonitorDecision:
 
 
 def apply_action(w: WingState, action: list[float] | tuple[float, ...]) -> WingState:
-    """Action: bounded relative/absolute deltas for 8 wing params.
+    """Action: bounded relative/absolute deltas for 9 wing params.
 
-    Indices: [span, chord_root, taper, sweep, tc, twist, alpha, camber]. A 7-element action
-    (pre-camber agents) leaves camber unchanged.
+    Indices: [span, chord_root, taper, sweep, tc, twist, alpha, camber, camber_pos]. Shorter
+    actions (7-dim pre-camber, 8-dim pre-camber-position agents) leave the trailing params unchanged.
     """
-    scales = [0.05, 0.05, 0.03, 1.5, 0.01, 0.5, 0.5, 0.005]
+    scales = [0.05, 0.05, 0.03, 1.5, 0.01, 0.5, 0.5, 0.005, 0.02]
     vals = w.as_vector()
     out = []
-    for i, a in enumerate(action[:8]):
+    for i, a in enumerate(action[:9]):
         a = max(-1.0, min(1.0, float(a)))
         if i in (0, 1):  # span, chord — relative
             out.append(vals[i] * (1.0 + a * scales[i]))

@@ -30,12 +30,12 @@
   "per_oracle": {
     "analytic": {
       "attached": {
-        "mean_E_CD_pct": -230.9511232162207,
+        "mean_E_CD_pct": 25.437312068724783,
         "mean_dCL": -0.019646635150882465,
-        "median_abs_E_CD_pct": 272.7460214618425,
+        "median_abs_E_CD_pct": 29.356439231125307,
         "median_abs_dCL": 0.03008893834447246,
         "n": 47,
-        "p90_abs_E_CD_pct": 467.1393235765392,
+        "p90_abs_E_CD_pct": 61.34772005279568,
         "rms_dCL": 0.08334380219975011
       },
       "by_Re_band": {
@@ -50,12 +50,12 @@
             -4.04,
             17.24
           ],
-          "mean_E_CD_pct": -230.9511232162207,
+          "mean_E_CD_pct": 25.437312068724783,
           "mean_dCL": -0.019646635150882465,
-          "median_abs_E_CD_pct": 272.7460214618425,
+          "median_abs_E_CD_pct": 29.356439231125307,
           "median_abs_dCL": 0.03008893834447246,
           "n": 47,
-          "p90_abs_E_CD_pct": 467.1393235765392,
+          "p90_abs_E_CD_pct": 61.34772005279568,
           "rms_dCL": 0.08334380219975011,
           "validated": false
         },
@@ -66,12 +66,12 @@
       "by_airfoil": {
         "NACA 0012": {
           "camber": 0.0,
-          "mean_E_CD_pct": -230.9511232162207,
+          "mean_E_CD_pct": 25.437312068724783,
           "mean_dCL": -0.019646635150882465,
-          "median_abs_E_CD_pct": 272.7460214618425,
+          "median_abs_E_CD_pct": 29.356439231125307,
           "median_abs_dCL": 0.03008893834447246,
           "n": 47,
-          "p90_abs_E_CD_pct": 467.1393235765392,
+          "p90_abs_E_CD_pct": 61.34772005279568,
           "rms_dCL": 0.08334380219975011,
           "tc": 0.12
         }
@@ -83,21 +83,21 @@
         "validated_alpha_range": null
       },
       "overall": {
-        "mean_E_CD_pct": -197.09808249113524,
+        "mean_E_CD_pct": 33.52604974150517,
         "mean_dCL": 0.016790719771858937,
-        "median_abs_E_CD_pct": 229.68749999999994,
+        "median_abs_E_CD_pct": 33.57566723507747,
         "median_abs_dCL": 0.032399999999999984,
         "n": 53,
-        "p90_abs_E_CD_pct": 459.34575727865854,
+        "p90_abs_E_CD_pct": 90.06541874216546,
         "rms_dCL": 0.13112689735736976
       },
       "post_stall": {
-        "mean_E_CD_pct": 68.08406985536789,
+        "mean_E_CD_pct": 96.88782817828483,
         "mean_dCL": 0.3022166666666666,
-        "median_abs_E_CD_pct": 68.24352802604253,
+        "median_abs_E_CD_pct": 96.90337719168556,
         "median_abs_dCL": 0.29889999999999994,
         "n": 6,
-        "p90_abs_E_CD_pct": 75.22343388539076,
+        "p90_abs_E_CD_pct": 97.58399863167645,
         "rms_dCL": 0.3122032057277225
       },
       "tc_range": [

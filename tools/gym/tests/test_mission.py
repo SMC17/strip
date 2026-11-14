@@ -33,8 +33,8 @@ def test_identical_wing_scores_zero():
 
 
 def test_multipoint_exposes_cruise_loss_that_mean_hides():
-    """Bigger wing → lower CL_req: loiter/climb improve, cruise L/D drops (analytic L1 polar)."""
-    child = dataclasses.replace(W, span_m=3.0, chord_root_m=0.33)
+    """Higher-AR wing (span 2.4->3.0 m, ~same area): loiter/climb improve, cruise L/D drops (analytic L1 polar)."""
+    child = dataclasses.replace(W, span_m=3.0, chord_root_m=0.25)
     m = mission_score(child, W, prefer_neuralfoil=False)
     d = {r["name"]: r["d"] for r in m["points"]}
     assert d["cruise"] < 0 < d["loiter"]

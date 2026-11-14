@@ -18,6 +18,7 @@ import numpy as np
 
 from . import aero_l1
 from .env import _reward
+from .structure import spar_check
 from .wing import WingState
 
 SCHEMA = "strip_uas_v0.section_tc_impact.v1"
@@ -78,8 +79,38 @@ def analyse(n_designs: int = 300, seed: int = 0) -> dict[str, Any]:
     tcs = np.array([w.tc for w in ds])
     k = max(1, n_designs // 10)
     top0, top1 = set(np.argsort(-ld0)[:k]), set(np.argsort(-ld1)[:k])
+    # Structural floor (structure.spar_check): ranking among feasible designs, and the
+    # L/D-optimal t/c per planform with and without the floor.
+    feas = np.array([spar_check(w).feasible for w in ds])
+    ld1f = np.where(feas, ld1, -np.inf)
+    top1f = set(np.argsort(-ld1f)[:k])
+    grid = np.round(np.arange(0.08, 0.1801, 0.01), 3)
+    opt_free, opt_floor, binds = [], [], 0
+    for w in ds[: min(100, n_designs)]:
+        with _mapping(True):
+            lds = [aero_l1.estimate_aero(dataclasses.replace(w, tc=float(t))).LD for t in grid]
+        req = spar_check(w).tc_required
+        opt_free.append(float(grid[int(np.argmax(lds))]))
+        ok = [i for i, t in enumerate(grid) if t >= req]
+        if ok:
+            i = max(ok, key=lambda i: lds[i])
+            opt_floor.append(float(grid[i]))
+            binds += int(i == ok[0] and ok[0] > 0)
+    opt_free_a, opt_floor_a = np.asarray(opt_free), np.asarray(opt_floor)
+    structural = {
+        "basis": "structure.spar_check (14 CFR 23.337/23.303 loads by convention, elliptic loading, Wood Handbook spruce caps, cap-geometry conventions, 5 kg)",
+        "share_random_designs_infeasible": float(1 - feas.mean()),
+        "mean_tc_top_decile_after_feasible_only": float(tcs[list(top1f)].mean()),
+        "n_planforms": len(opt_free),
+        "optimal_tc_free": {"median": float(np.median(opt_free_a)), "share_at_lower_bound": float(np.mean(opt_free_a <= 0.08 + 1e-9))},
+        "optimal_tc_with_floor": {"n_with_feasible_tc": len(opt_floor), "median": float(np.median(opt_floor_a)) if opt_floor else None,
+                                  "share_at_lower_bound": float(np.mean(opt_floor_a <= 0.08 + 1e-9)) if opt_floor else None,
+                                  "share_floor_binding": binds / max(len(opt_floor), 1),
+                                  "share_planforms_with_no_feasible_tc": 1 - len(opt_floor) / len(opt_free)},
+    }
     return {
         "schema": SCHEMA,
+        "structural_floor": structural,
         "parent": parent.to_dict() if hasattr(parent, "to_dict") else dataclasses.asdict(parent),
         "parent_before": {"CD": p0.CD, "LD": p0.LD}, "parent_after": {"CD": p1.CD, "LD": p1.LD},
         "tc_sweep_on_parent": sweep,
@@ -113,12 +144,25 @@ def render_markdown(r: dict[str, Any]) -> str:
           f"- Median CD change: {rd['median_rel_CD_change_pct']:+.1f}%",
           f"- Spearman(t/c, L/D): before {rd['spearman_tc_vs_LD_before']:+.2f}, after {rd['spearman_tc_vs_LD_after']:+.2f}",
           f"- Mean t/c of top-decile designs: before {rd['mean_tc_top_decile_before']:.3f}, after {rd['mean_tc_top_decile_after']:.3f}",
-          "", "## Reading this honestly", "",
+          ""]
+    sf = r.get("structural_floor")
+    if sf:
+        of, ol = sf["optimal_tc_free"], sf["optimal_tc_with_floor"]
+        L += ["## With the spar-depth floor", "", f"Basis: {sf['basis']}.", "",
+              f"- Random designs violating the floor: {sf['share_random_designs_infeasible']:.0%}; mean t/c of the top decile "
+              f"among feasible designs: {sf['mean_tc_top_decile_after_feasible_only']:.3f}.",
+              f"- L/D-optimal t/c per planform ({sf['n_planforms']} planforms, t/c grid 0.08-0.18): without the floor median "
+              f"{of['median']:.2f}, {of['share_at_lower_bound']:.0%} at the 0.08 bound; with the floor median "
+              f"{ol['median']:.2f}, {ol['share_at_lower_bound']:.0%} at 0.08, floor binding in {ol['share_floor_binding']:.0%}, "
+              f"no feasible t/c in {ol['share_planforms_with_no_feasible_tc']:.0%}.", ""]
+    L += ["## Reading this honestly", "",
           "- Before, thickness was free in the reward (reward did not move with t/c), so the search could drift to any t/c "
           "at no cost. After, the reward has a thickness gradient from NeuralFoil.",
-          "- The gym has no structural or volume term, so the section-only reward favours thin sections: the optimiser "
-          "will push t/c to the lower bound (0.08). That is a missing-constraint artefact, not a design recommendation; "
-          "a spar-depth / fuel-volume constraint is needed before thickness optimisation means anything.",
+          "- The section-only reward favours thin sections. The spar-depth floor (L0 violation "
+          "`tc_below_spar_depth_floor`) now ties the minimum t/c to span, root chord and mass, so high-AR / small-chord "
+          "planforms are pushed to their floor instead of 0.08; low-AR, large-chord planforms still go to 0.08 because "
+          "a spruce-capped 5 kg wing genuinely does not need more depth there. Volume (fuel/battery) is not constrained.",
+          "- The L/D used here is at fixed alpha; the mission reward (trimmed C_L) is the better thickness trade.",
           "- Most of the L/D change at fixed alpha comes from C_L, not C_D: at Re ~4e5 and alpha_eff ~1 deg NeuralFoil gives "
           "thin sections a higher lift slope (laminar-separation effects on thick sections). The reward's 2x L/D term "
           "amplifies this; an L/D gain at fixed alpha is not the same as lower drag at fixed lift.",

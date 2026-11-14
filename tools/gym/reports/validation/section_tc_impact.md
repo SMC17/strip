@@ -26,10 +26,18 @@ Schema `strip_uas_v0.section_tc_impact.v1`. Before: NACA 0012 for every design. 
 - Spearman(t/c, L/D): before +0.00, after -0.13
 - Mean t/c of top-decile designs: before 0.131, after 0.115
 
+## With the spar-depth floor
+
+Basis: structure.spar_check (14 CFR 23.337/23.303 loads by convention, elliptic loading, Wood Handbook spruce caps, cap-geometry conventions, 5 kg).
+
+- Random designs violating the floor: 4%; mean t/c of the top decile among feasible designs: 0.121.
+- L/D-optimal t/c per planform (100 planforms, t/c grid 0.08-0.18): without the floor median 0.08, 51% at the 0.08 bound; with the floor median 0.10, 37% at 0.08, floor binding in 19%, no feasible t/c in 0%.
+
 ## Reading this honestly
 
 - Before, thickness was free in the reward (reward did not move with t/c), so the search could drift to any t/c at no cost. After, the reward has a thickness gradient from NeuralFoil.
-- The gym has no structural or volume term, so the section-only reward favours thin sections: the optimiser will push t/c to the lower bound (0.08). That is a missing-constraint artefact, not a design recommendation; a spar-depth / fuel-volume constraint is needed before thickness optimisation means anything.
+- The section-only reward favours thin sections. The spar-depth floor (L0 violation `tc_below_spar_depth_floor`) now ties the minimum t/c to span, root chord and mass, so high-AR / small-chord planforms are pushed to their floor instead of 0.08; low-AR, large-chord planforms still go to 0.08 because a spruce-capped 5 kg wing genuinely does not need more depth there. Volume (fuel/battery) is not constrained.
+- The L/D used here is at fixed alpha; the mission reward (trimmed C_L) is the better thickness trade.
 - Most of the L/D change at fixed alpha comes from C_L, not C_D: at Re ~4e5 and alpha_eff ~1 deg NeuralFoil gives thin sections a higher lift slope (laminar-separation effects on thick sections). The reward's 2x L/D term amplifies this; an L/D gain at fixed alpha is not the same as lower drag at fixed lift.
 - Section is symmetric (no camber), and at low Re NeuralFoil's thin-section advantage includes laminar-bubble effects that the measured symmetric sections only partly confirm (see neuralfoil_polar_validation.md, `gym_section`).
 - Not FAA / ARP6983; exploratory L1.

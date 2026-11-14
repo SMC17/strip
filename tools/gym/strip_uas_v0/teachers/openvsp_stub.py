@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from . import binprobe
+
 FIDELITY_PENDING = "aero_openvsp_pending"
 FIDELITY = "aero_openvsp"
 TEACHER = "openvsp_stub"
@@ -56,6 +58,7 @@ class OpenVSPAvailability:
     vsp_bin: str | None = None
     python_mod: bool = False
     version: str | None = None
+    load_error: str | None = None
 
     @property
     def available(self) -> bool:
@@ -66,6 +69,7 @@ class OpenVSPAvailability:
             "vsp_bin": self.vsp_bin,
             "python_mod": self.python_mod,
             "version": self.version,
+            "load_error": self.load_error,
             "available": self.available,
             "install_hint": (
                 "Prefer vendor/openvsp from Ubuntu .deb extract "
@@ -98,7 +102,7 @@ def _candidate_bins() -> list[Path]:
 
 
 def detect() -> OpenVSPAvailability:
-    """Probe PATH / vendor / import for OpenVSP (no side effects)."""
+    """Probe PATH / vendor / import for OpenVSP; the CLI binary must actually load."""
     vsp_bin: str | None = None
     for cand in _candidate_bins():
         # Prefer vspscript for headless scripting
@@ -129,7 +133,18 @@ def detect() -> OpenVSPAvailability:
         # Best-effort: package tree version from parent README / CHANGELOG not required
         version = "cli"
 
-    return OpenVSPAvailability(vsp_bin=vsp_bin, python_mod=python_mod, version=version)
+    load_error = None
+    if vsp_bin:
+        pr = binprobe.probe(vsp_bin)
+        if not pr.ok:
+            load_error = f"{Path(vsp_bin).name}:{pr.reason}"
+            vsp_bin = None
+            if version == "cli":
+                version = None
+
+    return OpenVSPAvailability(
+        vsp_bin=vsp_bin, python_mod=python_mod, version=version, load_error=load_error
+    )
 
 
 def _run_vspscript(bin_path: str, work: Path) -> dict[str, Any]:

@@ -91,10 +91,13 @@ class DesignSimplex:
         if self.stability:
             from .stability import accept_stability, cg_for_margin, static_margin
 
+            from .airframe import resolve
+
+            af = resolve(getattr(self.env, "airframe", None), self.env.parent)
             if self._cg is None:
-                self._cg = getattr(self.env, "cg", None) or cg_for_margin(self.env.parent,
-                                                                          getattr(self.env, "sm_target", 0.10))
-            acc = accept_stability(static_margin(self._apply(wing, list(action)), self._cg))
+                self._cg = getattr(self.env, "cg", None) or cg_for_margin(
+                    self.env.parent, getattr(self.env, "sm_target", 0.10), airframe=af)
+            acc = accept_stability(static_margin(self._apply(wing, list(action)), self._cg, airframe=af))
             if not acc.passed:
                 return Verdict(False, [f"stability:{n}" for n in acc.failed_checks])
         return Verdict(True)

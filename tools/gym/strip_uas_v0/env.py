@@ -170,7 +170,7 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         """
         cp = self._cheap_parent()
         a = estimate_aero(w, prefer_neuralfoil=self.prefer_neuralfoil, prefer_vspaero=False)
-        acc, _ = self._gate(w, accept_aero(a, parent_fidelity=cp.fidelity).to_dict())
+        acc, _ = self._gate(w, accept_aero(a, parent_fidelity=cp.fidelity, wing=w).to_dict())
         if not acc["passed"]:
             return -1.0, acc
         if self.mission is not None:
@@ -283,7 +283,7 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         l0 = evaluate_l0(self.state)
         aero = self._estimate(self.state)
         acc, stab = self._gate(
-            self.state, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict()
+            self.state, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity, wing=self.state).to_dict()
         )
         mission_info = None
         if acc["passed"] and self.mission is not None:
@@ -353,7 +353,7 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         fresh = WingState.from_vector(self.state.as_vector())
         l0 = evaluate_l0(fresh)
         aero = self._estimate(fresh)
-        acc_d, stab = self._gate(fresh, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict())
+        acc_d, stab = self._gate(fresh, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity, wing=fresh).to_dict())
         measured = {"LD": aero.LD, "CL": aero.CL, "CD": aero.CD, "area": fresh.area_m2()}
         if stab is not None:
             measured["static_margin"] = stab["static_margin"]

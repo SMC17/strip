@@ -1,0 +1,141 @@
+"""Reward impact of modelling w.tc in the NeuralFoil section (honest before/after).
+
+Before: every design was evaluated on the NACA 0012 section, whatever its w.tc.
+After: a symmetric NACA 00xx at the design t/c (aero_l1.MAP_SECTION_TC). This module
+re-runs both on the same designs and reports how CD, L/D, rankings and the env reward move.
+Exploratory L1; not FAA / ARP6983.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import dataclasses
+import json
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from . import aero_l1
+from .env import _reward
+from .wing import WingState
+
+SCHEMA = "strip_uas_v0.section_tc_impact.v1"
+
+
+@contextlib.contextmanager
+def _mapping(on: bool):
+    old = aero_l1.MAP_SECTION_TC
+    aero_l1.MAP_SECTION_TC = on
+    try:
+        yield
+    finally:
+        aero_l1.MAP_SECTION_TC = old
+
+
+def _both(w: WingState) -> tuple[Any, Any]:
+    with _mapping(False):
+        a0 = aero_l1.estimate_aero(w)
+    with _mapping(True):
+        a1 = aero_l1.estimate_aero(w)
+    return a0, a1
+
+
+def _rank(x: np.ndarray) -> np.ndarray:
+    return np.argsort(np.argsort(x))
+
+
+def _spearman(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.corrcoef(_rank(a), _rank(b))[0, 1])
+
+
+def _random_designs(n: int, seed: int) -> list[WingState]:
+    rng = np.random.default_rng(seed)
+    out = []
+    for _ in range(n):
+        out.append(WingState(span_m=rng.uniform(1.6, 3.4), chord_root_m=rng.uniform(0.2, 0.42),
+                             taper=rng.uniform(0.4, 1.0), sweep_deg=rng.uniform(0, 20), tc=rng.uniform(0.08, 0.18),
+                             twist_deg=rng.uniform(-4, 0), alpha_deg=rng.uniform(0, 6)))
+    return out
+
+
+def analyse(n_designs: int = 300, seed: int = 0) -> dict[str, Any]:
+    parent = WingState()
+    p0, p1 = _both(parent)
+    sweep = []
+    for tc in np.round(np.arange(0.08, 0.1801, 0.01), 3):
+        w = dataclasses.replace(parent, tc=float(tc))
+        a0, a1 = _both(w)
+        r0 = _reward(w, p0.LD, parent.area_m2(), parent_cd=p0.CD, aero=a0)
+        r1 = _reward(w, p1.LD, parent.area_m2(), parent_cd=p1.CD, aero=a1)
+        sweep.append({"tc": float(tc), "CD_before": a0.CD, "CD_after": a1.CD, "LD_before": a0.LD,
+                      "LD_after": a1.LD, "CL_before": a0.CL, "CL_after": a1.CL,
+                      "reward_before": r0, "reward_after": r1})
+    ds = _random_designs(n_designs, seed)
+    ab = [_both(w) for w in ds]
+    cd0 = np.array([a.CD for a, _ in ab]); cd1 = np.array([b.CD for _, b in ab])
+    ld0 = np.array([a.LD for a, _ in ab]); ld1 = np.array([b.LD for _, b in ab])
+    tcs = np.array([w.tc for w in ds])
+    k = max(1, n_designs // 10)
+    top0, top1 = set(np.argsort(-ld0)[:k]), set(np.argsort(-ld1)[:k])
+    return {
+        "schema": SCHEMA,
+        "parent": parent.to_dict() if hasattr(parent, "to_dict") else dataclasses.asdict(parent),
+        "parent_before": {"CD": p0.CD, "LD": p0.LD}, "parent_after": {"CD": p1.CD, "LD": p1.LD},
+        "tc_sweep_on_parent": sweep,
+        "random_designs": {
+            "n": n_designs, "seed": seed,
+            "spearman_LD_before_vs_after": _spearman(ld0, ld1),
+            "spearman_CD_before_vs_after": _spearman(cd0, cd1),
+            "top_decile_LD_overlap": len(top0 & top1) / k,
+            "median_rel_CD_change_pct": float(np.median((cd1 - cd0) / cd0 * 100)),
+            "spearman_tc_vs_LD_before": _spearman(tcs, ld0),
+            "spearman_tc_vs_LD_after": _spearman(tcs, ld1),
+            "mean_tc_top_decile_before": float(tcs[list(top0)].mean()),
+            "mean_tc_top_decile_after": float(tcs[list(top1)].mean()),
+        },
+    }
+
+
+def render_markdown(r: dict[str, Any]) -> str:
+    rd = r["random_designs"]
+    L = ["# Reward impact of modelling wing thickness (w.tc) in the gym section", "",
+         f"Schema `{r['schema']}`. Before: NACA 0012 for every design. After: symmetric NACA 00xx at w.tc "
+         "(exact Kulfan scaling). NeuralFoil small, free transition, U = 25 m/s, sea level.", "",
+         "## t/c sweep on the default parent (only tc changed)", "",
+         "| t/c | CL before | CL after | CD before | CD after | L/D before | L/D after | reward before | reward after |", "|---|---|---|---|---|---|---|---|---|"]
+    for s in r["tc_sweep_on_parent"]:
+        L.append(f"| {s['tc']:.2f} | {s['CL_before']:.4f} | {s['CL_after']:.4f} | {s['CD_before']:.5f} | {s['CD_after']:.5f} | {s['LD_before']:.2f} | "
+                 f"{s['LD_after']:.2f} | {s['reward_before']:+.3f} | {s['reward_after']:+.3f} |")
+    L += ["", f"## {rd['n']} random designs (seed {rd['seed']})", "",
+          f"- Spearman L/D before vs after: {rd['spearman_LD_before_vs_after']:.3f}; CD: {rd['spearman_CD_before_vs_after']:.3f}",
+          f"- Top-decile L/D overlap: {rd['top_decile_LD_overlap']:.0%}",
+          f"- Median CD change: {rd['median_rel_CD_change_pct']:+.1f}%",
+          f"- Spearman(t/c, L/D): before {rd['spearman_tc_vs_LD_before']:+.2f}, after {rd['spearman_tc_vs_LD_after']:+.2f}",
+          f"- Mean t/c of top-decile designs: before {rd['mean_tc_top_decile_before']:.3f}, after {rd['mean_tc_top_decile_after']:.3f}",
+          "", "## Reading this honestly", "",
+          "- Before, thickness was free in the reward (reward did not move with t/c), so the search could drift to any t/c "
+          "at no cost. After, the reward has a thickness gradient from NeuralFoil.",
+          "- The gym has no structural or volume term, so the section-only reward favours thin sections: the optimiser "
+          "will push t/c to the lower bound (0.08). That is a missing-constraint artefact, not a design recommendation; "
+          "a spar-depth / fuel-volume constraint is needed before thickness optimisation means anything.",
+          "- Most of the L/D change at fixed alpha comes from C_L, not C_D: at Re ~4e5 and alpha_eff ~1 deg NeuralFoil gives "
+          "thin sections a higher lift slope (laminar-separation effects on thick sections). The reward's 2x L/D term "
+          "amplifies this; an L/D gain at fixed alpha is not the same as lower drag at fixed lift.",
+          "- Section is symmetric (no camber), and at low Re NeuralFoil's thin-section advantage includes laminar-bubble "
+          "effects that the measured symmetric sections only partly confirm (see neuralfoil_polar_validation.md, `gym_section`).",
+          "- Not FAA / ARP6983; exploratory L1."]
+    return "\n".join(L) + "\n"
+
+
+def write_reports(out_dir: str | Path) -> dict[str, Any]:
+    out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
+    r = analyse()
+    (out / "section_tc_impact.json").write_text(json.dumps(r, indent=2, sort_keys=True) + "\n")
+    (out / "section_tc_impact.md").write_text(render_markdown(r))
+    return r
+
+
+if __name__ == "__main__":
+    import sys
+    write_reports(sys.argv[1] if len(sys.argv) > 1 else "reports/validation")

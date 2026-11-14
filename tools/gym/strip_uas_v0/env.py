@@ -118,10 +118,10 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         self.evidence_packs: list[dict[str, Any]] = []
         self.np_random = np.random.default_rng(seed)
         if _HAS_GYM:
-            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(8,), dtype=np.float32)
-            # obs: wing vector (8, incl. camber) + [CL, CD, LD, area_norm, step_frac]
+            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(9,), dtype=np.float32)
+            # obs: wing vector (9, incl. camber and camber_pos) + [CL, CD, LD, area_norm, step_frac]
             self.observation_space = spaces.Box(
-                low=-np.inf, high=np.inf, shape=(13,), dtype=np.float32
+                low=-np.inf, high=np.inf, shape=(14,), dtype=np.float32
             )
 
     def _estimate(self, w: WingState) -> AeroResult:
@@ -233,6 +233,7 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             "twist_deg",
             "alpha_deg",
             "camber",
+            "camber_pos",
         )
         self.state = WingState(**{k: getattr(self.parent, k) for k in keys})
         self.step_count = 0

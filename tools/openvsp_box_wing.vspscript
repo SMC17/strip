@@ -1,7 +1,17 @@
 // Build a minimal box-wing model and export ASCII STL for Strip conformance gates.
 // __OUTPUT_PATH__ is substituted by tools/openvsp_export.py before invocation.
+//
+// Parm groups matter: wing planform parms live in the section group "XSec_1"
+// and placement in "XForm". Setting them under "Design" (as earlier versions of
+// this script did) is silently ignored by OpenVSP 3.42 (API error code 4) and
+// exports the default wing instead. Any API error now fails the export.
+//
+// main() returns int on purpose: vsp / vspscript use the script's main()
+// return value as the process exit code. With `void main()` the exit code is
+// whatever was left in the return register (observed 2, 4, 10 on 3.42.0 and
+// 3.51.3), which made a complete export look like a failed one.
 
-void main()
+int main()
 {
     string out_path = "__OUTPUT_PATH__";
     ClearVSPModel();
@@ -10,21 +20,38 @@ void main()
     SetParmVal(fuse_id, "Length", "Design", 8.0);
 
     string wing_id = AddGeom("WING", "");
-    SetParmVal(wing_id, "Span", "Design", 10.0);
-    SetParmVal(wing_id, "Root_Chord", "Design", 1.5);
-    SetParmVal(wing_id, "Tip_Chord", "Design", 1.5);
-    SetParmVal(wing_id, "X_Rel_Location", "Design", 2.0);
+    SetDriverGroup(wing_id, 1, SPAN_WSECT_DRIVER, ROOTC_WSECT_DRIVER, TIPC_WSECT_DRIVER);
+    SetParmVal(wing_id, "Span", "XSec_1", 5.0);        // per-side span: 10 m tip to tip
+    SetParmVal(wing_id, "Root_Chord", "XSec_1", 1.5);
+    SetParmVal(wing_id, "Tip_Chord", "XSec_1", 1.5);
+    SetParmVal(wing_id, "Sweep", "XSec_1", 0.0);
+    SetParmVal(wing_id, "X_Rel_Location", "XForm", 2.0);
 
     string tail_id = AddGeom("WING", "");
-    SetParmVal(tail_id, "Span", "Design", 3.0);
-    SetParmVal(tail_id, "Root_Chord", "Design", 0.8);
-    SetParmVal(tail_id, "Tip_Chord", "Design", 0.8);
-    SetParmVal(tail_id, "X_Rel_Location", "Design", 7.0);
-    SetParmVal(tail_id, "Z_Rel_Location", "Design", 1.0);
+    SetDriverGroup(tail_id, 1, SPAN_WSECT_DRIVER, ROOTC_WSECT_DRIVER, TIPC_WSECT_DRIVER);
+    SetParmVal(tail_id, "Span", "XSec_1", 1.5);        // per-side span: 3 m tip to tip
+    SetParmVal(tail_id, "Root_Chord", "XSec_1", 0.8);
+    SetParmVal(tail_id, "Tip_Chord", "XSec_1", 0.8);
+    SetParmVal(tail_id, "Sweep", "XSec_1", 0.0);
+    SetParmVal(tail_id, "X_Rel_Location", "XForm", 7.0);
+    SetParmVal(tail_id, "Z_Rel_Location", "XForm", 1.0);
 
     Update();
+
+    int n_err = GetNumTotalErrors();
+    while ( GetNumTotalErrors() > 0 )
+    {
+        ErrorObj err = PopLastError();
+        Print( "strip_vsp_api_error: " + err.GetErrorString() );
+    }
+    Print( "strip_vsp_api_errors=" + n_err );
+    if ( n_err > 0 ) { return 3; }
+
     string mesh_id = ExportFile(out_path, SET_ALL, EXPORT_STL);
     if (mesh_id != "") {
         DeleteGeom(mesh_id);
     }
+    Print( "strip_vsp_wing_span=" + GetParmVal(wing_id, "TotalSpan", "WingGeom") );
+    Print( "strip_vsp_export_ok" );
+    return 0;
 }

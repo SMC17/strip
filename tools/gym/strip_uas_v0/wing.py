@@ -139,6 +139,15 @@ def evaluate_l0(w: WingState) -> L0Report:
     # Honesty envelope: high sweep + high AR is outside simple model intent
     if w.sweep_deg > 25.0 and ar > 12.0:
         vios.append("geometry_model_outside_envelope")
+    # Spar-depth floor (structure.py: published loads/material, labelled cap conventions)
+    tc_req = float("nan")
+    if w.span_m > 0 and w.chord_root_m > 0:
+        from .structure import spar_check
+
+        sc = spar_check(w)
+        tc_req = sc.tc_required
+        if not sc.feasible:
+            vios.append(f"tc_below_spar_depth_floor:{w.tc:.3f}<{tc_req:.3f}")
     metrics = {
         "aspect_ratio": ar,
         "taper": w.taper,
@@ -147,5 +156,6 @@ def evaluate_l0(w: WingState) -> L0Report:
         "area_m2": w.area_m2(),
         "mac_m": w.mac_m(),
         "alpha_deg": w.alpha_deg,
+        "tc_required_spar": tc_req,
     }
     return L0Report(feasible=len(vios) == 0, violations=vios, metrics=metrics)

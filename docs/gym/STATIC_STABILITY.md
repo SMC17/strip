@@ -56,5 +56,27 @@ Default wing (span 2.4 m, root chord 0.30 m, taper 0.7, 5° sweep, AR 9.4), CG a
 | wing_tail_fuselage | 0.188 | +0.222 tail, −0.019 fuselage (K_f 0.80 at 35 %) |
 
 The fuselage term grows as the wing sits further aft on the body: −0.007 MAC at 20 %, −0.038 at
-50 %. Not modelled: fuselage lift, propeller / power, elevator, trim drag, ground effect. There is no
-VSPAERO wing+tail cross-check yet. Not FAA / EASA, and not a handling-qualities requirement.
+50 %. Not modelled: fuselage lift, propeller / power, elevator, trim drag, ground effect. Not FAA / EASA, and not a handling-qualities requirement.
+
+### VSPAERO wing+tail cross-check (`teachers/vspaero_config.py`, `vspaero_wing_tail_v0`)
+
+`neutral_point(w, af)` adds a rectangular horizontal tail (a second OpenVSP WING geom with the
+`Airframe` tail area, AR and ¼-chord position, 0.1·span_t above the wing plane) to the `vspaero_l1`
+wing. It runs VSPAERO at α = 0° and 4° and takes `x_np = −CMα/CLα·c̄`. The fuselage is **not**
+in the VSPAERO model (thin-surface VLM gives no TR 711-comparable body moment), so this checks only
+the analytic tail term (η, a_t, dε/dα). It returns `None` when VSPAERO is unavailable.
+
+Sweep: 4 wings (default; 20° sweep; low AR 1.8 m × 0.36 m; high AR 3.2 m × 0.26 m, taper 0.5) ×
+tail volume 0.3 / 0.5 / 0.7 at a 3·MAC arm and 0.5 at 2.2 / 4·MAC (20 cases):
+
+| quantity | analytic − VSPAERO |
+|---|---|
+| total wing+tail NP | max 2.6 % MAC (median ≈ 0.6 %) |
+| tail NP shift (vs each method's own wing alone) | −3.6 … +2.2 % MAC; VSPAERO's shift is larger for swept / long-arm cases |
+| wing-alone NP (VLM vs VSPAERO) | −0.8 … +1.4 % MAC |
+| CLα with tail | analytic 1–3.5 % lower |
+
+Default airframe: VSPAERO NP 0.1768 m vs analytic 0.1777 m (MAC 0.2576 m, 0.3 % MAC); tail height
+0 → 0.3·span_t moves the VSPAERO NP by 0.9 % MAC. The test asserts < 3 % MAC on the default
+airframe and on a 20° swept wing (`tests/test_vspaero_tail.py`, skipped without VSPAERO).
+Two VLMs agreeing is not validation against wind-tunnel or flight data.

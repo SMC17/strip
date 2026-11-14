@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 import numpy as np
 
+from .acceptance import accept_aero
 from .aero_l1 import AeroResult, estimate_aero
 from .evidence import build_evidence, write_evidence
 from .monitors import apply_action, monitor_action
+from .provenance import (
+    OptimizerRecord,
+    deterministic_episode_id,
+    export_episode_log,
+    seeds_record,
+)
 from .wing import WingState, evaluate_l0
 
 try:
@@ -70,9 +76,15 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         evidence_dir: str | None = None,
         prefer_neuralfoil: bool = True,
         prefer_vspaero: bool = False,
+        optimizer: OptimizerRecord | None = None,
     ) -> None:
         self.max_steps = max_steps
         self._seed = seed
+        self.base_seed = int(seed)
+        self.episode_index = -1
+        self.seeds: dict[str, Any] = seeds_record(self.base_seed, 0)
+        self.optimizer = optimizer or OptimizerRecord(implementation="unspecified")
+        self.last_claim: dict[str, Any] | None = None
         self.evidence_dir = evidence_dir
         self.prefer_neuralfoil = prefer_neuralfoil
         self.prefer_vspaero = prefer_vspaero
@@ -113,12 +125,23 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         return np.asarray(vec, dtype=np.float32)
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
+        # Seeded resets with shared randomness: RNG derived from (base_seed, episode_index).
         if seed is not None:
-            self._seed = seed
-            self.np_random = np.random.default_rng(seed)
-        if options and "parent" in options:
+            self.base_seed = int(seed)
+            self.episode_index = -1
+        options = options or {}
+        if "parent" in options:
             self.parent = options["parent"]
-        self.episode_id = str(uuid.uuid4())
+        if "optimizer" in options:
+            self.optimizer = options["optimizer"]
+        self.episode_index = int(options.get("episode_index", self.episode_index + 1))
+        self.seeds = seeds_record(self.base_seed, self.episode_index)
+        self._seed = self.seeds["episode_seed"]
+        self.np_random = np.random.default_rng(self._seed)
+        self.last_claim = None
+        self.episode_id = deterministic_episode_id(
+            self.base_seed, self.episode_index, self.parent.as_vector()
+        )
         keys = (
             "span_m",
             "chord_root_m",
@@ -143,11 +166,13 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             "parent_cd": self.parent_cd,
             "parent_aero_fidelity": self.parent_aero_fidelity,
             "prefer_vspaero": self.prefer_vspaero,
+            "seeds": dict(self.seeds),
         }
         return obs, info
 
     def step(self, action):
         action = list(np.asarray(action, dtype=float).reshape(-1))
+        self.optimizer.tick()
         decision = monitor_action(self.state, action)
         self.step_count += 1
         terminated = False
@@ -168,6 +193,8 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
                 monitor_allowed=False,
                 monitor_reasons=decision.reason_codes,
                 parent_id=None,
+                optimizer=self.optimizer.to_dict(),
+                seeds=dict(self.seeds),
             )
             self.evidence_packs.append(pack)
             if self.evidence_dir:
@@ -180,14 +207,19 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         self.state = decision.projected
         l0 = evaluate_l0(self.state)
         aero = self._estimate(self.state)
-        reward = _reward(
-            self.state,
-            self.parent_ld,
-            self.parent_area,
-            prefer_neuralfoil=self.prefer_neuralfoil,
-            prefer_vspaero=self.prefer_vspaero,
-            parent_cd=self.parent_cd,
-        )
+        acc = accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict()
+        if acc["passed"]:
+            reward = _reward(
+                self.state,
+                self.parent_ld,
+                self.parent_area,
+                prefer_neuralfoil=self.prefer_neuralfoil,
+                prefer_vspaero=self.prefer_vspaero,
+                parent_cd=self.parent_cd,
+            )
+        else:
+            # Acceptance gate: out-of-envelope or mixed-fidelity numbers earn no credit.
+            reward = -1.0
         pack = build_evidence(
             wing=self.state,
             l0=l0,
@@ -199,6 +231,9 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             action=action,
             monitor_allowed=True,
             monitor_reasons=[],
+            acceptance=acc,
+            optimizer=self.optimizer.to_dict(),
+            seeds=dict(self.seeds),
         )
         self.evidence_packs.append(pack)
         if self.evidence_dir:
@@ -214,5 +249,80 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
             "vspaero_used": aero.vspaero_used,
             "monitor": decision.to_dict(),
             "rejected": False,
+            "acceptance": acc,
         }
         return self._obs(), reward, terminated, truncated, info
+
+    def claim_done(
+        self,
+        claimed: dict[str, float] | None = None,
+        *,
+        rel_tol: float = 1e-6,
+        require_improvement: bool = True,
+    ) -> dict[str, Any]:
+        """Measure-then-claim: accept "done" only after re-measuring the final wing.
+
+        Rebuilds the wing from its parameter vector, re-runs L0 and the aero oracle,
+        applies the acceptance gate (incl. same fidelity as the parent), and checks
+        any claimed ``LD``/``CL``/``CD``/``area`` against the fresh measurement.
+        """
+        fresh = WingState.from_vector(self.state.as_vector())
+        l0 = evaluate_l0(fresh)
+        aero = self._estimate(fresh)
+        acc = accept_aero(aero, parent_fidelity=self.parent_aero_fidelity)
+        measured = {"LD": aero.LD, "CL": aero.CL, "CD": aero.CD, "area": fresh.area_m2()}
+        reasons: list[str] = []
+        if not l0.feasible:
+            reasons.append("l0_infeasible:" + ",".join(l0.violations))
+        if not acc.passed:
+            reasons.append("acceptance_failed:" + ",".join(acc.failed_checks))
+        mismatches = {}
+        for k, v in (claimed or {}).items():
+            if k not in measured:
+                reasons.append(f"unmeasurable_claim:{k}")
+                continue
+            m = measured[k]
+            if abs(float(v) - m) > rel_tol * max(abs(m), 1e-12):
+                mismatches[k] = {"claimed": float(v), "measured": m}
+        if mismatches:
+            reasons.append("claim_mismatch:" + ",".join(sorted(mismatches)))
+        improved = aero.LD > self.parent_ld
+        if require_improvement and not improved:
+            reasons.append("no_improvement_vs_parent")
+        verdict = {
+            "type": "claim",
+            "schema": "strip_uas_v0.claim.v1",
+            "episode_id": self.episode_id,
+            "step": self.step_count,
+            "accepted": not reasons,
+            "reasons": reasons,
+            "measured": measured,
+            "claimed": dict(claimed or {}),
+            "mismatches": mismatches,
+            "parent_ld": self.parent_ld,
+            "parent_fidelity": self.parent_aero_fidelity,
+            "improved": improved,
+            "l0": l0.to_dict(),
+            "acceptance": acc.to_dict(),
+            "wing": fresh.to_dict(),
+            "optimizer": self.optimizer.to_dict(),
+            "seeds": dict(self.seeds),
+            "notes": "Measure-then-claim verdict from fresh re-evaluation; not FAA / ARP6983.",
+        }
+        self.evidence_packs.append(verdict)
+        self.last_claim = verdict
+        return verdict
+
+    def export_log(self, path: str) -> dict[str, Any]:
+        """Digest-chained JSONL log of this episode's evidence + claim records."""
+        return export_episode_log(
+            self.evidence_packs,
+            path,
+            header={
+                "episode_id": self.episode_id,
+                "seeds": dict(self.seeds),
+                "optimizer": self.optimizer.to_dict(),
+                "parent": self.parent.to_dict(),
+                "max_steps": self.max_steps,
+            },
+        )

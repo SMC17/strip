@@ -8,9 +8,11 @@ from typing import Any
 
 import numpy as np
 
+from . import __version__
 from .aero_l1 import estimate_aero
 from .env import DesignSearchEnv, _reward
 from .monitors import monitor_action
+from .provenance import OptimizerRecord
 from .wing import WingState
 
 
@@ -37,8 +39,10 @@ class ChildResult:
         }
 
 
-def _run_episode(env: DesignSearchEnv, policy, steps: int) -> ChildResult:
-    obs, _info = env.reset()
+def _run_episode(
+    env: DesignSearchEnv, policy, steps: int, options: dict[str, Any] | None = None
+) -> ChildResult:
+    obs, _info = env.reset(options=options)
     total_r = 0.0
     for _ in range(steps):
         action = policy(obs, env)
@@ -133,13 +137,27 @@ def run_search(
         )
         for factory in (random_policy_factory, hillclimb_policy_factory):
             policy = factory(rng)
-            child = _run_episode(env, policy, steps)
+            name = getattr(policy, "name", "policy")
+            opt = OptimizerRecord(
+                implementation=f"strip_uas_v0.search.{name}",
+                version=__version__,
+                settings={"candidates_per_step": 8} if name == "hillclimb" else {"dist": "uniform[-1,1]^7"},
+                max_evals=int(steps),
+            ).start()
+            # Same episode_index for every policy => shared env randomness (CRN).
+            child = _run_episode(env, policy, steps, options={"episode_index": 0, "optimizer": opt})
             row = child.to_dict()
+            row["optimizer"] = opt.to_dict()
+            row["seeds"] = dict(env.seeds)
+            row["episode_id"] = env.episode_id
             row["delta_ld_vs_parent"] = child.ld - parent_ld
             row["parent_ld"] = parent_ld
             row["parent_fidelity"] = parent_aero.fidelity
             row["parent_index"] = i
-            row["improved"] = child.ld > parent_ld
+            # Measure-then-claim: "improved" is the env's fresh re-measurement verdict.
+            verdict = env.claim_done({"LD": child.ld})
+            row["improved"] = bool(verdict["accepted"])
+            row["claim"] = {"accepted": verdict["accepted"], "reasons": verdict["reasons"]}
             row["prefer_vspaero"] = prefer_vspaero
             results.append(row)
     return results

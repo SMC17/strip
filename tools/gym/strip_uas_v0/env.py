@@ -81,7 +81,11 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         stability_gate: bool = False,
         cg: Any = None,
         sm_target: float = 0.10,
+        mission: Any = None,
     ) -> None:
+        # Multi-point mission reward (``mission.Mission``); None keeps the single-alpha L/D reward.
+        self.mission = mission
+        self._mission_parent: tuple[tuple[float, ...], list[dict[str, Any]]] | None = None
         # Static-stability gate (wing-alone VLM neutral point; CG is a convention). With
         # ``cg=None`` the CG is fixed where the parent has ``sm_target`` margin and held.
         self.stability_gate = stability_gate
@@ -134,6 +138,18 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         stab = static_margin(w, self.cg)
         return merge_acceptance(acc, accept_stability(stab)), stab
 
+    def _mission_reward(self, w: WingState) -> tuple[float, dict[str, Any]]:
+        """Mission score vs the parent (parent mission evaluation cached); -1 when uncredited."""
+        from .mission import evaluate_mission, mission_score, summarize
+
+        key = tuple(self.parent.as_vector())
+        if self._mission_parent is None or self._mission_parent[0] != key:
+            self._mission_parent = (key, evaluate_mission(
+                self.parent, self.mission, prefer_neuralfoil=self.prefer_neuralfoil))
+        ms = mission_score(w, self.parent, self.mission, prefer_neuralfoil=self.prefer_neuralfoil,
+                           parent_eval=self._mission_parent[1])
+        return (float(ms["score"]) if ms["score"] is not None else -1.0), summarize(ms)
+
     def _cheap_parent(self) -> AeroResult:
         """Parent aero at the cheap proposal fidelity (never VSPAERO), cached per parent."""
         key = tuple(self.parent.as_vector())
@@ -157,6 +173,8 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         acc, _ = self._gate(w, accept_aero(a, parent_fidelity=cp.fidelity).to_dict())
         if not acc["passed"]:
             return -1.0, acc
+        if self.mission is not None:
+            return self._mission_reward(w)[0], acc
         score = _reward(
             w,
             cp.LD,
@@ -267,7 +285,10 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         acc, stab = self._gate(
             self.state, accept_aero(aero, parent_fidelity=self.parent_aero_fidelity).to_dict()
         )
-        if acc["passed"]:
+        mission_info = None
+        if acc["passed"] and self.mission is not None:
+            reward, mission_info = self._mission_reward(self.state)
+        elif acc["passed"]:
             reward = _reward(
                 self.state,
                 self.parent_ld,
@@ -312,6 +333,8 @@ class DesignSearchEnv(gym.Env if _HAS_GYM else object):  # type: ignore[misc]
         }
         if stab is not None:
             info["stability"] = stab
+        if mission_info is not None:
+            info["mission"] = mission_info
         return self._obs(), reward, terminated, truncated, info
 
     def claim_done(

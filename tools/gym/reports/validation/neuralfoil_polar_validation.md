@@ -10,7 +10,7 @@ Schema `strip_uas_v0.validation.polars.v1`. 453 polars, 76 airfoils, 5847 points
 |---|---|---|---|---|---|---|---|---|
 | `neuralfoil_small` | 5774 | 0.054 | 0.090 | +0.028 | 8.3 | -3.3 | 32.2 | +0.13 |
 | `neuralfoil_xlarge` | 5774 | 0.055 | 0.094 | +0.031 | 8.2 | -1.3 | 30.1 | -0.09 |
-| `gym_section` | 556 | 0.070 | 0.086 | +0.027 | 7.0 | +0.7 | 22.4 | -0.17 |
+| `gym_section` | 5574 | 0.068 | 0.107 | +0.005 | 11.2 | -0.8 | 37.9 | +0.08 |
 | `gym_section_camber_blind` | 5774 | 0.245 | 0.349 | -0.269 | 17.6 | -8.2 | 74.5 | +0.10 |
 | `analytic` | 47 | 0.030 | 0.083 | -0.020 | 29.4 | +25.4 | 61.3 | – |
 
@@ -26,9 +26,9 @@ Schema `strip_uas_v0.validation.polars.v1`. 453 polars, 76 airfoils, 5847 points
 | `neuralfoil_xlarge` | 1e+05-2e+05 | 1606 | 0.062 | 8.5 | no |
 | `neuralfoil_xlarge` | 2e+05-6e+05 | 2947 | 0.047 | 7.0 | yes |
 | `neuralfoil_xlarge` | 1e+06-2e+07 | 47 | 0.011 | 4.1 | yes |
-| `gym_section` | 0e+00-1e+05 | 62 | 0.096 | 8.2 | no |
-| `gym_section` | 1e+05-2e+05 | 164 | 0.077 | 8.5 | no |
-| `gym_section` | 2e+05-6e+05 | 283 | 0.067 | 6.7 | no |
+| `gym_section` | 0e+00-1e+05 | 1156 | 0.083 | 17.0 | no |
+| `gym_section` | 1e+05-2e+05 | 1524 | 0.067 | 11.9 | no |
+| `gym_section` | 2e+05-6e+05 | 2847 | 0.065 | 9.7 | no |
 | `gym_section` | 1e+06-2e+07 | 47 | 0.051 | 2.6 | no |
 | `gym_section_camber_blind` | 0e+00-1e+05 | 1174 | 0.224 | 28.7 | no |
 | `gym_section_camber_blind` | 1e+05-2e+05 | 1606 | 0.258 | 21.1 | no |
@@ -40,7 +40,7 @@ Schema `strip_uas_v0.validation.polars.v1`. 453 polars, 76 airfoils, 5847 points
 
 - `neuralfoil_small`: n=73, median |ΔCL| 0.087, median |E_CD| 28.0%
 - `neuralfoil_xlarge`: n=73, median |ΔCL| 0.073, median |E_CD| 27.6%
-- `gym_section`: n=10, median |ΔCL| 0.576, median |E_CD| 87.5%
+- `gym_section`: n=69, median |ΔCL| 0.121, median |E_CD| 32.2%
 - `gym_section_camber_blind`: n=73, median |ΔCL| 0.393, median |E_CD| 49.8%
 - `analytic`: n=6, median |ΔCL| 0.299, median |E_CD| 96.9%
 
@@ -66,8 +66,8 @@ Schema `strip_uas_v0.validation.polars.v1`. 453 polars, 76 airfoils, 5847 points
 ## Caveats
 
 Measured 2-D section data vs section oracles. Wind-tunnel corrections as published; low-Re data carry tunnel-to-tunnel scatter of order 0.01-0.02 in C_d at Re<1e5. Not FAA/EASA, not ARP6983/ED-324.
-- `gym_section` is the gym's section model: symmetric NACA 00xx at the design t/c (`w.tc`). It is checked on the measured symmetric sections only (max camber <= 0.5% c; NACA 0012 Ladson, SD8020, NACA 64A010 ...), so a non-NACA symmetric section is represented by the NACA 00xx of the same thickness. `analytic` is checked on NACA 0012 only.
-- `gym_section_camber_blind` applies the same NACA 00xx-at-t/c section to every measured airfoil, cambered or not: its ΔC_L is dominated by the missing camber (zero-lift angle), which the gym does not model. Diagnostic only.
+- `gym_section` is the gym's section model: NACA 4-digit with max camber at 0.4 c, at the measured t/c and max camber (`w.tc`, `w.camber`). Checked on every measured section with camber <= 6% c; a non-NACA section is represented by the NACA 4-digit of the same thickness and camber, so camber-line shape (position, reflex, aft loading) is a model error here. `analytic` is checked on NACA 0012 only.
+- `gym_section_camber_blind` is the pre-camber baseline (symmetric NACA 00xx at the measured t/c on every airfoil).
 - On NACA 0012 the gym section (AeroSandbox NACA 0012, open trailing edge 0.25% c) is ~0.05 high on C_L against Ladson, while the closed-TE coordinates used by `neuralfoil_small` match to 0.006: NeuralFoil is sensitive to trailing-edge thickness, and that sensitivity (not the thickness scaling) explains the NACA 0012 ΔC_L.
 - LSAT vols 4-6 ship no coordinates: their clean, flap-neutral polars use nominal UIUC ADS coordinates, not the measured model shape (vols 1-3 use measured coordinates). Skipped for lack of ADS coordinates: AG35-r, NACA 43012A, S822 (B), S834, SH3055. Flapped-section runs (vols 5-6) are excluded.
 - Ladson is tripped at 5% chord; every NeuralFoil oracle (including `gym_section`) is run with xtr = 0.05 for those polars and free transition (n_crit 9) for LSAT. The gym itself always runs free transition; with free transition the gym section is ~27% low on C_d against the tripped Ladson data, which is a test-condition mismatch, not a model error.

@@ -11,6 +11,9 @@ AR_MIN, AR_MAX = 4.0, 18.0
 TAPER_MIN, TAPER_MAX = 0.35, 1.0
 SWEEP_MIN, SWEEP_MAX = -5.0, 35.0  # deg, quarter-chord proxy
 TC_MIN, TC_MAX = 0.08, 0.18
+# NACA 4-digit max camber (fraction of chord); position fixed at CAMBER_POS (convention: NACA x4xx).
+CAMBER_MIN, CAMBER_MAX = 0.0, 0.06
+CAMBER_POS = 0.4
 TWIST_MIN, TWIST_MAX = -8.0, 4.0  # deg washout(+) not required
 ALPHA_MIN, ALPHA_MAX = -4.0, 12.0  # deg section / wing AoA for L1
 SPAN_MIN_M, SPAN_MAX_M = 0.4, 8.0
@@ -28,6 +31,7 @@ class WingState:
     tc: float = 0.12  # thickness / chord
     twist_deg: float = -2.0  # tip geometric twist (washout negative)
     alpha_deg: float = 2.0  # freestream AoA for L1 section/wing rank
+    camber: float = 0.0  # NACA 4-digit max camber / chord at CAMBER_POS (0 = symmetric NACA 00xx)
 
     def chord_tip_m(self) -> float:
         return self.chord_root_m * self.taper
@@ -60,6 +64,7 @@ class WingState:
             self.tc,
             self.twist_deg,
             self.alpha_deg,
+            self.camber,
         ]
 
     @classmethod
@@ -72,6 +77,7 @@ class WingState:
             tc=float(v[4]),
             twist_deg=float(v[5]),
             alpha_deg=float(v[6]) if len(v) > 6 else 2.0,
+            camber=float(v[7]) if len(v) > 7 else 0.0,
         )
 
     def clamp_soft(self) -> "WingState":
@@ -83,6 +89,7 @@ class WingState:
         w.tc = max(0.06, min(0.22, w.tc))
         w.twist_deg = max(-10.0, min(6.0, w.twist_deg))
         w.alpha_deg = max(-6.0, min(14.0, w.alpha_deg))
+        w.camber = max(0.0, min(0.07, w.camber))
         return w
 
     def to_dict(self) -> dict[str, Any]:
@@ -128,6 +135,8 @@ def evaluate_l0(w: WingState) -> L0Report:
         vios.append(f"sweep_out_of_band:{w.sweep_deg:.2f}")
     if not (TC_MIN <= w.tc <= TC_MAX):
         vios.append(f"tc_out_of_band:{w.tc:.3f}")
+    if not (CAMBER_MIN <= w.camber <= CAMBER_MAX):
+        vios.append(f"camber_out_of_band:{w.camber:.4f}")
     if not (TWIST_MIN <= w.twist_deg <= TWIST_MAX):
         vios.append(f"twist_out_of_band:{w.twist_deg:.2f}")
     if not (ALPHA_MIN <= w.alpha_deg <= ALPHA_MAX):
@@ -153,6 +162,7 @@ def evaluate_l0(w: WingState) -> L0Report:
         "taper": w.taper,
         "sweep_deg": w.sweep_deg,
         "tc": w.tc,
+        "camber": w.camber,
         "area_m2": w.area_m2(),
         "mac_m": w.mac_m(),
         "alpha_deg": w.alpha_deg,

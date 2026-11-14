@@ -63,5 +63,5 @@ def test_hillclimb_never_picks_gated_candidate(monkeypatch):
     monkeypatch.setattr(env, "candidate_reward", all_fail)
     policy = hillclimb_policy_factory(np.random.default_rng(1))
     a = policy(None, env)
-    assert a.shape == (7,)
+    assert a.shape == (8,)
     assert calls["n"] >= 1

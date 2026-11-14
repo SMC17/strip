@@ -68,18 +68,18 @@ def _run_episode(
 
 def random_policy_factory(rng: np.random.Generator):
     def policy(obs, env):
-        return rng.uniform(-1.0, 1.0, size=7).astype(np.float32)
+        return rng.uniform(-1.0, 1.0, size=8).astype(np.float32)
 
     policy.name = "random"
     return policy
 
 
 def hillclimb_policy_factory(rng: np.random.Generator):
-    best_action = np.zeros(7, dtype=np.float32)
+    best_action = np.zeros(8, dtype=np.float32)
 
     def policy(obs, env):
         nonlocal best_action
-        candidates = [rng.uniform(-1.0, 1.0, size=7) for _ in range(8)]
+        candidates = [rng.uniform(-1.0, 1.0, size=8) for _ in range(8)]
         candidates.append(best_action)
         best_a = candidates[0]
         best_score = -1e9
@@ -134,7 +134,7 @@ def run_search(
             opt = OptimizerRecord(
                 implementation=f"strip_uas_v0.search.{name}",
                 version=__version__,
-                settings={"candidates_per_step": 8} if name == "hillclimb" else {"dist": "uniform[-1,1]^7"},
+                settings={"candidates_per_step": 8} if name == "hillclimb" else {"dist": "uniform[-1,1]^8"},
                 max_evals=int(steps),
             ).start()
             # Same episode_index for every policy => shared env randomness (CRN).

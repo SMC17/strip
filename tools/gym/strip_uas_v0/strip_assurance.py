@@ -27,10 +27,15 @@ def strip_overlay(evidence: dict[str, Any]) -> dict[str, Any]:
     has_l1 = aero is not None
     nf = bool(aero.get("neuralfoil_used")) if isinstance(aero, dict) else False
 
+    acc = evidence.get("acceptance") or {}
+    accepted = has_l1 and acc.get("passed") is True
     if not monitor_ok or not l0_ok:
         level = "L0_reject"
         disposition = "reject_before_eval"
-    elif has_l1:
+    elif has_l1 and not accepted:
+        level = "L0_reject"
+        disposition = "reject_acceptance_gate"
+    elif accepted:
         level = "L1_rank"
         disposition = "rank_only"
     else:
@@ -58,7 +63,8 @@ def strip_overlay(evidence: dict[str, Any]) -> dict[str, Any]:
         "validation_gates": {
             "runtime_monitor": monitor_ok,
             "geometry_l0": l0_ok,
-            "aero_l1": has_l1 and l0_ok,
+            "aero_l1": accepted and l0_ok,
+            "acceptance_l1": accepted,
             "neuralfoil_l1": nf and l0_ok,
             "panel_l2": False,
             "cfd_l3": False,

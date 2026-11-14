@@ -10,9 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .acceptance import accept_aero
 from .aero_l1 import AeroResult
+from .provenance import harness_info
 from .strip_assurance import strip_overlay
 from .wing import L0Report, WingState
+
+
+EVIDENCE_SCHEMA = "strip_uas_v0.evidence.v2"
 
 
 def build_evidence(
@@ -28,6 +33,9 @@ def build_evidence(
     monitor_allowed: bool,
     monitor_reasons: list[str],
     parent_id: str | None = None,
+    acceptance: dict[str, Any] | None = None,
+    optimizer: dict[str, Any] | None = None,
+    seeds: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     odd = {
         "domain": "exploratory_parametric_wing_uas",
@@ -44,8 +52,24 @@ def build_evidence(
             "learning_in_ops": False,
         },
     }
+    if acceptance is None and aero is not None:
+        acceptance = accept_aero(aero).to_dict()
+    accepted = bool(acceptance and acceptance.get("passed"))
     claims: list[dict[str, Any]] = []
-    if l0.feasible and aero is not None:
+    if l0.feasible and aero is not None and not accepted:
+        claims.append(
+            {
+                "id": "aero_acceptance_failed",
+                "statement": (
+                    "Aero number produced but its acceptance gate failed ("
+                    + ", ".join(acceptance.get("failed_checks", []) if acceptance else [])
+                    + "); recorded, not credited."
+                ),
+                "status": "unsupported",
+                "evidence": ["aero_l1", "acceptance"],
+            }
+        )
+    if l0.feasible and aero is not None and accepted:
         claims.append(
             {
                 "id": "aero_rank_l1",
@@ -120,7 +144,8 @@ def build_evidence(
 
     pack: dict[str, Any] = {
         "evidence_id": str(uuid.uuid4()),
-        "schema": "strip_uas_v0.evidence.v1",
+        "schema": EVIDENCE_SCHEMA,
+        "schema_compat": ["strip_uas_v0.evidence.v1"],
         "created_unix": time.time(),
         "episode_id": episode_id,
         "parent_id": parent_id,
@@ -131,11 +156,19 @@ def build_evidence(
             "python": platform.python_version(),
             "platform": platform.platform(),
         },
+        "harness": harness_info(),
+        "optimizer": optimizer or {"implementation": "unspecified"},
+        "seeds": seeds or {"base_seed": seed},
+        "oracle": {
+            "fidelity": None if aero is None else aero.fidelity,
+            "implementation": "strip_uas_v0.aero_l1.estimate_aero",
+        },
         "agent_class": "learned_offline",
         "odd": odd,
         "wing": wing.to_dict(),
         "l0": l0.to_dict(),
         "aero": None if aero is None else aero.to_dict(),
+        "acceptance": acceptance,
         "reward": reward,
         "action": action,
         "monitor": {"allow": monitor_allowed, "reason_codes": monitor_reasons},

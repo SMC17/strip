@@ -1,0 +1,22 @@
+name: strip-uas-v0-gym
+on:
+  push:
+    paths: ['tools/gym/**', '.github/workflows/strip-uas-v0-gym.yml']
+  pull_request:
+    paths: ['tools/gym/**', '.github/workflows/strip-uas-v0-gym.yml']
+permissions:
+  contents: read
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/gym
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.1.4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-strip-uas.txt
+      - run: PYTHONPATH=. pytest -c pytest-strip-uas.ini -q
+      - run: PYTHONPATH=. python -m strip_uas_v0 --help

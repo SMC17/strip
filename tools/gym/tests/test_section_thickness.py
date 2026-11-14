@@ -43,10 +43,12 @@ def test_section_geometry():
     assert t == pytest.approx(0.12, abs=3e-3) and c == pytest.approx(0.04, abs=3e-3)
 
 
-def test_gym_section_only_on_symmetric_measured_sections():
+def test_gym_section_within_gym_camber_band():
+    from strip_uas_v0.wing import CAMBER_MAX
+
     rep = json.loads((REP / "neuralfoil_polar_validation.json").read_text())
     g = rep["per_oracle"]["gym_section"]
-    assert all(a["camber"] <= v.SYMMETRIC_CAMBER_TOL for a in g["by_airfoil"].values())
+    assert all(a["camber"] <= CAMBER_MAX for a in g["by_airfoil"].values())
     assert "NACA 0012" in g["by_airfoil"]
     if rep["lsat_available"]:
         lo, hi = g["tc_range"]

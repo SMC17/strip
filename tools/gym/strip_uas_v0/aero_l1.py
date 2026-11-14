@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+
+import numpy as np
 from typing import Any
 
 from .wing import WingState
@@ -28,7 +30,7 @@ G = 9.80665
 # this, every design was evaluated on NACA 0012 regardless of w.tc. The flag exists only so
 # reports/validation/section_tc_impact can reproduce the old behaviour; do not toggle in training.
 MAP_SECTION_TC = True
-SECTION_MODEL = "naca00xx_at_design_tc"
+SECTION_MODEL = "naca4_at_design_tc_and_camber_p0.4"
 
 
 @dataclass
@@ -96,39 +98,49 @@ def oswald_nita_scholz(aspect_ratio: float, taper: float, sweep25_deg: float) ->
     return 1.0 / (1.0 + f * aspect_ratio)
 
 
-def _analytic_section(alpha_deg: float, tc: float, re: float = 4.0e5) -> tuple[float, float, float | None]:
-    """Thin-airfoil C_l + build-up C_d0 (exploratory fallback; see bases above)."""
-    alpha = math.radians(alpha_deg)
+def zero_lift_alpha_naca4(camber: float, p: float = 0.4) -> float:
+    """Thin-airfoil zero-lift angle [rad] of the NACA 4-digit mean line (Anderson §4.8, eq. 4.61)."""
+    if camber <= 0:
+        return 0.0
+    th = (np.arange(400) + 0.5) * math.pi / 400
+    x = (1 - np.cos(th)) / 2
+    dz = np.where(x < p, 2 * camber / p**2 * (p - x), 2 * camber / (1 - p) ** 2 * (p - x))
+    return float(-np.sum(dz * (np.cos(th) - 1.0)) * (math.pi / 400) / math.pi)
+
+
+def _analytic_section(alpha_deg: float, tc: float, re: float = 4.0e5, camber: float = 0.0) -> tuple[float, float, float | None]:
+    """Thin-airfoil C_l (incl. NACA 4-digit camber) + build-up C_d0 (exploratory fallback; see bases above)."""
+    alpha = math.radians(alpha_deg) - zero_lift_alpha_naca4(camber)
     cl = 2.0 * math.pi * alpha
     cl = max(-1.2, min(1.4, cl))
     return float(cl), float(section_cd0_buildup(tc, re)), None
 
 
 def _neuralfoil_section(
-    alpha_deg: float, re: float, tc: float
+    alpha_deg: float, re: float, tc: float, camber: float = 0.0
 ) -> tuple[float, float, float | None, bool, str]:
     """Try NeuralFoil; return (CL, CD, CM, used, fidelity_tag)."""
     try:
         from .teachers import neuralfoil_stub
     except Exception:
-        cl, cd, cm = _analytic_section(alpha_deg, tc, re)
+        cl, cd, cm = _analytic_section(alpha_deg, tc, re, camber)
         return cl, cd, cm, False, "L1_analytic_polar"
 
     avail = neuralfoil_stub.detect()
     if not avail.available:
-        cl, cd, cm = _analytic_section(alpha_deg, tc, re)
+        cl, cd, cm = _analytic_section(alpha_deg, tc, re, camber)
         return cl, cd, cm, False, "L1_analytic_polar"
 
     # Symmetric NACA 00xx at the design thickness (camber not modelled); section
     # surrogate at alpha/Re, not a 3-D wing solve.
     if MAP_SECTION_TC:
-        kp = neuralfoil_stub.naca00_kulfan(tc)
-        name = f"naca00xx_t{tc:.4f}"
+        kp = neuralfoil_stub.naca4_kulfan(tc, camber)
+        name = f"naca4_m{camber:.4f}_p0.4_t{tc:.4f}"
     else:
         kp, name = None, "naca0012"
     r = neuralfoil_stub.run(alpha_deg=alpha_deg, Re=re, model_size="small", kulfan_parameters=kp, airfoil=name)
     if r.get("skipped") or r.get("CL") is None or r.get("CD") is None:
-        cl, cd, cm = _analytic_section(alpha_deg, tc, re)
+        cl, cd, cm = _analytic_section(alpha_deg, tc, re, camber)
         return cl, cd, cm, False, "L1_analytic_polar"
     return (
         float(r["CL"]),
@@ -212,9 +224,9 @@ def estimate_aero(
     # Effective section AoA ≈ freestream + half tip twist (crude)
     alpha_eff = w.alpha_deg + 0.5 * w.twist_deg
     if prefer_neuralfoil:
-        cl_sec, cd_sec, cm, nf_used, fid = _neuralfoil_section(alpha_eff, re, w.tc)
+        cl_sec, cd_sec, cm, nf_used, fid = _neuralfoil_section(alpha_eff, re, w.tc, w.camber)
     else:
-        cl_sec, cd_sec, cm = _analytic_section(alpha_eff, w.tc, re)
+        cl_sec, cd_sec, cm = _analytic_section(alpha_eff, w.tc, re, w.camber)
         nf_used, fid = False, "L1_analytic_polar"
 
     ar = max(w.aspect_ratio(), 1.0)
@@ -240,7 +252,7 @@ def estimate_aero(
             "VSPAERO unavailable or skipped; fell back to cheap L1. " + notes
         )
     if nf_used:
-        notes = (f"NeuralFoil section (symmetric NACA 00xx at t/c {w.tc:.3f}) + induced-drag rank. "
+        notes = (f"NeuralFoil section (NACA 4-digit, camber {w.camber:.3f} at 0.4c, t/c {w.tc:.3f}) + induced-drag rank. "
                  if MAP_SECTION_TC else "NeuralFoil section (fixed NACA 0012) + induced-drag rank. ") + notes
     else:
         notes = "Analytic polar fallback (neuralfoil absent or skipped). " + notes

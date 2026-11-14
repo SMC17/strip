@@ -26,6 +26,20 @@ Schema `strip_uas_v0.section_tc_impact.v1`. Before: NACA 0012 for every design. 
 - Spearman(t/c, L/D): before +0.00, after -0.13
 - Mean t/c of top-decile designs: before 0.131, after 0.115
 
+## Camber sweep on the default parent (NACA 4-digit, camber at 0.4 c; t/c 0.12)
+
+| camber | CL | CD | L/D | reward |
+|---|---|---|---|---|
+| 0.00 | 0.106 | 0.00761 | 14.0 | +0.000 |
+| 0.01 | 0.227 | 0.00928 | 24.5 | +1.414 |
+| 0.02 | 0.327 | 0.01153 | 28.3 | +1.834 |
+| 0.03 | 0.444 | 0.01534 | 29.0 | +1.695 |
+| 0.04 | 0.558 | 0.02020 | 27.6 | +1.187 |
+| 0.05 | 0.669 | 0.02617 | 25.6 | +0.503 |
+| 0.06 | 0.762 | 0.03233 | 23.6 | -0.188 |
+
+Camber is a strong reward lever at fixed alpha (it adds lift at the same angle); the trimmed mission reward is the fair comparison. Measured sections back the section model to ~6% camber (neuralfoil_polar_validation.md, `gym_section`).
+
 ## With the spar-depth floor
 
 Basis: structure.spar_check (14 CFR 23.337/23.303 loads by convention, elliptic loading, Wood Handbook spruce caps, cap-geometry conventions, 5 kg).

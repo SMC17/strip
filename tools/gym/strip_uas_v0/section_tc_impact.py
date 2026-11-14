@@ -72,6 +72,13 @@ def analyse(n_designs: int = 300, seed: int = 0) -> dict[str, Any]:
         sweep.append({"tc": float(tc), "CD_before": a0.CD, "CD_after": a1.CD, "LD_before": a0.LD,
                       "LD_after": a1.LD, "CL_before": a0.CL, "CL_after": a1.CL,
                       "reward_before": r0, "reward_after": r1})
+    camber_sweep = []
+    for m in (0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06):
+        w = dataclasses.replace(parent, camber=m)
+        with _mapping(True):
+            a = aero_l1.estimate_aero(w)
+        camber_sweep.append({"camber": m, "CL": a.CL, "CD": a.CD, "LD": a.LD,
+                             "reward": _reward(w, p1.LD, parent.area_m2(), parent_cd=p1.CD, aero=a)})
     ds = _random_designs(n_designs, seed)
     ab = [_both(w) for w in ds]
     cd0 = np.array([a.CD for a, _ in ab]); cd1 = np.array([b.CD for _, b in ab])
@@ -114,6 +121,7 @@ def analyse(n_designs: int = 300, seed: int = 0) -> dict[str, Any]:
         "parent": parent.to_dict() if hasattr(parent, "to_dict") else dataclasses.asdict(parent),
         "parent_before": {"CD": p0.CD, "LD": p0.LD}, "parent_after": {"CD": p1.CD, "LD": p1.LD},
         "tc_sweep_on_parent": sweep,
+        "camber_sweep_on_parent": camber_sweep,
         "random_designs": {
             "n": n_designs, "seed": seed,
             "spearman_LD_before_vs_after": _spearman(ld0, ld1),
@@ -145,6 +153,14 @@ def render_markdown(r: dict[str, Any]) -> str:
           f"- Spearman(t/c, L/D): before {rd['spearman_tc_vs_LD_before']:+.2f}, after {rd['spearman_tc_vs_LD_after']:+.2f}",
           f"- Mean t/c of top-decile designs: before {rd['mean_tc_top_decile_before']:.3f}, after {rd['mean_tc_top_decile_after']:.3f}",
           ""]
+    if r.get("camber_sweep_on_parent"):
+        L += ["## Camber sweep on the default parent (NACA 4-digit, camber at 0.4 c; t/c 0.12)", "",
+              "| camber | CL | CD | L/D | reward |", "|---|---|---|---|---|"]
+        for c in r["camber_sweep_on_parent"]:
+            L.append(f"| {c['camber']:.2f} | {c['CL']:.3f} | {c['CD']:.5f} | {c['LD']:.1f} | {c['reward']:+.3f} |")
+        L += ["", "Camber is a strong reward lever at fixed alpha (it adds lift at the same angle); the trimmed mission "
+              "reward is the fair comparison. Measured sections back the section model to ~6% camber "
+              "(neuralfoil_polar_validation.md, `gym_section`).", ""]
     sf = r.get("structural_floor")
     if sf:
         of, ol = sf["optimal_tc_free"], sf["optimal_tc_with_floor"]

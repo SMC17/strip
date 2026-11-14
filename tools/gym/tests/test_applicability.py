@@ -27,15 +27,17 @@ def test_inside_envelope_all_advisories_pass():
     acc = accept_aero(_aero(3.0e5), wing=WingState(tc=0.12))
     assert acc.passed and acc.failed_advisories == []
     assert set(_adv(acc)) == {"applicability:Re_in_validated_band", "applicability:alpha_in_validated_range",
-                              "applicability:section_tc_in_measured_range"}
+                              "applicability:section_tc_in_measured_range",
+                              "applicability:section_camber_in_measured_range"}
 
 
 def test_outside_envelope_is_advisory_only():
     a = _aero(8.0e4)
-    acc = accept_aero(a, wing=WingState(tc=0.07))
+    acc = accept_aero(a, wing=WingState(tc=0.07, camber=0.065))
     assert acc.passed  # gate and reward unchanged
     assert "applicability:Re_in_validated_band" in acc.failed_advisories
-    assert "applicability:section_tc_in_measured_range" in acc.failed_advisories
+    assert "applicability:section_tc_in_measured_range" not in acc.failed_advisories  # 0.07 is inside measured t/c
+    assert "applicability:section_camber_in_measured_range" in acc.failed_advisories  # 6.5% > measured max
     assert not any(n.startswith("applicability:") for n in acc.failed_checks)
     d = acc.to_dict()
     assert d["passed"] is True and d["failed_advisories"]
@@ -47,7 +49,8 @@ def test_analytic_and_vlm_flagged_unvalidated():
 
 
 def test_evidence_records_applicability_claim():
-    w = WingState(tc=0.081)  # inside L0 band (>=0.08), below measured symmetric t/c (0.088)
+    # Small wing: Re_mac ~1.7e5, below the validated NeuralFoil band; t/c above its spar floor.
+    w = WingState(span_m=0.8, chord_root_m=0.12, tc=0.15)
     a = estimate_aero(w, prefer_neuralfoil=True)
     pack = build_evidence(wing=w, l0=evaluate_l0(w), aero=a, seed=0, step=1, episode_id="t", reward=0.0,
                           action=None, monitor_allowed=True, monitor_reasons=[])

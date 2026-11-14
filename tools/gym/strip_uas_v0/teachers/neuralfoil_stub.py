@@ -111,6 +111,27 @@ def _scaled_kulfan(t: float) -> tuple[tuple[str, Any], ...]:
     return tuple(out.items())
 
 
+def naca4_kulfan(tc: float, camber: float = 0.0, camber_pos: float = 0.4) -> dict[str, Any]:
+    """Kulfan parameters of a NACA 4-digit section (max camber ``camber`` at ``camber_pos``, thickness ``tc``).
+
+    camber == 0 returns ``naca00_kulfan(tc)`` exactly (so symmetric designs are unchanged). Cambered
+    sections are a least-squares CST fit of AeroSandbox's NACA 4-digit coordinates (open TE as in
+    the 0012 reference), cached on (tc, camber) rounded to 1e-4.
+    """
+    if camber <= 1e-6:
+        return naca00_kulfan(tc)
+    return dict(_fit_naca4(round(float(tc), 4), round(float(camber), 4), round(float(camber_pos), 3)))
+
+
+@lru_cache(maxsize=4096)
+def _fit_naca4(t: float, m: float, p: float) -> tuple[tuple[str, Any], ...]:
+    import aerosandbox as asb
+    from aerosandbox.geometry.airfoil.airfoil_families import get_NACA_coordinates
+
+    c = get_NACA_coordinates(max_camber=m, camber_loc=p, thickness=t, n_points_per_side=100)
+    return tuple(asb.Airfoil(coordinates=c).to_kulfan_airfoil().kulfan_parameters.items())
+
+
 def run(
     *,
     alpha_deg: float = 2.0,

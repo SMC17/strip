@@ -181,7 +181,7 @@ test "primary source manifest is typed, bounded, and complete" {
     defer std.testing.allocator.free(bytes);
     var parsed = try parse(std.testing.allocator, bytes);
     defer parsed.deinit();
-    try std.testing.expectEqual(@as(usize, 23), parsed.value.records.len);
+    try std.testing.expectEqual(@as(usize, 27), parsed.value.records.len);
 }
 
 test "dataset schema fixtures are accepted and rejected semantically" {

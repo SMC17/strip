@@ -10,8 +10,10 @@ Static margin ``SM = (x_np - x_cg) / MAC``. The CG is a **convention**:
   neutral point relative to a fixed payload/fuselage CG changes its margin.
 * ``cg_mode="frac_mac"``: CG at ``cg_frac_mac`` of the MAC from the MAC leading edge.
 
-Scope: **wing alone** — no tail, fuselage, propeller, or control-surface
-effects; planar flat-plate VLM (linear, inviscid). The static-margin band is a
+Scope: **wing alone** by default; pass ``airframe=airframe.Airframe(...)`` for
+the horizontal-tail and NACA TR 711 fuselage terms (``airframe.py``; modes
+``wing_only`` / ``wing_tail`` / ``wing_tail_fuselage``). No propeller or
+control-surface effects; planar flat-plate VLM (linear, inviscid). The static-margin band is a
 user convention, not a handling-qualities requirement; trim (Cm about the CG
 at the cruise CL) is reported but not gated, because a wing-alone trim needs
 reflex / washout that this model only partly captures. Not FAA / EASA, not
@@ -50,10 +52,12 @@ class CG:
         return {"mode": self.mode, "value": self.value}
 
 
-def cg_for_margin(w: WingState, sm_target: float = 0.10) -> CG:
+def cg_for_margin(w: WingState, sm_target: float = 0.10, *, airframe: Any = None) -> CG:
     """Fixed CG that gives ``w`` the target static margin (use on the parent, then hold it)."""
+    from .airframe import neutral_point
+
     v = vlm_solve(w)
-    return CG("fixed", v["x_np_m"] - sm_target * v["mac_m"])
+    return CG("fixed", neutral_point(w, airframe, v)["x_np_m"] - sm_target * v["mac_m"])
 
 
 def vspaero_neutral_point(w: WingState, *, d_alpha: float = 4.0) -> dict[str, Any] | None:
@@ -77,22 +81,32 @@ def vspaero_neutral_point(w: WingState, *, d_alpha: float = 4.0) -> dict[str, An
 
 
 def static_margin(w: WingState, cg: CG = CG(), *, cl_cruise: float | None = None,
-                  cross_check_vspaero: bool = False) -> dict[str, Any]:
+                  cross_check_vspaero: bool = False, airframe: Any = None) -> dict[str, Any]:
+    from .airframe import neutral_point
+
     v = vlm_solve(w)
     x_cg = cg.x_cg(v)
-    sm = (v["x_np_m"] - x_cg) / v["mac_m"]
+    npc = neutral_point(w, airframe, v)
+    sm = (npc["x_np_m"] - x_cg) / v["mac_m"]
+    wing_only = npc["mode"] == "wing_only"
     out: dict[str, Any] = {
-        "label": LABEL, "x_np_m": v["x_np_m"], "np_frac_mac": v["np_frac_mac"], "x_cg_m": x_cg,
-        "cg": cg.to_dict(), "static_margin": sm, "mac_m": v["mac_m"],
-        "CL_alpha_per_rad": v["CL_alpha_per_rad"], "backend": "vlm_planar_v0",
-        "notes": "Wing alone (no tail/fuselage); CG is a convention; not a handling-qualities requirement.",
+        "label": LABEL, "x_np_m": npc["x_np_m"], "np_frac_mac": (npc["x_np_m"] - v["x_le_mac_m"]) / v["mac_m"],
+        "x_cg_m": x_cg, "cg": cg.to_dict(), "static_margin": sm, "mac_m": v["mac_m"],
+        "CL_alpha_per_rad": npc["CL_alpha_per_rad"], "backend": "vlm_planar_v0",
+        "configuration": npc["mode"], "x_np_wing_m": v["x_np_m"],
+        "static_margin_wing_only": (v["x_np_m"] - x_cg) / v["mac_m"],
+        "notes": ("Wing alone (no tail/fuselage)" if wing_only else
+                  "Wing VLM + empirical tail / TR 711 fuselage terms (airframe.py)")
+                 + "; CG is a convention; not a handling-qualities requirement.",
     }
-    if cl_cruise is not None:
+    if not wing_only:
+        out["airframe_terms"] = {k: npc[k] for k in npc if k not in ("label",)}
+    if cl_cruise is not None and wing_only:
         # Cm about the CG at the cruise CL: CM_cg = CM0_ref + CL·(x_cg - x_ref)/MAC, from the VLM at α=0
         v0 = vlm_solve(w, 0.0, x_ref=x_cg)
         cm_cg = v0["CM"] + (cl_cruise - v0["CL"]) * (-sm)
         out["trim"] = {"CL": cl_cruise, "CM_cg": cm_cg, "gated": False}
-    if cross_check_vspaero:
+    if cross_check_vspaero and wing_only:
         vs = vspaero_neutral_point(w)
         out["vspaero"] = vs
         if vs is not None:
@@ -107,7 +121,13 @@ def accept_stability(stab: dict[str, Any], *, band: tuple[float, float] = SM_BAN
     ok = sm is not None and math.isfinite(float(sm))
     res.checks.append(Check("static_margin_finite", ok, sm))
     res.checks.append(Check("static_margin_in_band", ok and band[0] <= float(sm) <= band[1], sm,
-                            f"{band[0]}-{band[1]}", "convention band; wing alone; CG convention"))
+                            f"{band[0]}-{band[1]}",
+                            f"convention band; {stab.get('configuration', 'wing_only')}; CG convention"))
+    terms = stab.get("airframe_terms") or {}
+    if "in_range" in terms and terms.get("K_f") is not None:
+        res.checks.append(Check("tr711_kf_in_digitised_range", bool(terms["in_range"]),
+                                terms.get("wing_quarter_chord_pct_body"), "10-60 % body length",
+                                "NACA TR 711 fig. 8 range"))
     if stab.get("np_disagreement_frac_mac") is not None:
         d = float(stab["np_disagreement_frac_mac"])
         res.checks.append(Check("np_vlm_vs_vspaero_agree", d <= np_tol_mac, d, np_tol_mac,

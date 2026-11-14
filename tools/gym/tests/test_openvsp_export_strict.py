@@ -74,3 +74,10 @@ def test_template_returns_int_exit_code():
     assert "\nint main()" in t and "\nvoid main()" not in t
     assert "return 0;" in t
     assert '"Design", 10.0' not in t and '"XSec_1"' in t
+
+
+def test_rendered_script_not_left_next_to_output(tmp_path, monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":0")
+    m = _load()
+    m.openvsp_export(_req(tmp_path), _fake(tmp_path, out="strip_vsp_export_ok", rc=0))
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["fake_vsp", "o.stl"]

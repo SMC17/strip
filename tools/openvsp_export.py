@@ -14,6 +14,7 @@ import math
 import os
 import subprocess
 import sys
+import tempfile
 
 PROTOCOL = "strip.openvsp-export-protocol.v0"
 
@@ -115,26 +116,31 @@ def openvsp_export(request: dict, openvsp_cmd: str) -> dict:
     out_path = os.path.abspath(request.get("output_path", "/tmp/strip-openvsp-export.stl"))
     if os.path.isfile(out_path):
         os.remove(out_path)
+    # vspscript 3.42 segfaults (exit -11) instead of reporting a missing output dir.
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(script_dir, "openvsp_box_wing.vspscript")
     with open(template_path, encoding="ascii") as handle:
         script_body = handle.read()
     script_body = script_body.replace("__OUTPUT_PATH__", out_path.replace("\\", "/"))
-    script_path = out_path + ".vspscript"
-    with open(script_path, "w", encoding="ascii") as handle:
-        handle.write(script_body)
     env = os.environ.copy()
-    command = [openvsp_cmd, "-script", script_path]
-    if not env.get("DISPLAY") and os.path.isfile("/usr/bin/xvfb-run"):
-        command = ["xvfb-run", "-a", openvsp_cmd, "-script", script_path]
-    proc = subprocess.run(
-        command,
-        check=False,
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=180,
-    )
+    # The rendered script goes in a private temp dir, not next to the STL (which
+    # is often the repo root), so a run leaves only the requested output behind.
+    with tempfile.TemporaryDirectory(prefix="strip_vsp_") as tmp:
+        script_path = os.path.join(tmp, "box_wing.vspscript")
+        with open(script_path, "w", encoding="ascii") as handle:
+            handle.write(script_body)
+        command = [openvsp_cmd, "-script", script_path]
+        if not env.get("DISPLAY") and os.path.isfile("/usr/bin/xvfb-run"):
+            command = ["xvfb-run", "-a", openvsp_cmd, "-script", script_path]
+        proc = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=180,
+        )
     # P0.3: nonzero vsp exit is always a failure — never accept a stale/partial STL.
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()

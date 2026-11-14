@@ -28,17 +28,20 @@ datasets:
     name: UIUC LSAT vols 4-6 (wind turbine / flapped AG / Williamson low-Re sets)
     url: https://m-selig.ae.illinois.edu/uiuc_lsat.html
     licence: GNU GPL
-    quantities: [alpha, C_l, C_d, flap deflections]
-    used_for: future flapped-section and laminar-bubble envelope
-    status: catalogued
-    reason: per-file formats differ from vols 1-3; parser not written yet
+    citation: "Selig, M.S., McGranahan, B.D. (2004), Summary of Low-Speed Airfoil Data Vol 4; Williamson, G.A., McGranahan, B.D., Broughton, B.A., Deters, R.W., Brandt, J.B., Selig, M.S. (2012), Vol 5; Ananda, G.K., Selig, M.S. et al. (2014/2016), Vol 6. UIUC."
+    size: 1.2 MB (zips; sha256 in data/fetch/fetch_strip_data.py)
+    quantities: [alpha, C_l, C_d, C_m, flap deflections]
+    n_points: "1,600+ attached points, 88 clean flap-neutral polars, 17 airfoil models (16 sections)"
+    used_for: NeuralFoil + gym-section validation (joined with vols 1-3); nominal UIUC ADS coordinates since vols 4-6 ship none
+    status: fetch-script (GPL; not committed)
+    skipped: "S822, S834, SH3055, NACA 43012A, AG35-r (no ADS coordinates); all flapped runs; tripped runs"
   - id: uiuc_airfoil_coordinates
     name: UIUC Airfoil Coordinates Database (~1,600 airfoils)
     url: https://m-selig.ae.illinois.edu/ads/coord_database.html
-    licence: free use stated by UIUC APA (no formal licence file); not redistributed
+    licence: no licence stated on the page (UIUC; treated as GPL-like); not redistributed
     quantities: [coordinates]
-    used_for: airfoil action space / geometry library for NeuralFoil
-    status: catalogued
+    used_for: nominal coordinates for LSAT vols 4-6 (15 files, sha256-pinned); future airfoil action space
+    status: fetch-script (15 files)
   - id: uiuc_propeller_db
     name: UIUC Propeller Data Site vols 1-4 (Brandt, Deters, Dantsker, Selig)
     url: https://m-selig.ae.illinois.edu/props/propDB.html
@@ -92,3 +95,34 @@ datasets:
     licence: LGPL-2.1
     used_for: already used by the JSBSim teacher path (trim / flight model), not as measured data
     status: catalogued
+  # --- Finite-wing measured data for the VLM / VSPAERO path (search 2026-11-14) ---
+  - id: tud_mh32_wing_all_aoa
+    name: "TU Delft OJF wind tunnel data set with a wing at all angles of attack (modified MH32, flaps, 0/50/70% throttle)"
+    url: https://doi.org/10.4121/16620226
+    licence: CC0
+    citation: "Ma, Z., Smeur, E. (2022). Wind tunnel data set with a wing at all angles of attack. 4TU.ResearchData. doi:10.4121/16620226.v3"
+    size: 9.1 MB (zip, sha256 f67b17c17d9f418d704383e6ab23e01ad3f17bc1ebd2b166e591887ff14cfa78)
+    quantities: [raw 6-axis balance forces/moments, airspeed 6-12 m/s, turntable angle]
+    used_for: candidate VLM lift-slope check
+    status: catalogued
+    reason: >-
+      Raw balance data; the coefficients need the authors' MATLAB tare/calibration chain (calithro*.mat).
+      The model is one wing *with a winglet* and propeller mounts in an open jet. Only the chord (0.225 m)
+      and A = 1 x 0.225 m^2 are stated; there is no planform/winglet geometry in the dataset. A VLM
+      comparison would rest on guessed geometry, so it is not used (no fake physics).
+  - id: cambridge_cued_wing_lab_data
+    name: Cambridge Engineering student wind-tunnel data (rectangular wings AR 3-6, swept wings)
+    url: https://www-mdp.eng.cam.ac.uk/web/library/enginfo/aerothermal_dvd_only/aero/labs/index.html
+    licence: none stated
+    quantities: [raw balance forces vs alpha]
+    used_for: none
+    status: not-usable
+    reason: no licence; raw student data, "no guarantees", no tunnel corrections, geometry in lab sheets only
+  - id: naca_arc_finite_wing_reports
+    name: NACA TR / ARC CP finite-wing tests (e.g. Brebner, Wyatt & Ilott, ARC CP-916, rectangular wings of varying AR and section)
+    url: https://reports.aerade.cranfield.ac.uk/handle/1826.2/929
+    licence: Crown copyright / US Government work (scanned reports)
+    quantities: [C_L vs alpha, C_D vs C_L^2 per aspect ratio]
+    used_for: would be the right VLM lift-slope / induced-drag reference
+    status: catalogued
+    reason: scanned PDFs only; no machine-readable tables found; not hand-digitised (policy)

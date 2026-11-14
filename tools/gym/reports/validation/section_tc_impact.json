@@ -34,6 +34,23 @@
     "top_decile_LD_overlap": 0.6333333333333333
   },
   "schema": "strip_uas_v0.section_tc_impact.v1",
+  "structural_floor": {
+    "basis": "structure.spar_check (14 CFR 23.337/23.303 loads by convention, elliptic loading, Wood Handbook spruce caps, cap-geometry conventions, 5 kg)",
+    "mean_tc_top_decile_after_feasible_only": 0.12060825326043405,
+    "n_planforms": 100,
+    "optimal_tc_free": {
+      "median": 0.08,
+      "share_at_lower_bound": 0.51
+    },
+    "optimal_tc_with_floor": {
+      "median": 0.1,
+      "n_with_feasible_tc": 100,
+      "share_at_lower_bound": 0.37,
+      "share_floor_binding": 0.19,
+      "share_planforms_with_no_feasible_tc": 0.0
+    },
+    "share_random_designs_infeasible": 0.040000000000000036
+  },
   "tc_sweep_on_parent": [
     {
       "CD_after": 0.007025783302381862,

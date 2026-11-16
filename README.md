@@ -52,15 +52,10 @@ zig build
 ./zig-out/bin/strip-promote-replay-baseline
 ```
 
-CI installs `jsbsim==1.3.1` in a venv, sets `JSBSIM_CMD=tools/jsbsim_cmd.sh`, and runs verification-gates v3
-(atmosphere + F-16 fixed-wing + shared-model coefficients + OpenVSP export + campaign calibration
-+ flight tier ladder). Replay baselines are recorded on `ubuntu-24.04-arm` and `macos-latest`
-(native aarch64 and Rosetta x86_64-macos); `replay-baseline-collect` merges them and asserts
-`pending_count: 0` in `fixtures/validation/replay/rk4-cross-target.json`.
-
-The `openvsp-real-export` job installs OpenVSP 3.42.0 on `ubuntu-24.04`, runs under xvfb, and
-requires `export_backend: openvsp_cmd` with structural mesh conformance (not analytic digest pin).
-Local/dev without `OPENSP_CMD` still passes Gate 2c via `analytic_stl_exporter`.
+Verification gates v3 cover atmosphere, F-16 fixed-wing, shared-model coefficients, OpenVSP export,
+campaign calibration, and the flight tier ladder. Local runs without `OPENSP_CMD` pass Gate 2c
+via `analytic_stl_exporter`, and `replay-baseline-collect` merges cross-target replay baselines
+in `fixtures/validation/replay/rk4-cross-target.json`.
 
 ### Verification gates v3 — honest limits
 

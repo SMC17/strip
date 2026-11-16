@@ -1,5 +1,9 @@
 # Strip
 
+[![Verify](https://github.com/SMC17/strip/actions/workflows/verify.yml/badge.svg)](https://github.com/SMC17/strip/actions/workflows/verify.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Zig: 0.16](https://img.shields.io/badge/Zig-0.16-orange.svg)](https://ziglang.org/)
+
 **Trust and evidence OS** for computational aerospace engineering — in Zig.
 
 Strip starts with one invariant: a numerical result is incomplete unless it
@@ -26,7 +30,12 @@ See [docs/CATEGORY.md](docs/CATEGORY.md) for the category thesis and [ROADMAP-1.
 - CLI surfaces for atmosphere, UAS range, assurance, platform inventory,
 - validation coverage, coupled fidelity demo, verification gates, evidence compiler, and campaigns
 
+## Quickstart
+
 ```sh
+# Requires Zig 0.16.0
+git clone https://github.com/SMC17/strip.git
+cd strip
 zig build verify
 zig build
 ./zig-out/bin/strip atmosphere 1000 preliminary_design
@@ -120,3 +129,7 @@ evidence links without claiming that checklist completion equals approval.
 - [NTSB — Who We Are and What We Do](https://www.ntsb.gov/pages/default.aspx)
 
 Current proof and limitations are recorded in [VALIDATION.md](VALIDATION.md).
+
+## License
+
+[Apache-2.0](LICENSE).

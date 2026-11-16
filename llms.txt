@@ -1,0 +1,7 @@
+# strip (SMC17/strip)
+
+> Evidence-bearing aerospace computation and 6-DOF flight simulation substrate in Zig (WGS84, US76 atmosphere, fixed-wing/multirotor, FMI 3.0, MAVLink, HLA/DIS).
+
+- Repository: https://github.com/SMC17/strip
+- Companion Unified Substrate: https://github.com/SMC17/zinging
+- Profile: https://github.com/SMC17

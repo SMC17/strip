@@ -87,6 +87,22 @@ pub fn parseBackendTag(tag: []const u8) BackendKind {
     return .unavailable;
 }
 
+/// Classifies a backend that closed stdout before emitting a JSON response.
+/// `tools/jsbsim_cmd.sh` exits 127 without output when neither the `jsbsim`
+/// Python module nor an executable `STRIP_JSBSIM_SHIM` can serve the query,
+/// which means no backend is installed rather than a comparator failure.
+fn noResponseError(
+    io: std.Io,
+    child: *std.process.Child,
+    err: std.Io.Reader.DelimiterError,
+) (std.Io.Reader.DelimiterError || std.process.Child.WaitError || error{ BackendUnavailable, SubprocessFailed }) {
+    if (err != error.EndOfStream) return err;
+    return switch (try child.wait(io)) {
+        .exited => |code| if (code == 127) error.BackendUnavailable else error.SubprocessFailed,
+        else => error.SubprocessFailed,
+    };
+}
+
 pub fn resolveBackend(
     io: std.Io,
     _: std.mem.Allocator,
@@ -180,7 +196,8 @@ pub fn queryAtmosphereSubprocess(
     var stdout_reader = stdout.reader(io, &stdout_reader_buffer);
     var response_line: []const u8 = "";
     while (true) {
-        const line = try stdout_reader.interface.takeDelimiterInclusive('\n');
+        const line = stdout_reader.interface.takeDelimiterInclusive('\n') catch |err|
+            return noResponseError(io, &child, err);
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed.len > 0 and trimmed[0] == '{') {
             response_line = trimmed;
@@ -485,7 +502,8 @@ pub fn queryFixedWingIntegrateSubprocess(
     var stdout_reader = stdout.reader(io, &stdout_reader_buffer);
     var response_line: []const u8 = "";
     while (true) {
-        const line = try stdout_reader.interface.takeDelimiterInclusive('\n');
+        const line = stdout_reader.interface.takeDelimiterInclusive('\n') catch |err|
+            return noResponseError(io, &child, err);
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed.len > 0 and trimmed[0] == '{') {
             response_line = trimmed;
@@ -706,7 +724,8 @@ pub fn queryFixedWingCoefficientsSubprocess(
     var stdout_reader = stdout.reader(io, &stdout_reader_buffer);
     var response_line: []const u8 = "";
     while (true) {
-        const line = try stdout_reader.interface.takeDelimiterInclusive('\n');
+        const line = stdout_reader.interface.takeDelimiterInclusive('\n') catch |err|
+            return noResponseError(io, &child, err);
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed.len > 0 and trimmed[0] == '{') {
             response_line = trimmed;
@@ -825,6 +844,15 @@ test "published JSBSim comparator fixture parses and fails when perturbed" {
     try std.testing.expectEqual(@as(usize, 1), summary.failed);
 }
 
+/// Live JSBSim comparator tests need a backend that can answer queries; the
+/// default wrapper reports `error.BackendUnavailable` when none is installed.
+fn skipIfBackendUnavailable(err: anyerror) anyerror {
+    if (err != error.BackendUnavailable) return err;
+    std.log.warn("skipping: needs the jsbsim Python module (pip install jsbsim==1.3.1); " ++
+        "atmosphere and fixed-wing also accept STRIP_JSBSIM_SHIM=<path to strip-jsbsim-shim>", .{});
+    return error.SkipZigTest;
+}
+
 test "native weather atmosphere matches resolved JSBSim subprocess" {
     const shim_path = "zig-out/bin/strip-jsbsim-shim";
     const backend = try resolveBackend(
@@ -840,12 +868,12 @@ test "native weather atmosphere matches resolved JSBSim subprocess" {
     const altitude_m = 5000.0;
     const native_eval = @import("../atmosphere.zig").evaluate(try @import("../units.zig").GeopotentialAltitude.init(altitude_m));
     const native_state = native_eval.state.?;
-    const subprocess = try queryAtmosphereSubprocess(
+    const subprocess = queryAtmosphereSubprocess(
         std.testing.io,
         std.testing.allocator,
         backend,
         .{ .geopotential_altitude_m = altitude_m },
-    );
+    ) catch |err| return skipIfBackendUnavailable(err);
     const evaluation = try evaluateAtmosphereGate(
         .{
             .geopotential_altitude_m = altitude_m,
@@ -882,13 +910,13 @@ test "shared linear coefficients match JSBSim subprocess when backend available"
     var comparator = try parseCoefficientComparator(std.testing.allocator, bytes);
     defer comparator.deinit();
     const native_model = @import("../fixed_wing/synthetic_fixture.zig").syntheticLinearModel();
-    const evaluation = try evaluateCoefficientGate(
+    const evaluation = evaluateCoefficientGate(
         std.testing.io,
         std.testing.allocator,
         backend,
         comparator.value,
         native_model,
-    );
+    ) catch |err| return skipIfBackendUnavailable(err);
     try std.testing.expect(evaluation.passed);
 }
 
@@ -904,12 +932,12 @@ test "JSBSim fixed-wing integrate matches pinned fixture when backend available"
     );
     if (backend.kind == .unavailable) return error.SkipZigTest;
 
-    const subprocess = try queryFixedWingIntegrateSubprocess(
+    const subprocess = queryFixedWingIntegrateSubprocess(
         std.testing.io,
         std.testing.allocator,
         backend,
         .{},
-    );
+    ) catch |err| return skipIfBackendUnavailable(err);
     const bytes = try std.Io.Dir.cwd().readFileAlloc(
         std.testing.io,
         "fixtures/validation/jsbsim/fixed-wing-integrate-comparator.json",

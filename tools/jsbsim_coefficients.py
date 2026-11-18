@@ -28,7 +28,12 @@ def query_coefficients(
 
     buffer = io.StringIO()
     with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
-        fdm = jsbsim.FGFDMExec(None)
+        # Pass the package directory explicitly (as jsbsim_atmosphere.py and
+        # jsbsim_fixed_wing.py do). FGFDMExec(None) calls
+        # jsbsim.get_default_root_dir(), which only searches
+        # site.getsitepackages() and USER_SITE, so it raises OSError when the
+        # wheel is importable via a .pth overlay (e.g. `uv run --with jsbsim`).
+        fdm = jsbsim.FGFDMExec(os.path.dirname(jsbsim.__file__))
         fdm.set_aircraft_path(aircraft_path())
         if not fdm.load_model(model):
             raise RuntimeError(f"failed to load model {model}")

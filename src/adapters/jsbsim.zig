@@ -802,7 +802,11 @@ pub fn evaluateCoefficientGate(
     native_model: @import("../fixed_wing/coefficients.zig").Model,
 ) !struct { summary: validation.Summary, acceptance: types.Acceptance, passed: bool } {
     const acceptance = acceptanceForBackend(backend.kind);
-    const metrics = metricsForBackend(backend.kind);
+    // Coefficient samples are named cx..cn. metricsForBackend() returns the
+    // atmosphere metric set for cross-implementation backends, which matches
+    // none of them and silently fell back to crossImplementationAcceptance()
+    // (absolute 50.0) for dimensionless coefficients of order 0.1.
+    const metrics = coefficientMetrics();
     var aggregate = validation.Summary{};
     for (comparator.probes, 0..) |probe, index| {
         const subprocess = try queryFixedWingCoefficientsSubprocess(io, gpa, backend, probe, comparator.model);
@@ -810,7 +814,7 @@ pub fn evaluateCoefficientGate(
         const summary = try compareNativeVsSubprocess(
             native,
             subprocess,
-            if (metrics.metrics.len > 0) metrics else coefficientMetrics(),
+            metrics,
             acceptance,
             index,
         );
@@ -823,6 +827,38 @@ pub fn evaluateCoefficientGate(
         .acceptance = acceptance,
         .passed = aggregate.allPassed(),
     };
+}
+
+test "coefficient gate rejects a 1e-3 cx error from the real JSBSim backend" {
+    const native: @import("../fixed_wing/coefficients.zig").Six = .{
+        .cx = -0.04,
+        .cy = 0.0,
+        .cz = -0.15,
+        .cl = 0.0,
+        .cm = -0.0188,
+        .cn = 0.0,
+    };
+    const observed: CoefficientResult = .{
+        .model = "linear-aero",
+        .alpha_rad = 0.0,
+        .beta_rad = 0.0,
+        .mach = 0.09,
+        .cx = native.cx + 1e-3,
+        .cy = native.cy,
+        .cz = native.cz,
+        .cl = native.cl,
+        .cm = native.cm,
+        .cn = native.cn,
+        .backend = .jsbsim_python,
+    };
+    const summary = try compareNativeVsSubprocess(
+        native,
+        observed,
+        coefficientMetrics(),
+        acceptanceForBackend(.jsbsim_python),
+        0,
+    );
+    try std.testing.expectEqual(@as(usize, 1), summary.failed);
 }
 
 test "published JSBSim comparator fixture parses and fails when perturbed" {

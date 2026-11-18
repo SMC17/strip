@@ -58,6 +58,24 @@
       ]
     },
     {
+      "id": "constant-acceleration-aarch64-macos-Debug",
+      "target": {
+        "arch": "aarch64",
+        "os": "macos",
+        "optimize": "Debug"
+      },
+      "status": "pinned",
+      "fingerprint_hex": "a21e3ef8f68b3cbfc67c5f2aeba2dd6deb9d468316b1e61e4962c60e08fa8722",
+      "fields": [
+        1.25,
+        0.0,
+        0.0,
+        3.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
       "id": "constant-acceleration-aarch64-macos-ReleaseSafe",
       "target": {
         "arch": "aarch64",

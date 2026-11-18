@@ -1,5 +1,7 @@
 # Strip
 
+**[Status](STATUS.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Issues](https://github.com/SMC17/strip/issues) · [Public roadmap](https://github.com/users/SMC17/projects/16)**
+
 [![Verify](https://github.com/SMC17/strip/actions/workflows/verify.yml/badge.svg)](https://github.com/SMC17/strip/actions/workflows/verify.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Zig: 0.16](https://img.shields.io/badge/Zig-0.16-orange.svg)](https://ziglang.org/)
